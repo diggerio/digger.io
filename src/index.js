@@ -30,6 +30,7 @@ module.exports = {
     modules
     
   */
-	container:require('./container/factory'),
-	new:require('./container/factory')
+	container:require('./container/proto'),
+	factory:require('./container/proto').factory,
+  create:require('./container/proto').factory
 }

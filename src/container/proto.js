@@ -18,8 +18,10 @@
 
 var _ = require('lodash');
 var EventEmitter = require('events').EventEmitter;
+var deepdot = require('./deepdot');
 var async = require('async');
-var utils = require('./utils');
+var utils = require('../utils');
+var ModelFactory = require('./models');
 
 /*
 
@@ -29,12 +31,332 @@ var utils = require('./utils');
 
 */
 
-var Container = module.exports = function ContainerProto(){}
+var Container = module.exports = function Container(){}
+
+/*
+
+	Factory
+	
+*/
+Container.factory = function factory(){
+	/*
+  
+    first let's extract the model data
+    
+  */
+  var models = ModelFactory.apply(null, _.toArray(arguments));
+
+  /*
+  
+    now make the actual container which is a function that triggers it's own 'select' method
+    (for JQuery style selects like):
+
+      container('some.selector')
+
+    which is the same as
+
+      container.select('some.selector')
+    
+  */
+  var instance = function container(){
+    instance.select.apply(instance, _.toArray(arguments));
+  }
+
+  /*
+  
+    now map in the prototype
+    
+  */
+  _.extend(instance, Container.prototype);
+
+  instance.build(models);
+  
+  return instance;
+}
 
 Container.prototype.build = function(models){
+	var self = this;
 	this.models = models;
 }
 
 
+/*
+
+	Data
+	
+*/
+
+Container.prototype.toJSON = function(){
+	return this.models;
+}
+
+Container.prototype.toXML = function(){
+	return ModelFactory.toXML(this.models);
+}
+
+/*
+
+	Spawning
+	
+*/
+
+Container.prototype.spawn = function(models){
+	var container = Container.factory(models);
+	container.supplychain = this.supplychain;
+	return container;
+}
+
+Container.prototype.children = function(models){
+	return this.spawn(this.eq(0).digger().children);
+}
+
+/*
+
+	Models
+	
+*/
+
+Container.prototype.containers = function(){
+	var self = this;
+	return _.map(this.models, function(model){
+		return self.spawn([model]);
+	})
+}
+
+Container.prototype.each = function(fn){
+	_.each(this.containers(), fn);
+	return this;
+}
+
+Container.prototype.map = function(fn){
+	return _.map(this.containers(), fn);
+}
+
+Container.prototype.count = function(){
+	return this.models.length;
+}
+
+Container.prototype.first = function(){
+	return this.eq(0);
+}
+
+Container.prototype.last = function(){
+	return this.eq(this.count()-1);
+}
+
+Container.prototype.eq = function(index){
+	return this.spawn(this.get(index));
+}
+
+Container.prototype.get = function(index){
+	return this.models[index];
+}
+
+/*
 
 
+
+
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  Properties Accessors
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+
+
+ */
+
+/*
+
+  generic wrapper function to handle our array of models via a single function
+
+  
+*/
+
+function valuereader(model, name){
+  return deepdot(model, name);
+}
+function valuesetter(models, name, value, silent){
+  _.each(models, function(model){
+    deepdot(model, name, value);
+  })
+}
+
+function wrapper(key, options){
+
+  options = options || {};
+
+  if(_.isString(options)){
+    options = {
+      leaf:options
+    }
+  }
+
+  var leaf = options.leaf;
+  var fullkey = leaf ? (key ? key + '.' : '') + leaf : (key || '');
+
+  fullkey = fullkey.replace(/^\./, '');
+
+  return function(){
+    var self = this;
+
+    /*
+    
+      READ
+      -----
+      wholesale getter of the object
+      
+    */
+    if(arguments.length<=0){
+      return valuereader(this.models[0], fullkey);
+    }
+    /*
+    
+      READ
+      -----
+      we are reading a first model value
+
+    */
+    else if(arguments.length==1 && _.isString(arguments[0]) && !leaf){
+      return valuereader(this.models[0], [key, arguments[0]].join('.'));
+    }
+    /*
+    
+      WRITE
+      -----
+      we are setting an object
+      
+    */
+    else if(arguments.length==1){
+      var name = fullkey;
+      valuesetter(this.models, fullkey, arguments[0], this._silent);
+      return self;
+    }
+    /*
+    
+      WRITE
+      -----
+      we are setting a string value
+      
+    */
+    else if(arguments.length>1){
+      valuesetter(this.models, [fullkey, arguments[0]].join('.'), arguments[1], this._silent);
+      return self;
+    }
+  }
+  
+}
+
+function remove_wrapper(topprop){
+  return function(prop){
+    var self = this;
+    if(arguments.length<=0){
+      return this;
+    }
+    if(!_.isArray(prop)){
+      prop = [prop];
+    }
+    _.each(prop, function(p){
+      self[topprop](p, null);
+    })
+    return this;
+  }
+}
+var attrwrapper = wrapper('attr');
+
+
+Container.prototype.attr = wrapper();
+Container.prototype.removeAttr = remove_wrapper();
+
+Container.prototype.digger = wrapper('__digger__');
+
+Container.prototype.meta = wrapper('__digger__.meta');
+Container.prototype.removeMeta = remove_wrapper('__digger__.meta');
+
+Container.prototype.data = wrapper('__digger__.data');
+Container.prototype.removeData = remove_wrapper('__digger__.data');
+
+Container.prototype.diggerid = wrapper('__digger__.meta', 'diggerid');
+Container.prototype.id = wrapper('__digger__.meta', 'id');
+Container.prototype.tag = wrapper('__digger__.meta', 'tag');
+Container.prototype.classnames = wrapper('__digger__.meta', 'class');
+
+Container.prototype.addClass = function(classname){
+  var self = this;
+  _.each(this.models, function(model){
+		model.__digger__.meta.class.push(classname);
+		model.__digger__.meta.class = _.uniq(model.__digger__.meta.class);
+  })
+  return this;
+}
+
+Container.prototype.removeClass = function(classname){
+  var self = this;
+  _.each(this.models, function(model){
+    model.__digger__.meta.class = _.without(model.__digger__.meta.class, classname);
+  })
+  return this;
+}
+
+Container.prototype.hasClass = function(classname){
+   return _.contains((this.classnames() || []), classname);
+}
+
+Container.prototype.hasAttr = function(name){
+  return !_.isEmpty(this.attr(name));
+}
+
+/*
+
+
+
+
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  MODIFY ACTIONS
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+
+
+ */
+
+Container.prototype.append = function(childarray){
+	if(!_.isArray(childarray)){
+		childarray = [childarray];
+	}
+	var appendmodels = [];
+	_.each(childarray, function(child){
+		appendmodels = appendmodels.concat(child.models);
+	})
+	var appendto = this.get(0);
+	appendto.__digger__.children = appendto.__digger__.children.concat(appendmodels);
+	return this;
+}

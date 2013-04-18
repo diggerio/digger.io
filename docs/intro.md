@@ -68,7 +68,7 @@ Well, we might learn a thing or two from the shipping companies!
 ##Data Containers
 We need a way of moving data from lots of different places around in standard containers.
 
-We also need a way of writing contracts in a languages that the maximum number of people can understand.
+We also need a way of writing contracts in a language that the maximum number of people can understand.
 
 ##Enter JQuery
 JQuery is used on more than 50% of ALL pages on the Internet [source](http://w3techs.com/blog/entry/jquery_now_runs_on_every_second_website)

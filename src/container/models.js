@@ -18,6 +18,7 @@
 
 var _ = require('lodash');
 var XML = require('./xml');
+var utils = require('../utils');
 
 /*
 
@@ -39,21 +40,23 @@ function extractdata(data, attr){
 
   if(_.isString(data)){
     // we assume XML
-    if(data.match(/^\s*\</)){
+    if(data.charAt(0)=='<'){
       data = XML.parse(data);
     }
     // or JSON string
-    else if(data.match(/^\s*[\[\{]/)){
+    else if(data.charAt(0)=='['){
       data = JSON.parse(data);
     }
     // we could do YAML here
     else{
-      data = [{
+      attr = attr || {};
+      attr.__digger__ = attr.__digger__ || {
         meta:{
           tag:data
         },
-        attr:attr || {}
-      }]
+        children:[]
+      }
+      data = [attr];
     }
   }
   else if(!_.isArray(data)){
@@ -74,20 +77,26 @@ function extractdata(data, attr){
 module.exports = function modelfactory(data, attr){
   var models = extractdata(data, attr);
 
+  function nonulls(model){
+    return model!==null;
+  }
   /*
   
     prepare the data
     
   */
-  models = _.map(data || [], function(model){
+  models = _.filter(_.map(models || [], function(model){
 
-    model._meta = model._meta || {};
-    model._meta.class = model._meta.class || [];
-    model._children = model._children || [];
-    model.meta.diggerid = model._meta.diggerid || utils.diggerid();
+    var digger = model.__digger__ = model.__digger__ || {};
+    digger.meta = digger.meta || {};
+    digger.meta.class = digger.meta.class || [];
+    digger.meta.diggerid = digger.meta.diggerid || utils.diggerid();
+    digger.children = digger.children || [];
 
     return model;
-  })
+  }), nonulls)
 
   return models;
 }
+
+module.exports.toXML = XML.stringify;

@@ -26,7 +26,7 @@ var utils = module.exports = {};
  */
 
 utils.diggerid = function(){
-  return uuid.v1();
+  return uuid.v1().replace(/-/g, '');
 }
 
 utils.littleid = function(){
@@ -93,7 +93,7 @@ utils.makeroute = function(parts, delimeter){
 
   if(delimeter){
     route = route.replace(/\//g, delimeter);
-    if(route.indexOf(delimeter)==0){
+    if(route.indexOf(delimeter)===0){
       route = route.substr(1);
     }
   }
@@ -139,13 +139,13 @@ function extend(){
         return jQuery.type(obj) === "array"
       },
       isWindow: function (obj) {
-        return obj != null && obj == obj.window
+        return obj !== null && obj == obj.window
       },
       isNumeric: function (obj) {
         return !isNaN(parseFloat(obj)) && isFinite(obj)
       },
       type: function (obj) {
-        return obj == null ? String(obj) : class2type[toString.call(obj)] || "object"
+        return obj === null ? String(obj) : class2type[toString.call(obj)] || "object"
       },
       isPlainObject: function (obj) {
         if (!obj || jQuery.type(obj) !== "object" || obj.nodeType) {
@@ -176,7 +176,7 @@ function extend(){
     --i;
   }
   for (i; i < length; i++) {
-    if ((options = arguments[i]) != null) {
+    if ((options = arguments[i]) !== null) {
       for (name in options) {
         src = target[name];
         copy = options[name];

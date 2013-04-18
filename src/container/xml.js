@@ -18,10 +18,12 @@
 
 var _ = require('lodash');
 
+var window = this;
+
 module.exports.parse = fromXML;
 module.exports.stringify = toXML;
 
-var is_node = process && process.env && process.env.NODEENV;
+var is_node = !window.document;
 
 /*
   digger.io - XML Format
@@ -44,7 +46,7 @@ function data_factory(element){
 
   var metafields = {
     id:true,
-    quarryid:true
+    diggerid:true
   }
   
   var manualfields = {
@@ -53,15 +55,19 @@ function data_factory(element){
   }
 
   var data = {
-    _meta:{
-      tag:element.nodeName,
-      class:(element.getAttribute('class') || '').split(/\s+/)
-    },
-    _children:[]
+    __digger__:{
+      meta:{
+        tag:element.nodeName,
+        class:_.filter((element.getAttribute('class') || '').split(/\s+/), function(classname){
+          return classname.match(/\w/);
+        })
+      },
+      children:[]
+    }
   }
   
   _.each(metafields, function(v, metafield){
-    data._meta[metafield] = element.getAttribute(metafield) || '';
+    data.__digger__.meta[metafield] = element.getAttribute(metafield) || '';
   })
 
   _.each(element.attributes, function(attr){
@@ -70,13 +76,13 @@ function data_factory(element){
     }
   })
 
-  data._children = _.filter(_.map(element.childNodes, data_factory), null_filter);
+  data.__digger__.children = _.filter(_.map(element.childNodes, data_factory), null_filter);
 
   return data;
 }
 
 function BrowserXMLParser(st){
-  if (window && typeof window.DOMParser != "undefined") {
+  if (typeof window.DOMParser != "undefined") {
     return (function(xmlStr) {
       var xmlDoc = ( new window.DOMParser() ).parseFromString(xmlStr, "text/xml");
       return _.map(xmlDoc.childNodes, data_factory);
@@ -103,21 +109,11 @@ function ServerXMLParser(st){
     server side XML parsing
     
   */
-  var results = null;
-  var evalst = [
-    "var xml = require('xmldom');",
-    "var DOMParser = xml.DOMParser;",
-    "var doc = new DOMParser().parseFromString(st);",
-    "results = _.map(doc.childNodes, data_factory);",
-  ].join("\n");
+  var xml = require('xmldom');
+  var DOMParser = xml.DOMParser;
+  var doc = new DOMParser().parseFromString(st);
+  var results = _.map(doc.childNodes, data_factory);
   
-  try{
-    eval(evalst);
-  }
-  catch(e){
-    throw new Error(e);
-  }
-
   return results;
 }
 
@@ -130,7 +126,8 @@ function fromXML(string){
 
 function string_factory(data, depth){
 
-  var meta = data._meta || {};
+  var meta = data.__digger__.meta || {};
+  var children = data.__digger__.children || [];
   var attr = data;
 
   function get_indent_string(){
@@ -144,13 +141,15 @@ function string_factory(data, depth){
 
   var pairs = {
     id:meta.id,
-    quarryid:meta.quarryid,
     class:_.isArray(meta.class) ? meta.class.join(' ') : ''
   }
 
   var pair_strings = [];
 
   _.each(attr, function(val, key){
+    if(key=='__digger__'){
+      return;
+    }
     pairs[key] = _.isString(val) ? val : '' + val;
   })
 
@@ -160,10 +159,10 @@ function string_factory(data, depth){
     }
   })
 
-  if(data.children && data.children.length>0){
+  if(children && children.length>0){
     var ret = get_indent_string() + '<' + meta.tag + ' ' + pair_strings.join(' ') + '>' + "\n";
 
-    _.each(data.children, function(child){      
+    _.each(children, function(child){      
       ret += string_factory(child, depth+1);
     })
 

@@ -8,6 +8,11 @@ module.exports = function(grunt) {
 
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
+    exec: {
+      coverage: {
+        command: 'node_modules/.bin/mocha -R html-cov > coverage.html'
+      }
+    },
     concat: {
       options: {
         // define a string to put between each file in the concatenated output
@@ -32,11 +37,13 @@ module.exports = function(grunt) {
       }
     },
     mochaTest: {
-      files: ['test/**/*.test.js']
+      files: ['test/**/container.test.js']
     },
     mochaTestConfig: {
       options: {
-        reporter: 'nyan'        
+        reporter: 'spec',
+        timeout: 500,
+        require: 'test/common'
       }
     },
     jshint: {
@@ -46,6 +53,7 @@ module.exports = function(grunt) {
       options: {
         asi:true,
         boss:true,
+        proto:true,
           // more options here if you want to override JSHint defaults
         globals: {
           jQuery: true,
@@ -61,6 +69,7 @@ module.exports = function(grunt) {
   });
 
 
+  grunt.registerTask('coverage', 'exec:coverage');
 
   // this would be run by typing "grunt test" on the command line
   grunt.registerTask('test', ['jshint', 'mochaTest']);

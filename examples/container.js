@@ -1,24 +1,34 @@
 var digger = require('../src');
 var data = require('../test/fixtures/data');
+var Query = require('../src/supplier/query');
 
-var parent = digger.create('product', {
-      price:100,
-      address:{
-        postcode:'apples'
+    var supplier = digger.supplier();
+
+    var query = Query({
+      tag:'product',
+      class:['onsale'],
+      attr:[{
+        field:'price',
+        operator:'<',
+        value:100
+      }]
+    }, [{
+      __digger__:{
+        meta:{
+          diggerid:123,
+          left:34,
+          right:78
+        }
       }
-    })
+    },{
+      __digger__:{
+        meta:{
+          diggerid:456,
+          left:89,
+          right:123
+        }
+      }
+    }])
 
-    var child1 = digger.create('caption', {
-      test:'hello1'
-    }).addClass('apples')
-
-    var child2 = digger.create('caption', {
-      test:'hello2'
-    }).addClass('oranges')
-
-    parent.append([child1, child2]);
-
-
-
-    console.log('-------------------------------------------');
-console.log(JSON.stringify(parent.toJSON(), null, 4));
+    console.dir(query);
+    

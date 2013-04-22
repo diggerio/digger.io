@@ -3,6 +3,12 @@ var data = require('./fixtures/data');
 
 describe('warehouse', function(){
 
+  it('should be a function', function(done) {
+    var warehouse = digger.warehouse();
+    warehouse.should.be.a('function');
+    done();
+  })
+
   it('should complete a request response cycle', function(done) {
 
     var warehouse = digger.warehouse();
@@ -27,6 +33,34 @@ describe('warehouse', function(){
 
   })
 
+  it('should wait for a prepare function', function(done) {
+
+    var warehouse = digger.warehouse();
+
+    var counter = 0;
+    warehouse.prepare(function(ready){
+      counter = 2;
+      ready();
+    })
+
+    warehouse.use(function(req, res){
+      counter.should.equal(2);
+      res.send(10);
+    })
+
+    var req = digger.request({
+      method:'get'
+    })
+
+    var res = digger.response(function(data){
+      data.should.equal(10);
+      done();
+    })
+
+    warehouse(req, res);
+
+  })
+
   it('should route based on method', function(done){
     var warehouse = digger.warehouse();
 
@@ -35,7 +69,7 @@ describe('warehouse', function(){
     })
 
     warehouse.post(function(req, res){
-      req.send(req.body);
+      res.send(req.body);
     })
 
     var req = digger.request({
@@ -48,28 +82,28 @@ describe('warehouse', function(){
       done();
     })
 
-    warehouse(req, res);
+    warehouse(req, res, function(){
+      
+    });
   })
 
-  it('should route based on protocol', function(done){
+  it('should route based on method and path containing variable ids', function(done){
     var warehouse = digger.warehouse();
 
-    warehouse.http('/a/path', function(req, res){
-      res.send('should not happen');
-    })
-
-    warehouse.zmq('/another/path', function(req, res){
-      res.send(10);
+    warehouse.get('/another/path/:id/:method', function(req, res){
+      req.params.id.should.equal('123');
+      req.params.method.should.equal('dig');
+      res.send(req.body + 15);
     })
 
     var req = digger.request({
       method:'get',
-      url:'zmq://warehouse.digger',
+      url:'zmq://warehouse.digger/another/path/123/dig',
       body:10
     })
 
     var res = digger.response(function(data){
-      data.should.equal(10);
+      data.should.equal(25);
       done();
     })
 
@@ -101,37 +135,13 @@ describe('warehouse', function(){
     warehouse(req, res);
   })
 
-  it('should route based on globs and regexps', function(done){
-    var warehouse = digger.warehouse();
-
-    warehouse.use('/a/path', function(req, res){
-      res.send('should not happen');
-    })
-
-    warehouse.axon('/another/path/:id', function(req, res){
-      res.send(req.params.id);
-    })
-
-    var req = digger.request({
-      method:'get',
-      url:'axon://warehouse.digger/another/path/123'
-    })
-
-    var res = digger.response(function(data){
-      data.should.equal('123');
-      done();
-    })
-
-    warehouse(req, res);
-  })
-
   it('should chunk off the path as layers are matched', function(done){
     var warehouse = digger.warehouse();
     var subwarehouse = digger.warehouse();
 
     subwarehouse.use(function(req, res){
-      req.getHeader('x-original-path').should.equal('/a/toppath/123');
-      res.send(req.path);
+      req.getHeader('x-digger-path').should.equal('/a/toppath/123');
+      res.send(req.pathname);
     })
 
     warehouse.use('/a/toppath', subwarehouse);
@@ -142,7 +152,7 @@ describe('warehouse', function(){
     })
 
     var res = digger.response(function(data){
-      data.should.equal('123');
+      data.should.equal('/123');
       done();
     })
 
@@ -160,11 +170,6 @@ describe('warehouse', function(){
 
     warehouse.on('request', function(req){
       hitreq = true;
-    })
-
-    warehouse.on('response', function(req){
-      hitreq.should.equal(true);
-      res.query.test.should.equal(10);
       done();
     })
 
@@ -174,7 +179,30 @@ describe('warehouse', function(){
     })
 
     var res = digger.response(function(data){
-      
+      hitreq.should.equal(true);
+    })
+
+    warehouse(req, res);
+  })
+
+
+  it('should respond with a 404 if the route is not found', function(done){
+    var warehouse = digger.warehouse();
+
+    warehouse.use('/somewhere/123', function(req, res){
+      res.send('ok');
+    })
+
+    var req = digger.request({
+      method:'get',
+      url:'axon://warehouse.digger/somewhere/124'
+    })
+
+    var res = digger.response(function(data){
+      throw new Error('should not happen');
+    }, function(){
+      res.statusCode.should.equal(404);
+      done();
     })
 
     warehouse(req, res);

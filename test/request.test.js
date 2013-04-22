@@ -22,9 +22,9 @@ describe('request', function(){
 
     var req = digger.request({
       method:'post',
-      url:'digger://warehouse/hello',
+      url:'telegraft:/warehouse/hello',
       headers:{
-        'x-digger-hello':'hello'
+        'x-telegraft-hello':'hello'
       },
       query:{
         id:234
@@ -33,8 +33,8 @@ describe('request', function(){
     })
 
     req.method.should.equal('post');
-    req.getHeader('x-digger-hello').should.equal('hello');
-    req.query.id.should.equal('hello');
+    req.getHeader('x-telegraft-hello').should.equal('hello');
+    req.query.id.should.equal(234);
     req.body.should.be.a('array');
     req.body[1].should.equal(2);
 
@@ -47,9 +47,9 @@ describe('request', function(){
       url:'digger://warehouse/hello?order=boo'
     })
 
-    req.protocol.should.equal('digger');
-    req.location.should.equal('warehouse');
-    req.path.should.equal('/hello');
+    req.protocol.should.equal('digger:');
+    req.hostname.should.equal('warehouse');
+    req.pathname.should.equal('/hello');
     req.query.order.should.equal('boo');
     
   })

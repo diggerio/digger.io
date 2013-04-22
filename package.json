@@ -26,7 +26,10 @@
     "jade": "*",
     "getsetdeep": "~2.1.0",
     "xtend": "~2.0.3",
-    "xmldom": "~0.1.15"
+    "xmldom": "~0.1.15",
+    "css-selector-parser": "~1.0.3",
+    "q": "~0.9.3",
+    "dispatch": "~0.2.0"
   },
   "devDependencies": {
     "grunt": "~0.4.1",

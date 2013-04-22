@@ -23,18 +23,4 @@
 	
 */
 
-module.exports = {
-
-  /*
-  
-    modules
-    
-  */
-	container:require('./container'),
-  create:require('./container'),
-  warehouse:require('./warehouse'),
-  supplier:require('./supplier'),
-  selector:require('./container/selector'),
-  request:require('./network/request').factory,
-  response:require('./network/response').factory
-}
+module.exports = require('./warehouse/proto').factory;

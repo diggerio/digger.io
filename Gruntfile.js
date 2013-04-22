@@ -37,7 +37,7 @@ module.exports = function(grunt) {
       }
     },
     mochaTest: {
-      files: ['test/**/container.test.js']
+      files: ['test/**/warehouse.test.js']
     },
     mochaTestConfig: {
       options: {

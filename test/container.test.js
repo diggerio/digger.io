@@ -225,7 +225,7 @@ describe('container', function(){
 
     parent.children().count().should.equal(2);
     parent.first().tag().should.equal('product');
-    parent.find('.apples').tagname().should.equal('caption');
+    parent.find('.apples').tag().should.equal('caption');
     parent.find('.oranges').attr('test').should.equal('hello2');
   })
 
@@ -233,8 +233,8 @@ describe('container', function(){
 
     var test = digger.create(data.citiesxml);
 
-    test.find('city.south').length.should.equal(3);
-    test.find('country[name^=U] > city.south area.poor').length.should.equal(3);
+    test.find('city.south').count().should.equal(3);
+    test.find('country[name^=U] > city.south area.poor').count().should.equal(3);
 
   })
   

@@ -198,9 +198,13 @@ describe('warehouse', function(){
       url:'axon://warehouse.digger/somewhere/124'
     })
 
-    var res = digger.response(function(data){
+    var res = digger.response();
+
+    res.on('success', function(){
       throw new Error('should not happen');
-    }, function(){
+    })
+
+    res.on('failure', function(){
       res.statusCode.should.equal(404);
       done();
     })

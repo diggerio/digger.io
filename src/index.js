@@ -35,6 +35,11 @@ module.exports = {
   warehouse:require('./warehouse'),
   supplier:require('./supplier'),
   selector:require('./container/selector'),
+  promise:require('./network/promise'),
   request:require('./network/request').factory,
-  response:require('./network/response').factory
+  response:require('./network/response').factory,
+  contract:require('./network/contract').factory,
+  middleware:{
+    contractresolver:require('./middleware/contractresolver')
+  }
 }

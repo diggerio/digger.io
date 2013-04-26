@@ -34,7 +34,7 @@ function Response(data){
   this.statusCode = data ? data.statusCode : 200;
 }
 
-Response.factory = function(data, errorhandler){
+Response.factory = function(data, errorfn){
 
   /*
   
@@ -52,25 +52,67 @@ Response.factory = function(data, errorhandler){
   var ret = new Response(data);
 
   ret.on('send', function(){
-    
+    if(fn){
+      fn(ret.body);
+    }
+
+    if(!ret.statusCode){
+      ret.statusCode = 200;
+    }
+
+    var results = [];
+    var errors = [];
+
+    function resolvemutlipart(multires){
+      if(multires.statusCode==200){
+        if(multires.getHeader('content-type')=='digger/multipart'){
+          var responses = _.map(multires.body, function(raw){
+            if(!raw.statusCode){
+              raw.statusCode = 200;
+            }
+            return new Response(raw);
+          })
+          _.each(responses, function(childmultires){
+            resolvemutlipart(childmultires);
+          })
+        } 
+        else{
+          if(_.isArray(multires.body)){
+            results = results.concat(multires.body);
+          }
+          else{
+            results.push(multires.body);
+          }
+        }
+      }
+      else{
+        errors.push(multires.body);
+      }
+    }
 
     if(ret.statusCode===200){
-      ret.emit('success', ret.body);
+      if(ret.getHeader('content-type')=='digger/multipart'){
+        resolvemutlipart(ret);
+        if(results.length>0){
+          ret.emit('success', results, ret);
+        }
 
+        if(errors.length>0){
+          ret.emit('failure', errors, ret);    
+        }
+      }
+      else{
+        ret.emit('success', ret.body, ret);
+      }
     }
     else{
-      ret.emit('failure', ret.statusCode);
+      ret.emit('failure', ret.body, ret);
     }
+
+    
+    
   })
 
-  if(fn){
-    ret.on('success', fn);
-  }
-
-  if(errorhandler){
-    ret.on('failure', errorhandler);
-  }
-  
   return ret;
 }
 
@@ -131,4 +173,13 @@ Response.prototype.send404 = function(text){
 Response.prototype.redirect = function(location){
   this.statusCode = 302;
   this.send(location);
+}
+
+Response.prototype.add = function(childres){
+  this.setHeader('content-type', 'digger/multipart');
+  if(!this.body){
+    this.body = [];
+  }
+  this.body.push(_.isFunction(childres.toJSON) ? childres.toJSON : childres);
+  return this;
 }

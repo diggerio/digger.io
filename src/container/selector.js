@@ -5,6 +5,7 @@
 var _ = require('lodash');
 
 module.exports = parse;
+module.exports.mini = miniparse;
 
 /*
   Quarry.io Selector
@@ -257,4 +258,26 @@ function parse(selector_string){
     string:selector_string,
     phases:phases
   }
+}
+
+function miniparse(selector_string){
+  selector_string = selector_string || '';
+  var selector = {
+    class:{}
+  }
+  selector_string = selector_string.replace(/_(\w+)/, function(match, id){
+    selector.id = id;
+    return '';
+  })
+  selector_string = selector_string.replace(/\.(\w+)/g, function(match, classname){
+    selector.class[classname] = true;
+    return '';
+  })
+  if(selector_string.match(/\d/)){
+    selector.diggerid = selector_string;
+  }
+  else{
+    selector.tag = selector_string;
+  }
+  return selector;
 }

@@ -24,6 +24,7 @@ var EventEmitter = require('events').EventEmitter;
 var Container = require('../container');
 var Warehouse = require('../warehouse');
 var ParseSelector = require('../container/selector');
+var Promise = require('../network/promise');
 var Request = require('../network/request').factory;
 var Response = require('../network/response').factory;
 var ContractResolver = require('../middleware/contractresolver');
@@ -42,47 +43,156 @@ Supplier.factory = function(settings){
 	}
 
 	var supplier = Warehouse();
-	supplier.settings = Container(settings);
-	supplier.methods = {};
-	
-	_.extend(supplier, Supplier.prototype);
 
+	/*
+	
+		we keep a container that can connect to radio to control this supplier remotely
+		
+	*/
+	supplier.settings = Container(settings);
+
+	/*
+	
+		the select handlers
+
+		these can be generic or by classname/tag
+
+			product.onsale -> onsale product handler
+
+		each fn gets:
+
+			function(select_query, promise){
+				select_query.selector ({tagname:'prodict'....} (parsed selector)
+				select_query.context [{diggerid:...}] (meta data for context)
+
+				promise.resolve([container data...])
+				promise.reject('error text')
+			}
+		
+	*/
+
+	/*
+	
+		normal selector fns:
+
+			supplier.use(function(select_query, promise, next){
+	
+			})
+
+	*/
+	var standard_stack = [];
+
+	/*
+	
+		provide selector fns:
+		
+	*/
+	var specialized_stack = [];
+	
+	supplier.handle_select_query = function(select_query, req, res, next){
+
+		var use_stack = ([]).concat(specialized_stack, standard_stack);
+		if(use_stack.length<=0){
+			next();
+			return;
+		}
+
+		var promise = Promise();
+
+		async.forEachSeries(use_stack, function(fn, nextfn){
+			fn(select_query, promise, nextfn);
+		}, next)
+
+		promise.then(function(result){
+			res.send(result);
+		}, function(error){
+			res.sendError(error);
+		})
+		
+		return promise;
+	}
+
+
+	supplier.select = function(fn){
+		standard_stack.push(fn);
+		return supplier;
+	}
+
+	/*
+
+		a shortcut method - matches the given selector
+		against the user selector and triggers this method
+
+		this lets us do:
+
+			supplier.provide('product.onsale', function(select_query){
+		
+			}
+		
+	*/
+	supplier.specialize = function(provide_selector, fn){
+
+		provide_selector = _.isString(provide_selector) ? ParseSelector.mini(provide_selector) : provide_selector;
+
+		specialized_stack.push(function(select_query, promise, next){
+
+			var query_selector = select_query.selector;
+
+			if(provide_selector.tagname!=query_selector.tagname){
+				next();
+				return;
+			}
+
+			/*
+			
+				make sure all the classnames mentioned in the path are in the query selector
+				
+			*/
+			if(!_.all(_.keys(provide_selector.class), function(classname){
+				return query_selector.class[classname];
+			})){
+				next();
+				return;
+			}
+
+			fn(select_query, promise, next);
+		})
+
+		return supplier;
+	}
+
+	supplier.append = function(fn){
+		supplier.methods.append = fn;
+		return supplier;
+	}
+
+	supplier.save = function(fn){
+		supplier.methods.save = fn;
+		return supplier;
+	}
+
+	supplier.remove = function(fn){
+		supplier.methods.remove = fn;
+		return supplier;
+	}
+
+
+
+	/*
+	
+			GET / = list settings
+		
+	*/
 	supplier.get('/', function(req, res, next){
 		res.send(supplier.settings);
 	})
 
 	var contractresolver = ContractResolver(supplier);
 
-	function process_selector_string(string){
-		var selector = {
-			class:{}
-		}
-		selector_string = selector_string.replace(/#(\w+?)/, function(match){
-			selector.id = match[1];
-			return '';
-		})
-		selector_string = selector_string.replace(/\.(\w+?)/g, function(match){
-			selector.class[match[1]] = true;
-			return '';
-		})
-		if(selector_string.match(/\d/)){
-			selector.diggerid = selector_string;
-		}
-		else{
-			selector.tag = selector_string;
-		}
-		return selector;
-	}
-
 	var routes = {
 		get:{
 			select:function(req, res, next){
 				if(req.method!='get'){
-					next();
-					return;
-				}
-
-				if(!supplier.methods.select){
 					next();
 					return;
 				}
@@ -104,23 +214,24 @@ Supplier.factory = function(settings){
 				})
 
 				/*
+
+					SINGLE SELECTOR
 				
 					with one selector we just trigger the select method
 					
 				*/
 				if(selectors.length<=1){
-					var answer = supplier.methods.select({
-						selector:selectors[0]
-					})
 
-					answer.then(function(result){
-						res.send(result);
-					}, function(error){
-						res.sendError(error);
-					})
+					supplier.handle_select_query({
+						selector:selectors[0],
+						context:[]
+					}, req, res, next)
+
 				}
 				/*
 				
+					MULTIPLE SELECTOR -> INTERNAL CONTRACT
+
 					with multiple selectors we create a mini contract to resolve as a sub-request
 					
 				*/
@@ -135,7 +246,7 @@ Supplier.factory = function(settings){
 						body:_.map(selectors, function(selector, index){
 							return Request({
 								method:'post',
-								url:'/selector',
+								url:'/select',
 								headers:{
 									'x-index':index,
 									'x-json-selector':selector
@@ -178,21 +289,12 @@ Supplier.factory = function(settings){
 				
 			*/
 			select:function(req, res, next){
-				if(!supplier.methods.select){
-					next();
-					return;
-				}
 
-				var query = supplier.methods.select({
-					selector:req.getHeader('x-json-selector'),
-					context:req.body
-				})
+				supplier.handle_select_query({
+					selector:req.getHeader('x-json-selector') || {},
+					context:req.body || []
+				}, req, res, next)
 
-				query.then(function(result){
-					res.send(result);
-				}, function(error){
-					res.sendError(error);
-				})
 			}
 		},
 		put:{
@@ -274,22 +376,4 @@ Supplier.factory = function(settings){
 	return supplier;
 }
 
-Supplier.prototype.select = function(fn){
-	this.methods.select = fn;
-	return this;
-}
 
-Supplier.prototype.append = function(fn){
-	this.methods.append = fn;
-	return this;
-}
-
-Supplier.prototype.save = function(fn){
-	this.methods.save = fn;
-	return this;
-}
-
-Supplier.prototype.remove = function(fn){
-	this.methods.remove = fn;
-	return this;
-}

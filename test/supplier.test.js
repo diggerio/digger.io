@@ -61,15 +61,13 @@ describe('supplier', function(){
       
       var supplier = digger.supplier('warehouse:/api/products');
 
-      supplier.select(function(req){
-        throwfn(req);
-        var promise = digger.promise();
+      supplier.select(function(select_query, promise){
+        throwfn(select_query);
         process.nextTick(function(){
           promise.resolve({
             ok:true
           })  
         })
-        return promise;
       })
 
       req = digger.request(req);
@@ -106,6 +104,7 @@ describe('supplier', function(){
           var selector = select_query.selector;
           selector.id.should.equal('12313');
         }, function(result){
+
           result.ok.should.equal(true);
           next();
         })
@@ -148,6 +147,7 @@ describe('supplier', function(){
           selector.class.red.should.equal(true);
         }, function(result){
           result.ok.should.equal(true);
+
           next();
         })
       }
@@ -161,15 +161,13 @@ describe('supplier', function(){
       
       var supplier = digger.supplier('warehouse:/api/products');
 
-      supplier.select(function(req){
-        throwfn(req);
-        var promise = digger.promise();
+      supplier.select(function(select_query, promise){
+        throwfn(select_query);
         process.nextTick(function(){
           promise.resolve({
             ok:true
           })  
         })
-        return promise;
       })
 
       req = digger.request(req);
@@ -183,6 +181,8 @@ describe('supplier', function(){
       supplier(req, res);
     }
 
+    var hit = {};
+
     async.series([
 
       function(next){
@@ -192,17 +192,16 @@ describe('supplier', function(){
             var selector = select_query.selector;
             selector.tag.should.equal('product');
             selector.class.onsale.should.equal(true);
-            console.log('-------------------------------------------');
-            console.log('first');
+            hit.first = true;
           },
 
           function(select_query){
             var selector = select_query.selector;
             selector.tag.should.equal('caption');
             selector.class.red.should.equal(true);
-            console.log('-------------------------------------------');
-            console.log('second');
+            hit.second = true;
           }
+
         ]
 
         runrequest({
@@ -210,8 +209,10 @@ describe('supplier', function(){
           url:'/product.onsale/caption.red'
         }, function(select_query){
           var fn = throwfns.shift();
-          fn();
+          fn(select_query);
         }, function(result){
+          hit.first.should.equal(true);
+          hit.second.should.equal(true);
           next();
         })
       }
@@ -220,73 +221,38 @@ describe('supplier', function(){
   })
 
   it('should make creating different suppliers easy', function(done) {
-    done();
-  /*
-    function loadsomedata(tagname){
-      var query = digger.query();
 
-      process.nextTick(function(){
-        query.resolve(Container(tagname, {
-          title:'hello'
-        }))
-      })
-
-      return query;
-    }
-
-  
-    
-      create the supplier with it's base route
-      
-   
     var supplier = digger.supplier('warehouse:/api/products');
- */
-    /*
-    
-      match the given selector to the incoming selector
-      and trigger the handler if they match
-      
-    
-    supplier.provide('product', function(req, res){
-      var query = loadsomedata('product');
 
-      query.then(function(result){
-        res.send(result);
-      }, function(error){
-        res.sendError(error);
+    supplier.select(function(select_query, promise){
+      throw new Error('wrong routing');
+    })
+
+    supplier.specialize('product.onsale', function(select_query, promise){
+      select_query.selector.tag.should.equal('product');
+      select_query.selector.class.onsale.should.equal(true);
+      promise.resolve({
+        answer:10
       })
     })
 
-    supplier.append(function(req, res){
-      var parent = req.digger.append.parent;
-      var data = req.digger.append.data;
+    req = digger.request({
+      url:'/product.onsale.test',
+      method:'get'
     })
 
-    supplier.save(function(req, res){
-      var container = req.digger.save.container;
-      
+    var res = digger.response();
+
+    res.on('success', function(){
+      res.body.answer.should.equal(10);
+      done();
     })
 
-    supplier.del(function(req, res){
-      var container = req.digger.del.container;
-      
+    res.on('failure', function(error){
+      throw new Error('request error: ' + error);
     })
 
-*/
-
-/*
-    var db = digger.supplychain(supplier);
-
-    var products = db('product');
-
-
-      .ship(function(products){
-        products.count().should.equal(1);
-        products.tagname().should.equal('product');
-        done();
-      })
-*/
-
+    supplier(req, res);
   })
 
 

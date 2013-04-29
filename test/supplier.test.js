@@ -177,7 +177,6 @@ describe('supplier', function(){
 
       res.on('success', callbackfn);
       res.on('failure', function(error){
-        console.dir(error);
         throw new Error('request error: ' + error);
       })
 
@@ -192,13 +191,17 @@ describe('supplier', function(){
           function(select_query){
             var selector = select_query.selector;
             selector.tag.should.equal('product');
-            selector.class.red.should.equal(true);
+            selector.class.onsale.should.equal(true);
+            console.log('-------------------------------------------');
+            console.log('first');
           },
 
           function(select_query){
             var selector = select_query.selector;
-            selector.tag.should.equal('caption2');
+            selector.tag.should.equal('caption');
             selector.class.red.should.equal(true);
+            console.log('-------------------------------------------');
+            console.log('second');
           }
         ]
 

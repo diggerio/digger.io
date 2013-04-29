@@ -93,7 +93,12 @@ function factory(supplychain){
   }
 
   resolver.handle = function(req, res, next){
-    if(req.getHeader('content-type')!='digger/contract'){
+    /*
+    
+      make sure we actually have a contract
+      
+    */
+    if(req.getHeader('content-type')!='digger/contract' && !req.getHeader('x-contract-type')){
       next();
       return;
     }

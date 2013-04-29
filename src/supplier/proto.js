@@ -26,7 +26,7 @@ var Warehouse = require('../warehouse');
 var ParseSelector = require('../container/selector');
 var Request = require('../network/request').factory;
 var Response = require('../network/response').factory;
-
+var ContractResolver = require('../middleware/contractresolver');
 // prototype
 
 var Supplier = module.exports = function(){}
@@ -51,15 +51,7 @@ Supplier.factory = function(settings){
 		res.send(supplier.settings);
 	})
 
-	var contractresolver = function(req, res, next){
-
-
-		console.log('-------------------------------------------');
-		console.log('-------------------------------------------');
-		console.log('-------------------------------------------');
-		console.log('CONTRACT RESOLVER');
-		next();
-	}
+	var contractresolver = ContractResolver(supplier);
 
 	function process_selector_string(string){
 		var selector = {
@@ -140,11 +132,12 @@ Supplier.factory = function(settings){
 						headers:{
 							'x-contract-type':'pipe'
 						},
-						body:_.map(selectors, function(selector){
+						body:_.map(selectors, function(selector, index){
 							return Request({
 								method:'post',
 								url:'/selector',
 								headers:{
+									'x-index':index,
 									'x-json-selector':selector
 								}
 							}).toJSON()

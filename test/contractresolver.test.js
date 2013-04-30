@@ -90,7 +90,7 @@ describe('contractresolver', function(){
     warehouse(contract, res);
   })
 
-  
+ 
 })
 
 

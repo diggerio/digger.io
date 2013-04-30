@@ -290,5 +290,56 @@ describe('supplier', function(){
 
   })
 
+  it('should pipe specialized selectors to each other', function(done) {
+
+    var supplier = digger.supplier('warehouse:/api/products');
+
+    supplier.specialize('product', function(select_query, promise){
+      promise.resolve({
+        name:'product',
+        __digger__:{
+          meta:{
+            diggerid:2323,
+            left:10,
+            right:12
+          }
+        }
+      })
+    })
+
+    supplier.specialize('caption', function(select_query, promise){      
+      select_query.context.should.be.a('array');
+      select_query.context.length.should.equal(1);
+      var parent = select_query.context[0];
+      parent.name.should.equal('product');
+      var meta = parent.__digger__.meta;
+      meta.diggerid.should.equal(2323);
+      meta.left.should.equal(10);
+
+      promise.resolve({
+        name:'caption'
+      })
+    })
+
+    req = digger.request({
+      url:'/product/caption',
+      method:'get'
+    })
+
+    var res = digger.response();
+
+    res.expect('digger/containers');
+
+    res.on('success', function(){
+      res.getHeader('content-type').should.equal('digger/containers');
+      res.body.should.be.a('array');
+      res.body[0].name.should.equal('caption');
+      done();
+    })
+
+    supplier(req, res);
+
+  })
+
 
 })

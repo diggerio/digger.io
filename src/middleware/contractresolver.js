@@ -79,7 +79,7 @@ function factory(supplychain){
       contract_req.body = lastresults || contract_req.body;
       var contract_res = Response(function(){
         if(contract_res.hasError()){
-          res.sendError(contract_res.body);
+          res.fill(contract_res);
         }
         else{
           lastresults = contract_res.body;  

@@ -88,6 +88,23 @@ Supplier.factory = function(settings){
 		
 	*/
 	var specialized_stack = [];
+
+	supplier.handle_container_response = function(req, res, result){
+		/*
+		
+			if the request has asked for containers then we convert the answer explicetly
+			
+		*/
+
+		if(req.getHeader('x-expect')==='digger/containers'){
+			if(!_.isArray(result)){
+				result = result ? [result] : [];
+			}
+			res.setHeader('content-type', 'digger/containers');	
+		}
+
+		res.send(result);
+	}
 	
 	supplier.handle_select_query = function(select_query, req, res, next){
 
@@ -99,27 +116,16 @@ Supplier.factory = function(settings){
 
 		var promise = Promise();
 
-		async.forEachSeries(use_stack, function(fn, nextfn){
-			fn(select_query, promise, nextfn);
-		}, next)
-
 		promise.then(function(result){
-			/*
-			
-				if the request has asked for containers then we convert the answer explicetly
-				
-			*/
-			if(req.getHeader('x-expect')==='digger/containers'){
-				if(!_.isArray(result)){
-					result = result ? [result] : [];
-				}
-				res.setHeader('content-type', 'digger/containers');	
-			}
-			res.send(result);
+			supplier.handle_container_response(req, res, result);
 		}, function(error){
 			res.sendError(error);
 		})
-		
+
+		async.forEachSeries(use_stack, function(fn, nextfn){
+			fn(select_query, promise, nextfn);
+		}, next);
+
 		return promise;
 	}
 
@@ -149,7 +155,7 @@ Supplier.factory = function(settings){
 
 			var query_selector = select_query.selector;
 
-			if(provide_selector.tagname!=query_selector.tagname){
+			if(provide_selector.tag!=query_selector.tag){
 				next();
 				return;
 			}
@@ -166,7 +172,7 @@ Supplier.factory = function(settings){
 				return;
 			}
 
-			fn(select_query, promise, next);
+			fn(select_query, promise);
 		})
 
 		return supplier;
@@ -260,6 +266,7 @@ Supplier.factory = function(settings){
 								url:'/select',
 								headers:{
 									'x-index':index,
+									'x-expect':'digger/containers',
 									'x-json-selector':selector
 								}
 							}).toJSON()
@@ -267,7 +274,7 @@ Supplier.factory = function(settings){
 					})
 
 					var contract_response = Response(function(){
-						res.fill(contract_response);
+						supplier.handle_container_response(req, res, contract_response.body);
 					})
 
 					supplier(contract, contract_response, next);

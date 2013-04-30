@@ -22,12 +22,8 @@
     "lodash": "~1.2.0",
     "node-uuid": "~1.4.0",
     "escape-html": "*",
-    "express": "3.x",
-    "jade": "*",
-    "getsetdeep": "~2.1.0",
     "xtend": "~2.0.3",
-    "xmldom": "~0.1.15",
-    "css-selector-parser": "~1.0.3",
+    "xmldom": "~0.1.15",    
     "q": "~0.9.3",
     "dispatch": "~0.2.0"
   },
@@ -40,8 +36,7 @@
     "grunt-contrib-uglify": "~0.2.0",
     "grunt-contrib-watch": "~0.3.1",
     "chai": "*",
-    "mocha": "*",
-    "blanket": ">= 1.0.3"
+    "mocha": "*"
   },
   "author": "Kai Davenport",
   "license": "MIT",

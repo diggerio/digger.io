@@ -180,6 +180,6 @@ Response.prototype.add = function(childres){
   if(!this.body){
     this.body = [];
   }
-  this.body.push(_.isFunction(childres.toJSON) ? childres.toJSON : childres);
+  this.body.push(_.isFunction(childres.toJSON) ? childres.toJSON() : childres);
   return this;
 }

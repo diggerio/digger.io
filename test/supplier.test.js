@@ -255,5 +255,40 @@ describe('supplier', function(){
     supplier(req, res);
   })
 
+  it('should accept a stack location as an argument', function() {
+    var supplier = digger.supplier('warehouse:/api/products');
+
+    supplier.settings.attr('url').should.equal('warehouse:/api/products');
+  })
+
+  it('should return container data', function(done) {
+
+    var supplier = digger.supplier('warehouse:/api/products');
+
+    supplier.select(function(select_query, promise){
+      promise.resolve({
+        name:'test'
+      })
+    })
+
+    req = digger.request({
+      url:'/product.onsale.test',
+      method:'get'
+    })
+
+    req.expect('digger/containers');
+
+    var res = digger.response();
+
+    res.on('success', function(){
+      res.getHeader('content-type').should.equal('digger/containers');
+      res.body.should.be.a('array');
+      done();
+    })
+
+    supplier(req, res);
+
+  })
+
 
 })

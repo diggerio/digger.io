@@ -104,6 +104,17 @@ Supplier.factory = function(settings){
 		}, next)
 
 		promise.then(function(result){
+			/*
+			
+				if the request has asked for containers then we convert the answer explicetly
+				
+			*/
+			if(req.getHeader('x-expect')==='digger/containers'){
+				if(!_.isArray(result)){
+					result = result ? [result] : [];
+				}
+				res.setHeader('content-type', 'digger/containers');	
+			}
 			res.send(result);
 		}, function(error){
 			res.sendError(error);

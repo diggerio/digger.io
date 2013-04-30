@@ -91,3 +91,8 @@ Request.prototype.toJSON = function(){
 
   return ret;
 }
+
+Request.prototype.expect = function(content_type){
+  this.setHeader('x-expect', content_type);
+  return this;
+}

@@ -27,7 +27,12 @@ var ParseSelector = require('../container/selector');
 var Promise = require('../network/promise');
 var Request = require('../network/request').factory;
 var Response = require('../network/response').factory;
+
 var ContractResolver = require('../middleware/contractresolver');
+var SelectResolver = require('../middleware/selectresolver');
+
+var Query = require('./query');
+
 // prototype
 
 var Supplier = module.exports = function(){}
@@ -50,6 +55,8 @@ Supplier.factory = function(settings){
 		
 	*/
 	supplier.settings = Container(settings);
+
+	supplier.methods = {};
 
 	/*
 	
@@ -114,6 +121,20 @@ Supplier.factory = function(settings){
 			return;
 		}
 
+		/*
+		
+			do we automatically prepare a query for the select function?
+
+			(this turns the selector and context into an array of SQL/MONGO like queries that is easy to turn
+			into a low level database query)
+			
+		*/
+		if(supplier.settings.attr('preparequery')){
+			if(!select_query.query){
+				select_query.query = Query(select_query.selector, select_query.context);
+			}
+		}
+
 		var promise = Promise();
 
 		promise.then(function(result){
@@ -123,17 +144,16 @@ Supplier.factory = function(settings){
 		})
 
 		async.forEachSeries(use_stack, function(fn, nextfn){
+
 			fn(select_query, promise, nextfn);
+
 		}, next);
 
 		return promise;
 	}
 
 
-	supplier.select = function(fn){
-		standard_stack.push(fn);
-		return supplier;
-	}
+
 
 	/*
 
@@ -178,6 +198,11 @@ Supplier.factory = function(settings){
 		return supplier;
 	}
 
+	supplier.select = function(fn){
+		standard_stack.push(fn);
+		return supplier;
+	}
+
 	supplier.append = function(fn){
 		supplier.methods.append = fn;
 		return supplier;
@@ -205,6 +230,27 @@ Supplier.factory = function(settings){
 	})
 
 	var contractresolver = ContractResolver(supplier);
+	var selectresolver = SelectResolver(supplier);
+
+	function extractselectors(req){
+		var path = req.pathname;
+
+		if(path.indexOf('/dig')===0 || path.indexOf('/container')===0){
+			path = path.replace(/^\/\w+/, '');
+		}
+
+		if(path.charAt(0)=='/'){
+			path = path.substr(1);
+		}
+
+		var parts = path.split('/');
+
+		var selectors = _.map(parts, function(part){
+			return ParseSelector.mini(part);
+		})
+
+		return selectors;
+	}
 
 	var routes = {
 		get:{
@@ -214,21 +260,7 @@ Supplier.factory = function(settings){
 					return;
 				}
 
-				var path = req.pathname;
-
-				if(path.indexOf('/dig')===0 || path.indexOf('/container')===0){
-					path = path.replace(/^\/\w+/, '');
-				}
-
-				if(path.charAt(0)=='/'){
-					path = path.substr(1);
-				}
-
-				var parts = path.split('/');
-
-				var selectors = _.map(parts, function(part){
-					return ParseSelector.mini(part);
-				})
+				var selectors = extractselectors(req);
 
 				/*
 
@@ -295,8 +327,25 @@ Supplier.factory = function(settings){
 					return;
 				}
 
-				next();
+				var selectors = extractselectors(req);
+				var append_query = {
+					selector:selectors ? selectors[0] : null,
+					selectors:selectors,
+					req:req,
+					body:req.body
+				}
+
+				var promise = Promise();
+
+				promise.then(function(result){
+					res.send(result);
+				}, function(error){
+					res.sendError(error);
+				})
+
+				supplier.methods.append(append_query, promise, next);
 			},
+
 			/*
 			
 				the POST select method - this is what is used for reducing contracts
@@ -307,22 +356,69 @@ Supplier.factory = function(settings){
 				
 			*/
 			select:function(req, res, next){
-
+				/*
+				
+					are we in single selector or array mode?
+					
+				*/
+				var selector = req.getHeader('x-json-selector');
 				supplier.handle_select_query({
 					selector:req.getHeader('x-json-selector') || {},
 					context:req.body || []
-				}, req, res, next)
-
+				}, req, res, next)	
 			}
+
 		},
 		put:{
 			save:function(req, res, next){
-				next();
+				if(!supplier.methods.save){
+					next();
+					return;
+				}
+
+				var selectors = extractselectors(req);
+				var save_query = {
+					selector:selectors ? selectors[0] : null,
+					selectors:selectors,
+					req:req,
+					body:req.body
+				}
+
+				var promise = Promise();
+
+				promise.then(function(result){
+					res.send(result);
+				}, function(error){
+					res.sendError(error);
+				})
+
+				supplier.methods.save(save_query, promise, next);
 			}
 		},
 		del:{
 			remove:function(req, res, next){
-				next();
+				if(!supplier.methods.remove){
+					next();
+					return;
+				}
+
+				var selectors = extractselectors(req);
+				var remove_query = {
+					selector:selectors ? selectors[0] : null,
+					selectors:selectors,
+					req:req,
+					body:req.body
+				}
+
+				var promise = Promise();
+
+				promise.then(function(result){
+					res.send(result);
+				}, function(error){
+					res.sendError(error);
+				})
+
+				supplier.methods.remove(remove_query, promise, next);
 			}
 		}
 	}
@@ -350,6 +446,13 @@ Supplier.factory = function(settings){
 		
 	*/
 	supplier.post('/select', routes.post.select);
+
+	/*
+	
+		selector resolver when posted to /resolve
+		
+	*/
+	supplier.post('/resolve', selectresolver);
 
 	/*
 	

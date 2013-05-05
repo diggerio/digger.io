@@ -66,7 +66,7 @@ function Request(data){
 
   _.each(url_fields, function(field){
     self[field] = parsed[field] || default_fields[field];
-  })
+  })  
 }
 
 

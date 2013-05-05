@@ -18,6 +18,10 @@
 
 var _ = require('lodash');
 
+var Contract = require('../network/contract').factory;
+var Request = require('../network/request').factory;
+var ParseSelector = require('./selector');
+
 module.exports = {
   select:select,
   append:append,
@@ -25,10 +29,147 @@ module.exports = {
   remove:remove
 }
 
+/*
+
+  SELECT 
+  turns an array of selector strings into a pipe contract
+
+  the strings are reversed as in:
+
+    "selector", "context"
+
+  becomes
+
+    context selector
+
+  in the actual search (this is just how jQuery works)
+  
+*/
 function select(){
-  return this;
+
+  /*
+  
+    first get an array of selector objects
+
+    we make a pipe contract out of these
+
+    then duplicate that pipe contract for each different diggerwarehouse
+
+    
+  */
+  var selector_strings = _.toArray(arguments).reverse();
+  var selectors = _.map(selector_strings, function(string){
+    return _.isString(string) ? ParseSelector(string) : string;
+  })
+  
+  /*
+  
+    split out the current context into their warehouse origins
+    
+  */
+  var groups = _.groupBy(this.containers(), function(container){
+    return container.diggerwarehouse();
+  })
+
+  var warehouseids = _.keys(groups);
+
+  /*
+  
+    the top level contract - this will be resolved in the holdingbay
+
+    it is a merge of the various warehouse targets
+    
+  */
+  var contract = Contract('merge');
+  contract.method = 'post';
+  contract.url = 'reception:/';
+
+  contract.body = _.map(warehouseids, function(diggerwarehouse){
+
+    /*
+    
+      the contract directed torwards the supplier warehouse
+
+      a PIPE of the selector strings, reversed
+
+      we input the context as the group of containers living in the given warehouse
+      
+    */
+    var containers = groups[diggerwarehouse];
+    var skeleton = _.map(containers, function(c){
+      return c.meta();
+    })
+
+    /*
+    
+      the top level that pipes selector strings (in reverse)
+      
+    */
+    var suppliercontract = Request({
+      method:'post',
+      headers:{
+        'x-json-selector-strings':selectors
+      },
+      url:(diggerwarehouse || '') + '/resolve',
+      body:skeleton || []
+    })    
+    suppliercontract.method = 'post';
+    suppliercontract.url = 
+
+    suppliercontract.body = _.map(selectors, function(selector_string, stringindex){
+
+      /*
+      
+        a single selector with phases to be merged
+        
+      */
+      var phasecontract = Contract('merge');
+      phasecontract.method = 'post';
+      phasecontract.url = '/contract';
+
+      /*
+      
+        the body is each phase of the selector
+        each phase is it's own pipe contract
+        
+      */
+      phasecontract.body = _.map(selector_string.phases, function(phase){
+
+        var selectorcontract = Contract('pipe');
+        selectorcontract.method = 'post';
+        selectorcontract.url = '/contract';
+
+        selectorcontract.body = _.map(phase, function(selector, phaseindex){
+          return Request({
+            method:'post',
+            url:'/select',
+            body:(stringindex===0 && phaseindex===0) ? skeleton : null,
+            headers:{
+              'x-index':phaseindex,
+              'x-expect':'digger/containers',
+              'x-json-selector':selector
+            }
+          }).toJSON() 
+        })
+
+        return selectorcontract;
+      })
+
+      return phasecontract;
+    })
+
+    return suppliercontract.toJSON();
+  })
+
+  return contract;
 }
 
+/*
+
+  POST
+
+  
+*/
 function append(childarray){
   if(!_.isArray(childarray)){
     childarray = [childarray];
@@ -37,15 +178,33 @@ function append(childarray){
   _.each(childarray, function(child){
     appendmodels = appendmodels.concat(child.models);
   })
+
   var appendto = this.get(0);
+  var appendcontainer = this.spawn(appendmodels);
+  var appendwarehouse = this.diggerwarehouse();
+
+  appendcontainer.recurse(function(des){
+    des.diggerwarehouse(appendwarehouse);
+  })
+
   appendto.__digger__.children = appendto.__digger__.children.concat(appendmodels);
   return this;
 }
 
+/*
+
+  PUT
+  
+*/
 function save(){
   return this;
 }
 
+/*
+
+  DELETE
+  
+*/
 function remove(){
   return this;
 }

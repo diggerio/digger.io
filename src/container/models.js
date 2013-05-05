@@ -75,6 +75,11 @@ function extractdata(data, attr){
   
 */
 module.exports = function modelfactory(data, attr){
+
+  if(!data){
+    return [];
+  }
+  
   var models = extractdata(data, attr);
 
   function nonulls(model){
@@ -86,6 +91,10 @@ module.exports = function modelfactory(data, attr){
     
   */
   models = _.filter(_.map(models || [], function(model){
+
+    if(!model){
+      return null;
+    }
 
     var digger = model.__digger__ = model.__digger__ || {};
     digger.meta = digger.meta || {};

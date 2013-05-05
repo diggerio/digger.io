@@ -15,6 +15,12 @@ describe('container', function(){
     container.should.be.a('function');
   })
 
+  it('should create an empty container with no models', function() {
+    var container = digger.create();
+
+    container.models.length.should.equal(0);
+  })
+
   it('should build from basic data', function() {
 
     var test = digger.create('product', {
@@ -243,5 +249,19 @@ describe('container', function(){
 
     test.on('hello', done);
     test.emit('hello');
+  })
+
+
+  it('should extract a meta skeleton', function() {
+
+    var test = digger.create(data.citiesxml);
+
+    var cities = test.find('city.south');
+
+    var skeleton = cities.skeleton();
+
+    skeleton.length.should.equal(3);
+    skeleton[0].tag.should.equal('city');
+    
   })
 })

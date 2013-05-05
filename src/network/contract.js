@@ -32,7 +32,6 @@ var Request = require('./request');
 
 module.exports = Contract;
 
-
 function Contract(data){
   var self = this;
   data = data || {};
@@ -60,14 +59,13 @@ function Contract(data){
   }
 }
 
+util.inherits(Contract, Request);
 
 Contract.factory = function(data){
   return new Contract(data);
 }
 
-util.inherits(Contract, Request);
-
-Request.prototype.add = function(req){
+Contract.prototype.add = function(req){
   var self = this;
   if(_.isArray(req)){
     _.each(req, function(item){

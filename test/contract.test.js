@@ -68,5 +68,31 @@ describe('contract', function(){
     contract.body.length.should.equal(3);
   })
 
-  
+  it('should create a merge contract for multiple containers from different warehouses', function(){
+
+    var placeA = digger.container('testa');
+    placeA.diggerwarehouse('/placeA');
+    var placeB = digger.container('testb');
+    placeB.diggerwarehouse('/placeB');
+    var holder = digger.container();
+    holder.add([placeA, placeB]);
+
+    var contract = holder('caption img', 'product');
+
+    console.log(JSON.stringify(contract, null, 4));
+    contract.body.length.should.equal(2);
+    contract.body[0].url.should.equal('/placeA/contract');
+  })
+
+  it('should knock out unnessecary contract levels', function(){
+
+    var db = digger.container('ting');
+    db.diggerwarehouse('tinghq:/');
+
+    var contract = db('searchting');
+
+
+
+  })
+
 })

@@ -82,8 +82,8 @@ Container.factory = function factory(){
       container.select('some.selector')
     
   */
-  var container = function container(){
-    container.select.apply(container, _.toArray(arguments));
+  var instance = function container(){
+    return instance.select.apply(instance, _.toArray(arguments));
   }
 
   /*
@@ -92,12 +92,12 @@ Container.factory = function factory(){
     
   */
 
-  _.extend(container, Container.prototype);
-  _.extend(container, EventEmitter.prototype);
+  _.extend(instance, Container.prototype);
+  _.extend(instance, EventEmitter.prototype);
 
-  container.build(models);
+  instance.build(models);
   
-  return container;
+  return instance;
 }
 
 Container.prototype.build = function(models){
@@ -214,8 +214,23 @@ Container.prototype.containers = function(){
   })
 }
 
+Container.prototype.skeleton = function(){
+  return _.map(this.models, function(model){
+    return model.__digger__.meta || {};
+  })
+}
+
 Container.prototype.add = function(container){
-  this.models = this.models.concat(container.models);
+  var self = this;
+  if(_.isArray(container)){
+    _.each(container, function(c){
+      self.add(c);
+    })
+  }
+  else{
+    this.models = this.models.concat(container.models);
+  }
+  return this;
 }
 
 /*
@@ -416,6 +431,8 @@ Container.prototype.data = wrapper('__digger__.data');
 Container.prototype.removeData = remove_wrapper('__digger__.data');
 
 Container.prototype.diggerid = wrapper('__digger__.meta', 'diggerid');
+Container.prototype.diggerwarehouse = wrapper('__digger__.meta', 'diggerwarehouse');
+
 Container.prototype.id = wrapper('__digger__.meta', 'id');
 Container.prototype.tag = wrapper('__digger__.meta', 'tag');
 Container.prototype.classnames = wrapper('__digger__.meta', 'class');

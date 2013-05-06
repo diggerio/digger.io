@@ -40,6 +40,11 @@ module.exports = {
   response:require('./network/response').factory,
   contract:require('./network/contract').factory,
   middleware:{
-    contractresolver:require('./middleware/contractresolver')
+    contractresolver:require('./middleware/contractresolver'),
+    selectresolver:require('./middleware/selectresolver')
+  },
+  database:{
+    digger:require('./supplier/diggerdb'),
+    nestedset:require('./supplier/nestedset')
   }
 }

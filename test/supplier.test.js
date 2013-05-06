@@ -1,6 +1,5 @@
 var digger = require('../src');
 var data = require('./fixtures/data');
-var Query = require('../src/supplier/query');
 var async = require('async');
 
 describe('supplier', function(){
@@ -15,44 +14,6 @@ describe('supplier', function(){
     var supplier = digger.supplier();
     supplier.on('hello', done);
     supplier.emit('hello');
-  })
-
-  it('should produce queries based on the selector object', function() {
-    
-    var selector = Query({
-      tag:'product',
-      class:['onsale'],
-      attr:[{
-        field:'price',
-        operator:'<',
-        value:100
-      }]
-    }, [{
-      __digger__:{
-        meta:{
-          diggerid:123,
-          left:34,
-          right:78
-        }
-      }
-    },{
-      __digger__:{
-        meta:{
-          diggerid:456,
-          left:89,
-          right:123
-        }
-      }
-    }])
-
-    selector.length.should.equal(4);
-    selector[2].field.should.equal('price');
-    selector[2].value.should.equal(100);
-    selector[3].should.be.a('array');
-    selector[3].length.should.equal(4);
-    selector[3][2].value.should.equal(89);
-    selector[3][2].field.should.equal('__digger__.meta.left');
-    selector[3][2].operator.should.equal('>');
   })
 
   it('should extract the context for GET requests', function(done) {
@@ -91,7 +52,7 @@ describe('supplier', function(){
           var selector = select_query.selector;
           selector.diggerid.should.equal('12313');
         }, function(result){
-          result.ok.should.equal(true);
+          result[0].ok.should.equal(true);
           next();
         })
       },
@@ -105,7 +66,7 @@ describe('supplier', function(){
           selector.id.should.equal('12313');
         }, function(result){
 
-          result.ok.should.equal(true);
+          result[0].ok.should.equal(true);
           next();
         })
       },
@@ -118,7 +79,7 @@ describe('supplier', function(){
           var selector = select_query.selector;
           selector.tag.should.equal('product');
         }, function(result){
-          result.ok.should.equal(true);
+          result[0].ok.should.equal(true);
           next();
         })
       },
@@ -133,7 +94,7 @@ describe('supplier', function(){
           selector.class.onsale.should.equal(true);
           selector.class.red.should.equal(true);
         }, function(result){
-          result.ok.should.equal(true);
+          result[0].ok.should.equal(true);
           next();
         })
       },
@@ -146,7 +107,7 @@ describe('supplier', function(){
           var selector = select_query.selector;
           selector.class.red.should.equal(true);
         }, function(result){
-          result.ok.should.equal(true);
+          result[0].ok.should.equal(true);
 
           next();
         })
@@ -183,41 +144,35 @@ describe('supplier', function(){
 
     var hit = {};
 
-    async.series([
+    var throwfns = [
+      function(select_query){
+        var selector = select_query.selector;
+        selector.tag.should.equal('product');
+        selector.class.onsale.should.equal(true);
+        hit.first = true;
+      },
 
-      function(next){
-
-        var throwfns = [
-          function(select_query){
-            var selector = select_query.selector;
-            selector.tag.should.equal('product');
-            selector.class.onsale.should.equal(true);
-            hit.first = true;
-          },
-
-          function(select_query){
-            var selector = select_query.selector;
-            selector.tag.should.equal('caption');
-            selector.class.red.should.equal(true);
-            hit.second = true;
-          }
-
-        ]
-
-        runrequest({
-          method:'get',
-          url:'/product.onsale/caption.red'
-        }, function(select_query){
-          var fn = throwfns.shift();
-          fn(select_query);
-        }, function(result){
-          hit.first.should.equal(true);
-          hit.second.should.equal(true);
-          next();
-        })
+      function(select_query){
+        var selector = select_query.selector;
+        selector.tag.should.equal('caption');
+        selector.class.red.should.equal(true);
+        hit.second = true;
       }
 
-    ], done)
+    ]
+
+    runrequest({
+      method:'get',
+      url:'/product.onsale/caption.red'
+    }, function(select_query){
+      var fn = throwfns.shift();
+      fn(select_query);
+    }, function(result){
+      hit.first.should.equal(true);
+      hit.second.should.equal(true);
+      done();
+    })
+      
   })
 
   it('should make creating different suppliers easy', function(done) {
@@ -244,7 +199,8 @@ describe('supplier', function(){
     var res = digger.response();
 
     res.on('success', function(){
-      res.body.answer.should.equal(10);
+      res.body.should.be.a('array');
+      res.body[0].answer.should.equal(10);
       done();
     })
 
@@ -276,8 +232,6 @@ describe('supplier', function(){
       method:'get'
     })
 
-    req.expect('digger/containers');
-
     var res = digger.response();
 
     res.on('success', function(){
@@ -290,57 +244,6 @@ describe('supplier', function(){
 
   })
 
-  it('should prepare the query for select operations', function(done) {
-
-    var supplier = digger.supplier({
-      url:'warehouse:/api/products',
-      preparequery:true
-    });
-
-    supplier.select(function(select_query, promise, next){
-      select_query.context.should.be.a('array');
-      select_query.context.length.should.equal(0);
-      select_query.selector.should.be.a('object');
-      select_query.query.should.be.a('array');
-      promise.resolve();
-    })
-
-    req = digger.request({
-      method:'get'
-    })
-
-    var res = digger.response();
-    res.on('success', function(){
-      done();
-    })
-    supplier(req, res);
-  })
-
-  it('should prepare the query for select operations', function(done) {
-
-    var supplier = digger.supplier({
-      url:'warehouse:/api/products',
-      preparequery:true
-    });
-
-    supplier.select(function(select_query, promise, next){
-      select_query.context.should.be.a('array');
-      select_query.context.length.should.equal(0);
-      select_query.selector.should.be.a('object');
-      select_query.query.should.be.a('array');
-      promise.resolve();
-    })
-
-    req = digger.request({
-      method:'get'
-    })
-
-    var res = digger.response();
-    res.on('success', function(){
-      done();
-    })
-    supplier(req, res);
-  })
 
 
   it('should handle append operations', function(done) {
@@ -446,13 +349,14 @@ describe('supplier', function(){
     })
 
     supplier.specialize('caption', function(select_query, promise){      
+
       select_query.context.should.be.a('array');
       select_query.context.length.should.equal(1);
-      var parent = select_query.context[0];
-      parent.name.should.equal('product');
-      var meta = parent.__digger__.meta;
-      meta.diggerid.should.equal(2323);
-      meta.left.should.equal(10);
+
+
+      var parentmeta = select_query.context[0];
+      parentmeta.diggerid.should.equal(2323);
+      parentmeta.left.should.equal(10);
 
       promise.resolve({
         name:'caption'
@@ -465,8 +369,6 @@ describe('supplier', function(){
     })
 
     var res = digger.response();
-
-    req.expect('digger/containers');
 
     res.on('success', function(){
       res.getHeader('content-type').should.equal('digger/containers');

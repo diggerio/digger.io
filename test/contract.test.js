@@ -79,20 +79,14 @@ describe('contract', function(){
 
     var contract = holder('caption img', 'product');
 
-    console.log(JSON.stringify(contract, null, 4));
     contract.body.length.should.equal(2);
-    contract.body[0].url.should.equal('/placeA/contract');
+    contract.body[0].url.should.equal('/placeA/resolve');
+    contract.body[1].url.should.equal('/placeB/resolve');
+
+    var singlecontract = contract.body[0];
+    singlecontract.headers['x-json-selector-strings'].should.be.a('array');
+    singlecontract.headers['x-json-selector-strings'].length.should.equal(2);
   })
 
-  it('should knock out unnessecary contract levels', function(){
-
-    var db = digger.container('ting');
-    db.diggerwarehouse('tinghq:/');
-
-    var contract = db('searchting');
-
-
-
-  })
 
 })

@@ -24,6 +24,7 @@ var EventEmitter = require('events').EventEmitter;
 var Container = require('../container');
 var Warehouse = require('../warehouse');
 var ParseSelector = require('../container/selector');
+
 var Promise = require('../network/promise');
 var Request = require('../network/request').factory;
 var Response = require('../network/response').factory;
@@ -31,10 +32,7 @@ var Response = require('../network/response').factory;
 var ContractResolver = require('../middleware/contractresolver');
 var SelectResolver = require('../middleware/selectresolver');
 
-var Query = require('./query');
-
 // prototype
-
 var Supplier = module.exports = function(){}
 
 Supplier.factory = function(settings){
@@ -96,21 +94,48 @@ Supplier.factory = function(settings){
 	*/
 	var specialized_stack = [];
 
-	supplier.handle_container_response = function(req, res, result){
-		/*
-		
-			if the request has asked for containers then we convert the answer explicetly
-			
-		*/
+	/*
+	
+		suppliers always return container data
 
-		if(req.getHeader('x-expect')==='digger/containers'){
+		this converts any straggling data into containers
+
+		it also 'stamps' the containers (i.e. injects a diggerwarehouse path into the meta)
+		
+	*/
+	supplier.handle_container_response = function(req, res, result){
+		
+		if(!result || (_.isArray(result) && result.length<=0)){
+			result = [];
+		}
+		else{
 			if(!_.isArray(result)){
-				result = result ? [result] : [];
+				result = [result];
 			}
-			res.setHeader('content-type', 'digger/containers');	
+
+			result = _.map(result, function(item){
+				if(!_.isObject(item)){
+					item = {
+						data:item
+					}
+				}
+				return item;
+			})
 		}
 
+		res.setHeader('content-type', 'digger/containers');	
 		res.send(result);
+	}
+
+	/*
+	
+		this stub for query preparation
+
+		depending on what flavour supplier will decide what happens here
+		
+	*/
+	supplier.prepare_select_query = function(select_query){
+		return this;
 	}
 	
 	supplier.handle_select_query = function(select_query, req, res, next){
@@ -121,19 +146,7 @@ Supplier.factory = function(settings){
 			return;
 		}
 
-		/*
-		
-			do we automatically prepare a query for the select function?
-
-			(this turns the selector and context into an array of SQL/MONGO like queries that is easy to turn
-			into a low level database query)
-			
-		*/
-		if(supplier.settings.attr('preparequery')){
-			if(!select_query.query){
-				select_query.query = Query(select_query.selector, select_query.context);
-			}
-		}
+		supplier.prepare_select_query(select_query);
 
 		var promise = Promise();
 
@@ -286,30 +299,30 @@ Supplier.factory = function(settings){
 				*/
 				else{
 
-					var contract = Request({
+					/*
+					
+						fake up the selectors into a proper query that is passed to /resolve
+
+						this means sticking the flat selector array into a phase then a string
+
+						[selectorA, selectorB] -> [[[selectorA, selectorB]]]
+						
+					*/
+					var strings = [[selectors]];
+
+					var selector_request = Request({
 						method:'post',
-						url:'/contract',
+						url:'/resolve',
 						headers:{
-							'x-contract-type':'pipe'
-						},
-						body:_.map(selectors, function(selector, index){
-							return Request({
-								method:'post',
-								url:'/select',
-								headers:{
-									'x-index':index,
-									'x-expect':'digger/containers',
-									'x-json-selector':selector
-								}
-							}).toJSON()
-						})
+							'x-json-selector-strings':strings
+						}
 					})
 
-					var contract_response = Response(function(){
-						supplier.handle_container_response(req, res, contract_response.body);
+					var selector_response = Response(function(){
+						supplier.handle_container_response(req, res, selector_response.body);
 					})
 
-					supplier(contract, contract_response, next);
+					supplier(selector_request, selector_response);
 				}
 
 			}

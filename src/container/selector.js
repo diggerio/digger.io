@@ -263,7 +263,8 @@ function parse(selector_string){
 function miniparse(selector_string){
   selector_string = selector_string || '';
   var selector = {
-    class:{}
+    class:{},
+    modifier:{}
   }
   selector_string = selector_string.replace(/_(\w+)/, function(match, id){
     selector.id = id;

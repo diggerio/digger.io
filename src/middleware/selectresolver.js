@@ -18,10 +18,9 @@
 
 var _ = require('lodash');
 var async = require('async');
-var eyes = require('eyes');
 
-var Request = require('../network/request');
-var Response = require('../network/response');
+var Request = require('../network/request').factory;
+var Response = require('../network/response').factory;
 
 //var EventResolver = require('./resolveevents');
 
@@ -55,7 +54,14 @@ State.prototype.next = function(){
 }
 
 function extractskeleton(data){
-  return data.__digger__.meta;
+
+  if(data.__digger__){
+    return data.__digger__.meta || {};  
+  }
+  else{
+    return {};
+  }
+  
 }
 
 function factory(handle){
@@ -66,9 +72,9 @@ function factory(handle){
 
   return function(req, res, next){
 
-    var skeleton_array = req.body;
+    var skeleton_array = req.body || [];
     var strings = req.getHeader('x-json-selector-strings');
-    
+
     var final_state = new State(strings);
     var final_results = [];
     //var select_resolver = EventResolver('select', req, res);

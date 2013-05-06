@@ -113,50 +113,6 @@ function select(){
       url:(diggerwarehouse || '') + '/resolve',
       body:skeleton || []
     })    
-    suppliercontract.method = 'post';
-    suppliercontract.url = 
-
-    suppliercontract.body = _.map(selectors, function(selector_string, stringindex){
-
-      /*
-      
-        a single selector with phases to be merged
-        
-      */
-      var phasecontract = Contract('merge');
-      phasecontract.method = 'post';
-      phasecontract.url = '/contract';
-
-      /*
-      
-        the body is each phase of the selector
-        each phase is it's own pipe contract
-        
-      */
-      phasecontract.body = _.map(selector_string.phases, function(phase){
-
-        var selectorcontract = Contract('pipe');
-        selectorcontract.method = 'post';
-        selectorcontract.url = '/contract';
-
-        selectorcontract.body = _.map(phase, function(selector, phaseindex){
-          return Request({
-            method:'post',
-            url:'/select',
-            body:(stringindex===0 && phaseindex===0) ? skeleton : null,
-            headers:{
-              'x-index':phaseindex,
-              'x-expect':'digger/containers',
-              'x-json-selector':selector
-            }
-          }).toJSON() 
-        })
-
-        return selectorcontract;
-      })
-
-      return phasecontract;
-    })
 
     return suppliercontract.toJSON();
   })

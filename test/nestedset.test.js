@@ -7,7 +7,7 @@ describe('nestedset supplier', function(){
 
   it('should prepare the query for select operations', function(done) {
 
-    var supplier = digger.database.nestedset({
+    var supplier = digger.suppliers.nestedset({
       url:'warehouse:/api/products'
     })
 
@@ -33,7 +33,7 @@ describe('nestedset supplier', function(){
 
   it('should produce queries based on the selector object', function(done) {
 
-    var supplier = digger.database.nestedset({
+    var supplier = digger.suppliers.nestedset({
       url:'warehouse:/api/products'
     })
 

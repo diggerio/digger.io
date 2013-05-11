@@ -1,0 +1,98 @@
+[
+    {
+        "__digger__": {
+            "tag": "folder",
+            "class": [],
+            "id": "",
+            "diggerid": "17dc8590ba3411e2b58d91a4d58f5088"
+        },
+        "__children__": [
+            {
+                "__digger__": {
+                    "tag": "product",
+                    "class": [
+                        "red"
+                    ],
+                    "id": "",
+                    "diggerid": ""
+                },
+                "__children__": [
+                    {
+                        "__digger__": {
+                            "tag": "caption",
+                            "class": [
+                                "blue"
+                            ],
+                            "id": "",
+                            "diggerid": ""
+                        },
+                        "__children__": [],
+                        "name": "User1"
+                    },
+                    {
+                        "__digger__": {
+                            "tag": "caption",
+                            "class": [
+                                "green"
+                            ],
+                            "id": "",
+                            "diggerid": ""
+                        },
+                        "__children__": [],
+                        "name": "User2"
+                    },
+                    {
+                        "__digger__": {
+                            "tag": "caption",
+                            "class": [
+                                "yellow"
+                            ],
+                            "id": "",
+                            "diggerid": ""
+                        },
+                        "__children__": [],
+                        "name": "User3"
+                    }
+                ],
+                "name": "Chair"
+            },
+            {
+                "__digger__": {
+                    "tag": "product",
+                    "class": [
+                        "purple"
+                    ],
+                    "id": "",
+                    "diggerid": ""
+                },
+                "__children__": [
+                    {
+                        "__digger__": {
+                            "tag": "caption",
+                            "class": [
+                                "orange"
+                            ],
+                            "id": "",
+                            "diggerid": ""
+                        },
+                        "__children__": [],
+                        "name": "User1"
+                    },
+                    {
+                        "__digger__": {
+                            "tag": "caption",
+                            "class": [
+                                "pink"
+                            ],
+                            "id": "",
+                            "diggerid": ""
+                        },
+                        "__children__": [],
+                        "name": "User2"
+                    }
+                ],
+                "name": "Table"
+            }
+        ]
+    }
+]

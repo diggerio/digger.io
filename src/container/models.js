@@ -51,11 +51,11 @@ function extractdata(data, attr){
     else{
       attr = attr || {};
       attr.__digger__ = attr.__digger__ || {
-        meta:{
-          tag:data
-        },
-        children:[]
+        tag:data
+        
       }
+      attr.__children__ = attr.__children__ || [];
+      attr.__data__ = attr.__data__ || {};
       data = [attr];
     }
   }
@@ -97,10 +97,10 @@ module.exports = function modelfactory(data, attr){
     }
 
     var digger = model.__digger__ = model.__digger__ || {};
-    digger.meta = digger.meta || {};
-    digger.meta.class = digger.meta.class || [];
-    digger.meta.diggerid = digger.meta.diggerid || utils.diggerid();
-    digger.children = digger.children || [];
+    digger.class = digger.class || [];
+    digger.diggerid = digger.diggerid || utils.diggerid();
+
+    model.__children__ = model.__children__ || [];
 
     return model;
   }), nonulls)

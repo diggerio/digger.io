@@ -137,14 +137,27 @@ function append(childarray){
 
   var appendto = this.get(0);
   var appendcontainer = this.spawn(appendmodels);
-  var appendwarehouse = this.diggerwarehouse();
+  var appendwarehouse = this.diggerurl();
 
   appendcontainer.recurse(function(des){
     des.diggerwarehouse(appendwarehouse);
   })
 
-  appendto.__digger__.children = appendto.__digger__.children.concat(appendmodels);
-  return this;
+  appendto.__children__ = appendto.__children__.concat(appendmodels);
+
+  var contract = Contract('merge');
+  contract.method = 'post';
+  contract.url = 'reception:/';
+
+  var suppliercontract = Request({
+    method:'post',
+    url:this.diggerurl(),
+    body:appendmodels || []
+  })    
+
+  contract.body = [suppliercontract.toJSON()];
+  
+  return contract;
 }
 
 /*
@@ -153,7 +166,23 @@ function append(childarray){
   
 */
 function save(){
-  return this;
+
+  var contract = Contract('merge');
+  contract.method = 'post';
+  contract.url = 'reception:/';
+
+  var url = contract.url;
+  var data = this.get(0);
+
+  var suppliercontract = Request({
+    method:'put',
+    url:this.diggerurl(),
+    body:this.eq(0).toJSON()[0]
+  })
+
+  contract.body = [suppliercontract.toJSON()];
+  
+  return contract;
 }
 
 /*
@@ -162,5 +191,17 @@ function save(){
   
 */
 function remove(){
-  return this;
+
+  var contract = Contract('merge');
+  contract.method = 'post';
+  contract.url = 'reception:/';
+
+  var suppliercontract = Request({
+    method:'delete',
+    url:this.diggerurl()
+  })    
+
+  contract.body = [suppliercontract.toJSON()];
+  
+  return contract;
 }

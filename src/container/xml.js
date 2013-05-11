@@ -56,18 +56,16 @@ function data_factory(element){
 
   var data = {
     __digger__:{
-      meta:{
-        tag:element.nodeName,
-        class:_.filter((element.getAttribute('class') || '').split(/\s+/), function(classname){
-          return classname.match(/\w/);
-        })
-      },
-      children:[]
-    }
+      tag:element.nodeName,
+      class:_.filter((element.getAttribute('class') || '').split(/\s+/), function(classname){
+        return classname.match(/\w/);
+      })
+    },
+    __children__:[]
   }
   
   _.each(metafields, function(v, metafield){
-    data.__digger__.meta[metafield] = element.getAttribute(metafield) || '';
+    data.__digger__[metafield] = element.getAttribute(metafield) || '';
   })
 
   _.each(element.attributes, function(attr){
@@ -76,7 +74,7 @@ function data_factory(element){
     }
   })
 
-  data.__digger__.children = _.filter(_.map(element.childNodes, data_factory), null_filter);
+  data.__children__ = _.filter(_.map(element.childNodes, data_factory), null_filter);
 
   return data;
 }
@@ -126,8 +124,8 @@ function fromXML(string){
 
 function string_factory(data, depth){
 
-  var meta = data.__digger__.meta || {};
-  var children = data.__digger__.children || [];
+  var meta = data.__digger__ || {};
+  var children = data.__children__ || [];
   var attr = data;
 
   function get_indent_string(){

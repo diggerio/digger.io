@@ -62,8 +62,8 @@ describe('container', function(){
     test.models[0].should.be.a('object');
     test.models[0].price.should.equal(100);
     test.models[0].__digger__.should.be.a('object');
-    test.models[0].__digger__.meta.class.should.be.a('array');
-    test.models[0].__digger__.children.should.be.a('array');
+    test.models[0].__digger__.class.should.be.a('array');
+    test.models[0].__children__.should.be.a('array');
 
   })
 
@@ -75,8 +75,8 @@ describe('container', function(){
     test.models[0].should.be.a('object');
     test.models[0].price.should.equal("100");
     test.models[0].__digger__.should.be.a('object');
-    test.models[0].__digger__.meta.class.should.be.a('array');
-    test.models[0].__digger__.children.should.be.a('array');
+    test.models[0].__digger__.class.should.be.a('array');
+    test.models[0].__children__.should.be.a('array');
     test.hasClass('red').should.equal(true);
 
   })
@@ -104,7 +104,7 @@ describe('container', function(){
 
     test.id('hello');
     test.id().should.equal('hello');
-    test.get(0).__digger__.meta.id.should.equal('hello');
+    test.get(0).__digger__.id.should.equal('hello');
 
     test.tag().should.equal('product');
 
@@ -119,6 +119,13 @@ describe('container', function(){
     deep.attr.should.equal(23);
   })  
 
+  it('should allow access to diggerurl', function(){
+    var test = digger.container('test');
+    test.diggerid('123');
+    test.diggerwarehouse('/testapi');
+
+    test.diggerurl().should.equal('/testapi/123');
+  })
 
   it('should build from XML', function(){
     var test = digger.create(data.simplexml);
@@ -132,7 +139,7 @@ describe('container', function(){
 
     test.toJSON().should.be.a('array');
     test.toJSON().length.should.equal(1);
-    test.toJSON()[0].__digger__.meta.should.be.a('object');
+    test.toJSON()[0].__digger__.should.be.a('object');
 
     var xml = test.toXML();
     xml.should.be.a('string');
@@ -154,7 +161,7 @@ describe('container', function(){
 
     test.count().should.equal(1);
     test.get(0).should.be.a('object');
-    test.get(0).__digger__.meta.id.should.equal('places');
+    test.get(0).__digger__.id.should.equal('places');
 
   })
 
@@ -164,6 +171,8 @@ describe('container', function(){
     var test = digger.create(data.citiesxml);
 
     test.children().attr('test', 23);
+
+
     test.children().eq(0).attr('test').should.equal(23);
     test.children().eq(1).attr('test').should.equal(23);
   })

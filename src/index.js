@@ -32,19 +32,25 @@ module.exports = {
   */
 	container:require('./container'),
   create:require('./container'),
-  warehouse:require('./warehouse'),
-  supplier:require('./supplier'),
+
   selector:require('./container/selector'),
   promise:require('./network/promise'),
   request:require('./network/request').factory,
   response:require('./network/response').factory,
   contract:require('./network/contract').factory,
+
+  warehouse:require('./warehouse'),
+  supplier:require('./supplier'),
+  supplychain:require('./supplychain'),
+
   middleware:{
     contractresolver:require('./middleware/contractresolver'),
     selectresolver:require('./middleware/selectresolver')
   },
-  database:{
-    digger:require('./supplier/diggerdb'),
+  
+  suppliers:{
+    diggerdb:require('./supplier/diggerdb'),
+    simpledb:require('./supplier/simpledb'),
     nestedset:require('./supplier/nestedset')
   }
 }

@@ -23,9 +23,10 @@
     "node-uuid": "~1.4.0",
     "escape-html": "*",
     "xtend": "~2.0.3",
-    "xmldom": "~0.1.15",    
+    "xmldom": "~0.1.15",
     "q": "~0.9.3",
-    "dispatch": "~0.2.0"
+    "dispatch": "~0.2.0",
+    "wrench": "~1.5.1"
   },
   "devDependencies": {
     "grunt": "~0.4.1",

@@ -184,7 +184,7 @@ Container.prototype.spawn = function(models){
 Container.prototype.children = function(){
   var models = [];
   this.each(function(container){
-    models = models.concat(container.eq(0).digger().children);
+    models = models.concat(container.get(0).__children__);
   })
 	return this.spawn(models);
 }
@@ -216,7 +216,7 @@ Container.prototype.containers = function(){
 
 Container.prototype.skeleton = function(){
   return _.map(this.models, function(model){
-    return model.__digger__.meta || {};
+    return model.__digger__ || {};
   })
 }
 
@@ -416,32 +416,36 @@ function remove_wrapper(topprop){
     return this;
   }
 }
-var attrwrapper = wrapper('attr');
-
 
 Container.prototype.attr = wrapper();
 Container.prototype.removeAttr = remove_wrapper();
 
 Container.prototype.digger = wrapper('__digger__');
 
-Container.prototype.meta = wrapper('__digger__.meta');
-Container.prototype.removeMeta = remove_wrapper('__digger__.meta');
+Container.prototype.meta = wrapper('__digger__');
+Container.prototype.removeMeta = remove_wrapper('__digger__');
 
-Container.prototype.data = wrapper('__digger__.data');
-Container.prototype.removeData = remove_wrapper('__digger__.data');
+Container.prototype.data = wrapper('__data__');
+Container.prototype.removeData = remove_wrapper('__data__');
 
-Container.prototype.diggerid = wrapper('__digger__.meta', 'diggerid');
-Container.prototype.diggerwarehouse = wrapper('__digger__.meta', 'diggerwarehouse');
+Container.prototype.diggerid = wrapper('__digger__', 'diggerid');
+Container.prototype.diggerwarehouse = wrapper('__digger__', 'diggerwarehouse');
 
-Container.prototype.id = wrapper('__digger__.meta', 'id');
-Container.prototype.tag = wrapper('__digger__.meta', 'tag');
-Container.prototype.classnames = wrapper('__digger__.meta', 'class');
+Container.prototype.diggerurl = function(){
+  var warehouse = this.diggerwarehouse();
+  var id = this.diggerid();
+  return warehouse + (id ? '/' + id : '');
+}
+
+Container.prototype.id = wrapper('__digger__', 'id');
+Container.prototype.tag = wrapper('__digger__', 'tag');
+Container.prototype.classnames = wrapper('__digger__', 'class');
 
 Container.prototype.addClass = function(classname){
   var self = this;
   _.each(this.models, function(model){
-		model.__digger__.meta.class.push(classname);
-		model.__digger__.meta.class = _.uniq(model.__digger__.meta.class);
+		model.__digger__.class.push(classname);
+		model.__digger__.class = _.uniq(model.__digger__.class);
   })
   return this;
 }
@@ -449,7 +453,7 @@ Container.prototype.addClass = function(classname){
 Container.prototype.removeClass = function(classname){
   var self = this;
   _.each(this.models, function(model){
-    model.__digger__.meta.class = _.without(model.__digger__.meta.class, classname);
+    model.__digger__.class = _.without(model.__digger__.class, classname);
   })
   return this;
 }

@@ -82,9 +82,33 @@ function factory(supplychain){
           res.fill(contract_res);
         }
         else{
-          lastresults = contract_res.body;  
+          lastresults = contract_res.body;
+          next();
         }
-        next();
+      })
+      supplychain(contract_req, contract_res, next);
+    }, function(error){
+      res.send(lastresults);
+    })
+  }
+
+  /*
+  
+    run each query one after the other but do not inject data like pipe
+    
+  */
+  resolver.sequence = function(req, res, next){
+    var lastresults = null;
+    async.forEachSeries(req.body || [], function(raw, next){
+      var contract_req = Request(raw);
+      var contract_res = Response(function(){
+        if(contract_res.hasError()){
+          res.fill(contract_res);
+        }
+        else{
+          lastresults = contract_res.body;  
+          next();
+        }
       })
       supplychain(contract_req, contract_res, next);
     }, function(error){

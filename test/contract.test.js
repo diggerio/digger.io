@@ -65,7 +65,7 @@ describe('contract', function(){
 
     contract.add(contract2);
 
-    contract.body.length.should.equal(3);
+    contract.body.length.should.equal(4);
   })
 
   it('should create a merge contract for multiple containers from different warehouses', function(){
@@ -170,6 +170,27 @@ describe('contract', function(){
 
     req.method.should.equal('delete');
     req.url.should.equal('/placeA/123');
+  })
+
+  it('should allow another different container action to be merged into the current contract', function(){
+    var containerA = digger.container('A');
+    var containerB = digger.container('B');
+    var containerC = digger.container('C');
+
+    containerA.attr('test', 10);
+
+    var contract = containerA.save();
+    contract.add(containerB.append(containerC));
+
+    contract.body.length.should.equal(2);
+
+    var save = contract.body[0];
+    var append = contract.body[1];
+
+    save.method.should.equal('put');
+    append.method.should.equal('post');
+
+
   })
 
 })

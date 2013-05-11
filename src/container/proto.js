@@ -434,7 +434,7 @@ Container.prototype.diggerwarehouse = wrapper('__digger__', 'diggerwarehouse');
 Container.prototype.diggerurl = function(){
   var warehouse = this.diggerwarehouse();
   var id = this.diggerid();
-  return warehouse + (id ? '/' + id : '');
+  return (warehouse ? warehouse : '') + (id ? '/' + id : '');
 }
 
 Container.prototype.id = wrapper('__digger__', 'id');
@@ -589,6 +589,7 @@ Container.prototype.match = Finder.match;
 
  */
 
+Container.prototype.bindcontract = Contracts.bindcontract;
 Container.prototype.select = Contracts.select;
 Container.prototype.append = Contracts.append;
 Container.prototype.save = Contracts.save;

@@ -43,6 +43,9 @@ module.exports = {
   supplier:require('./supplier'),
   supplychain:require('./supplychain'),
 
+  merge:require('./network/contract').mergefactory,
+  sequence:require('./network/contract').sequencefactory,
+
   middleware:{
     contractresolver:require('./middleware/contractresolver'),
     selectresolver:require('./middleware/selectresolver')

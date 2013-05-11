@@ -90,6 +90,62 @@ describe('contractresolver', function(){
     warehouse(contract, res);
   })
 
+  it('should run a basic sequence contract', function(done){
+
+    var warehouse = digger.warehouse();
+
+    warehouse.use(digger.middleware.contractresolver(warehouse));
+
+    var starttime = new Date().getTime();
+
+    warehouse.use('/apples', function(req, res){
+      setTimeout(function(){
+        res.send([1,2]);  
+      }, 50)
+    })
+
+    warehouse.use('/oranges', function(req, res){
+      req.body.should.equal(123);
+      var nowtime = new Date().getTime();
+
+      var timegap = nowtime-starttime;
+
+      var isless = timegap<50;
+
+      isless.should.equal(false);
+
+      res.send([3,4]);
+    })
+
+    var contract = digger.contract('sequence');
+
+    var req1 = digger.request({
+      method:'get',
+      url:'/apples'
+    })
+
+    var req2 = digger.request({
+      method:'post',
+      url:'/oranges',
+      body:123
+    })
+
+    contract.add(req1);
+    contract.add(req2);
+
+    var res = digger.response();
+
+    res.on('success', function(results){
+      res.statusCode.should.equal(200);
+      results.should.be.a('array');
+      results.length.should.equal(2);
+      results[0].should.equal(3);
+      results[1].should.equal(4);
+      done();
+    })
+    
+    warehouse(contract, res);
+  })
  
 })
 

@@ -1,15 +1,40 @@
 var digger = require('../src');
-var data = require('./fixtures/data');
+var async = require('async');
 
 describe('supplychain', function(){
 
-  it('should provide a connection from client to server', function(done) {
+  it('should emit events', function(done) {
 
-    var warehouse = digger.warehouse(function(req, res){
-      res.send('hello world');
+    var container = digger.supplychain(function(req, res){
+
     })
 
+    container.on('test', done);
+    container.emit('test');
+  })
 
+  it('should be a container', function() {
+
+    var container = digger.supplychain(function(req, res){
+
+    })
+
+    container.tag().should.equal('supplychain');
+  })
+
+  it('should run the function with a request containing the contract', function(done){
+    var container = digger.supplychain(function(req, res){
+      req.method.should.equal('post');
+      req.url.should.equal('reception:/');
+      req.body.length.should.equal(1);
+      req.body[0].method.should.equal('post');
+      req.body[0].url.should.equal('/resolve');
+      done();
+    })
+
+    container('hello').ship(function(){
+
+    })
   })
 
 })

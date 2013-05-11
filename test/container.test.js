@@ -188,6 +188,17 @@ describe('container', function(){
     name.should.equal('UK');
   })
 
+  it('should pass the supplychain down to children and descendents', function(){
+    var test = digger.create(data.citiesxml);
+
+    test.supplychain = 34;
+
+    var children = test.children();
+    var descendents = test.descendents();
+    children.supplychain.should.equal(34);
+    descendents.supplychain.should.equal(34);
+  })
+
   it('should be able access children', function(){
 
     var test = digger.create(data.citiesxml);

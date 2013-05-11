@@ -68,7 +68,7 @@ function select(){
     
   */
   var groups = _.groupBy(this.containers(), function(container){
-    return container.diggerwarehouse();
+    return container.diggerwarehouse() || '/';
   })
 
   var warehouseids = _.keys(groups);
@@ -110,13 +110,14 @@ function select(){
       headers:{
         'x-json-selector-strings':selectors
       },
-      url:(diggerwarehouse || '') + '/resolve',
+      url:((diggerwarehouse=='/' ? null : diggerwarehouse) || '') + '/resolve',
       body:skeleton || []
     })    
 
     return suppliercontract.toJSON();
   })
 
+  contract.supplychain = this.supplychain;
   return contract;
 }
 
@@ -137,7 +138,7 @@ function append(childarray){
 
   var appendto = this.get(0);
   var appendcontainer = this.spawn(appendmodels);
-  var appendwarehouse = this.diggerurl();
+  var appendwarehouse = this.diggerwarehouse();
 
   appendcontainer.recurse(function(des){
     des.diggerwarehouse(appendwarehouse);
@@ -157,6 +158,7 @@ function append(childarray){
 
   contract.body = [suppliercontract.toJSON()];
   
+  contract.supplychain = this.supplychain;
   return contract;
 }
 
@@ -182,6 +184,7 @@ function save(){
 
   contract.body = [suppliercontract.toJSON()];
   
+  contract.supplychain = this.supplychain;
   return contract;
 }
 
@@ -202,6 +205,7 @@ function remove(){
   })    
 
   contract.body = [suppliercontract.toJSON()];
-  
+
+  contract.supplychain = this.supplychain;
   return contract;
 }

@@ -58,13 +58,20 @@ var Container = require('./container/proto');
   create a new supply chain that will pipe a req and res object into the
   provided fn
 
-
   
 */
 
 function factory(fn){
   var container = Container.factory('supplychain');
-  container.supplychain = fn;
+  
+  container.supplychain = function(req, res){
+    container.emit('request', req);
+    if(fn){
+      fn(req, res);
+    }
+    return this;
+  }
+  
   return container;
 }
 

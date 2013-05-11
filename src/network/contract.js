@@ -23,7 +23,7 @@ var url = require('url');
 var _ = require('lodash');
 var utils = require('../utils');
 var Request = require('./request');
-
+var Response = require('./response');
 /*
 
 
@@ -65,15 +65,54 @@ Contract.factory = function(data){
   return new Contract(data);
 }
 
+Contract.mergefactory = function(data){
+  var contract = Contract.factory('merge');
+  contract.body = _.map(data, function(child){
+    return child.toJSON();
+  })
+  return contract;
+}
+
+Contract.sequencefactory = function(data){
+  var contract = Contract.factory('sequence');
+  contract.body = _.map(data, function(child){
+    return child.toJSON();
+  })
+  return contract;
+}
+
 Contract.prototype.add = function(req){
   var self = this;
+
   if(_.isArray(req)){
     _.each(req, function(item){
       self.add(item);
     })
   }
   else{
-    this.body.push(_.isFunction(req.toJSON) ? req.toJSON() : req);  
+
+    var whattoadd = req;
+
+    if(_.isFunction(req.toJSON)){
+      if(req.getHeader('x-contract-type')==this.getHeader('x-contract-type')){
+        this.body = this.body.concat(req.body);
+      }
+      else{
+        this.body.push(req.toJSON());
+      }
+    }
   }
   return this;
+}
+
+Contract.prototype.ship = function(callback){
+  if(!this.supplychain){
+    return this;
+  }
+
+  var res = Response.factory(callback);
+
+  this.supplychain(this, res);
+
+  return res;
 }

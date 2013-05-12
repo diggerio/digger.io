@@ -6,6 +6,9 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-watch');
   grunt.loadNpmTasks('grunt-contrib-concat');
 
+  process.env.DEBUG = '';
+  process.env.CONSOLE = 'false';
+
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
     exec: {

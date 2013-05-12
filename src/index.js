@@ -23,6 +23,8 @@
 	
 */
 
+var bootstrap = require('./bootstrap');
+
 module.exports = {
 
   /*
@@ -41,7 +43,7 @@ module.exports = {
 
   warehouse:require('./warehouse'),
   supplier:require('./supplier'),
-  supplychain:require('./supplychain'),
+  supplychain:require('./warehouse/supplychain'),
 
   merge:require('./network/contract').mergefactory,
   sequence:require('./network/contract').sequencefactory,
@@ -57,3 +59,5 @@ module.exports = {
     nestedset:require('./supplier/nestedset')
   }
 }
+
+bootstrap();

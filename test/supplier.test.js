@@ -32,7 +32,7 @@ describe('supplier', function(){
       })
 
       req = digger.request(req);
-      var res = digger.response();
+      var res = digger.response(true);
 
       res.on('success', callbackfn);
       res.on('failure', function(error){
@@ -132,7 +132,7 @@ describe('supplier', function(){
       })
 
       req = digger.request(req);
-      var res = digger.response();
+      var res = digger.response(true);
 
       res.on('success', callbackfn);
       res.on('failure', function(error){
@@ -196,7 +196,7 @@ describe('supplier', function(){
       method:'get'
     })
 
-    var res = digger.response();
+    var res = digger.response(true);
 
     res.on('success', function(){
       res.body.should.be.a('array');
@@ -232,7 +232,7 @@ describe('supplier', function(){
       method:'get'
     })
 
-    var res = digger.response();
+    var res = digger.response(true);
 
     res.on('success', function(){
       res.getHeader('content-type').should.equal('digger/containers');
@@ -266,7 +266,7 @@ describe('supplier', function(){
       body:20
     })
 
-    var res = digger.response();
+    var res = digger.response(true);
     res.on('success', function(answer){
       answer.should.equal(45);
       done();
@@ -294,7 +294,7 @@ describe('supplier', function(){
       body:20
     })
 
-    var res = digger.response();
+    var res = digger.response(true);
     res.on('success', function(answer){
       answer.should.equal(45);
       done();
@@ -322,7 +322,7 @@ describe('supplier', function(){
       body:20
     })
 
-    var res = digger.response();
+    var res = digger.response(true);
     res.on('success', function(answer){
       answer.should.equal(45);
       done();
@@ -368,7 +368,7 @@ describe('supplier', function(){
       method:'get'
     })
 
-    var res = digger.response();
+    var res = digger.response(true);
 
     res.on('success', function(){
       res.getHeader('content-type').should.equal('digger/containers');

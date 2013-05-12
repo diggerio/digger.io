@@ -71,15 +71,15 @@ Warehouse.prototype.initialize = function(){
   
 */
 
-Warehouse.prototype.prepare = function(fn){
+Warehouse.prototype.prepare = function(setupfn){
   var self = this;
   this._prepared = false;
-  fn(function(){
+  setupfn(function(){
     self._prepared = true;
     var callbacks = self._preparestack;
     self._preparestack = [];
     async.forEach(callbacks, function(fn, nextfn){
-      fn();
+      fn();    
       nextfn();
     }, function(){
 
@@ -175,14 +175,14 @@ Warehouse.prototype.handle = function(req, res, parentout) {
         parentout(req, res);
       }
       else{
-        res.send404(req.getHeader('x-digger-path'));
+        res.send404(req);
       }
     })
   }
 
   if(!this._prepared){
     this._preparestack.push(function(){
-      self.handle(req, res, out);
+      self.handle(req, res, parentout);
     })
     return;
   }

@@ -26,7 +26,8 @@
     "xmldom": "~0.1.15",
     "q": "~0.9.3",
     "dispatch": "~0.2.0",
-    "wrench": "~1.5.1"
+    "wrench": "~1.5.1",
+    "debug": "~0.7.2"
   },
   "devDependencies": {
     "grunt": "~0.4.1",

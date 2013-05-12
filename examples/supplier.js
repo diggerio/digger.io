@@ -9,7 +9,6 @@ var db = digger.suppliers.simpledb({
 
 var container = digger.supplychain(db);
 
-container('city').ship(function(cities){
-	console.log('-------------------------------------------');
-	console.dir(cities.toJSON());
+container('city').ship(function(cities, res){	
+	console.dir(cities.count());
 })

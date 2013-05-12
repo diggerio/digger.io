@@ -21,6 +21,7 @@ var async = require('async');
 var Request = require('../network/request').factory;
 var Response = require('../network/response').factory;
 var EventEmitter = require('events').EventEmitter;
+var debug = require('debug')('contractresolver');
 
 /*
   digger.io - Contract Resolver
@@ -52,13 +53,17 @@ function factory(supplychain){
     
   */
   resolver.merge = function(req, res, next){
+    
+    debug('merge contract');
     async.forEach(req.body || [], function(raw, next){
       var contract_req = Request(raw);
       var contract_res = Response(function(){
         res.add(contract_res);
         next();
       })
-      supplychain(contract_req, contract_res, next);
+
+      debug('merge contract - part: %s %s', contract_req.method, contract_req.url);
+      supplychain(contract_req, contract_res);
     }, function(error){
       res.send();
     })
@@ -74,6 +79,7 @@ function factory(supplychain){
   */
   resolver.pipe = function(req, res, next){
     var lastresults = null;
+    debug('pipe contract');
     async.forEachSeries(req.body || [], function(raw, next){
       var contract_req = Request(raw);
       contract_req.body = lastresults || contract_req.body;
@@ -86,6 +92,7 @@ function factory(supplychain){
           next();
         }
       })
+      debug('pipe contract - part: %s %s', contract_req.method, contract_req.url);
       supplychain(contract_req, contract_res, next);
     }, function(error){
       res.send(lastresults);
@@ -99,6 +106,7 @@ function factory(supplychain){
   */
   resolver.sequence = function(req, res, next){
     var lastresults = null;
+    debug('sequence contract');
     async.forEachSeries(req.body || [], function(raw, next){
       var contract_req = Request(raw);
       var contract_res = Response(function(){
@@ -110,6 +118,7 @@ function factory(supplychain){
           next();
         }
       })
+      debug('sequence contract - part: %s %s', contract_req.method, contract_req.url);
       supplychain(contract_req, contract_res, next);
     }, function(error){
       res.send(lastresults);

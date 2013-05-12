@@ -61,7 +61,7 @@ describe('response', function(){
 
   it('should trigger the success handler', function(done) {
 
-    var res = digger.response();
+    var res = digger.response(true);
 
     res.on('success', function(){
       res.body.should.equal('hello');
@@ -80,7 +80,7 @@ describe('response', function(){
 
   it('should trigger the failure handler', function(done) {
 
-    var res = digger.response();
+    var res = digger.response(true);
 
     res.on('success', function(){
       throw new Error('should not happen');
@@ -120,7 +120,7 @@ describe('response', function(){
           next();
         })
 
-        res.send404('nothing there!');
+        res.send404();
       },
       function(next){
         var res = digger.response(function(){
@@ -136,7 +136,7 @@ describe('response', function(){
 
   it('should fill from another response JSON', function(done) {
 
-    var res = digger.response();
+    var res = digger.response(true);
 
     res.on('success', function(){
       res.statusCode.should.equal(200);
@@ -220,6 +220,7 @@ describe('response', function(){
     })
 
   })
+
 
   
 })

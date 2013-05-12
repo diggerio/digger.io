@@ -77,7 +77,7 @@ describe('contractresolver', function(){
     contract.add(req1);
     contract.add(req2);
 
-    var res = digger.response();
+    var res = digger.response(true);
 
     res.on('success', function(results){
       res.statusCode.should.equal(200);
@@ -87,6 +87,7 @@ describe('contractresolver', function(){
       results[3].should.equal(4);
       done();
     })
+
     warehouse(contract, res);
   })
 
@@ -133,7 +134,7 @@ describe('contractresolver', function(){
     contract.add(req1);
     contract.add(req2);
 
-    var res = digger.response();
+    var res = digger.response(true);
 
     res.on('success', function(results){
       res.statusCode.should.equal(200);

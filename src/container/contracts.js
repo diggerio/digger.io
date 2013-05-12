@@ -118,6 +118,7 @@ function select(){
   })
 
   contract.supplychain = this.supplychain;
+  contract.expect('digger/containers');
   return contract;
 }
 

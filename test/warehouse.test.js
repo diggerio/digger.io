@@ -198,7 +198,7 @@ describe('warehouse', function(){
       url:'axon://warehouse.digger/somewhere/124'
     })
 
-    var res = digger.response();
+    var res = digger.response(true);
 
     res.on('success', function(){
       throw new Error('should not happen');

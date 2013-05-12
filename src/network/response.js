@@ -43,75 +43,29 @@ Response.factory = function(data, errorfn){
     
   */
   var fn = null;
-
+  var autoresolve = false;
   if(_.isFunction(data)){
     fn = data;
+    data = null;
+  }
+  else if(_.isBoolean(data)){
+    autoresolve = data;
     data = null;
   }
 
   var ret = new Response(data);
 
-  ret.on('send', function(){
-    if(fn){
-      fn(ret.body);
-    }
+  var sent = false;
 
-    if(!ret.statusCode){
-      ret.statusCode = 200;
-    }
+  if(autoresolve){
+    ret.on('send', function(){
+      ret.resolve();
+    })
+  }
 
-    var results = [];
-    var errors = [];
-
-    function resolvemutlipart(multires){
-      if(multires.statusCode==200){
-        if(multires.getHeader('content-type')=='digger/multipart'){
-          var responses = _.map(multires.body, function(raw){
-            if(!raw.statusCode){
-              raw.statusCode = 200;
-            }
-            return new Response(raw);
-          })
-          _.each(responses, function(childmultires){
-            resolvemutlipart(childmultires);
-          })
-        } 
-        else{
-          if(_.isArray(multires.body)){
-            results = results.concat(multires.body);
-          }
-          else{
-            results.push(multires.body);
-          }
-        }
-      }
-      else{
-        errors.push(multires.body);
-      }
-    }
-
-    if(ret.statusCode===200){
-      if(ret.getHeader('content-type')=='digger/multipart'){
-        resolvemutlipart(ret);
-        if(results.length>0){
-          ret.emit('success', results, ret);
-        }
-
-        if(errors.length>0){
-          ret.emit('failure', errors, ret);    
-        }
-      }
-      else{
-        ret.emit('success', ret.body, ret);
-      }
-    }
-    else{
-      ret.emit('failure', ret.body, ret);
-    }
-
-    
-    
-  })
+  if(fn){
+    ret.on('send', fn);
+  }
 
   return ret;
 }
@@ -136,7 +90,6 @@ Response.prototype.fill = function(answer){
 
 Response.prototype.statusCode = 200;
 
-
 Response.prototype.send = function(body){
   if(this.headerSent===true){
     throw new Error('cannot send response after headers have been sent');
@@ -148,6 +101,65 @@ Response.prototype.send = function(body){
   this.emit('aftersend', body);
   this.headerSent = true;
   return this;
+}
+
+Response.prototype.resolve = function(fn){
+
+  if(!this.statusCode){
+    this.statusCode = 200;
+  }
+
+  var results = [];
+  var errors = [];
+
+  function resolvemutlipart(multires){
+    if(multires.statusCode==200){
+      if(multires.getHeader('content-type')=='digger/multipart'){
+        _.each(multires.body, function(raw){
+          if(!raw.statusCode){
+            raw.statusCode = 200;
+          }
+          resolvemutlipart(new Response(raw));
+        })
+      } 
+      else{
+        if(_.isArray(multires.body)){
+          results = results.concat(multires.body);
+        }
+        else{
+          results.push(multires.body);
+        }
+      }
+    }
+    else{
+      errors.push(multires.body);
+    }
+  }
+
+  if(this.statusCode===200){
+    if(this.getHeader('content-type')=='digger/multipart'){
+      resolvemutlipart(this);
+      if(results.length>0){
+        this.emit('success', results, this);
+      }
+
+      if(errors.length>0){
+        this.emit('failure', errors, this);    
+      }
+    }
+    else{
+      results = this.body;
+      this.emit('success', this.body, this);
+    }
+  }
+  else{
+    errors = this.body;
+    this.emit('failure', this.body, this);
+  }
+
+  if(fn){
+    fn(results, errors);
+  }  
 }
 
 Response.prototype.toJSON = function(){
@@ -165,9 +177,9 @@ Response.prototype.sendError = function(text){
   this.send(text);
 }
 
-Response.prototype.send404 = function(text){
+Response.prototype.send404 = function(req){
   this.statusCode = 404;
-  this.send(text);
+  this.send(req ? req.toJSON() : null);
 }
 
 Response.prototype.redirect = function(location){

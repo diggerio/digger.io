@@ -51,7 +51,9 @@
 	
 */
 var EventEmitter = require('events').EventEmitter;
-var Container = require('./container/proto');
+var Container = require('../container/proto');
+var _ = require('lodash');
+var Response = require('../network/response');
 
 /*
 
@@ -61,17 +63,46 @@ var Container = require('./container/proto');
   
 */
 
-function factory(fn){
+function factory(supplierfn){
   var container = Container.factory('supplychain');
   
-  container.supplychain = function(req, res){
+  function supplychain(req, res){
     container.emit('request', req);
+
     if(fn){
       fn(req, res);
     }
+
     return this;
   }
+
+  supplychain.ship = function(contract, callback){
+    var self = this;
+
+    var res = Response.factory(function(){
+
+      res.resolve(function(results, errors){
+        if(contract.getHeader('x-expect')==='digger/containers'){
+          if(results.length>0){
+            answer = container.spawn(results);
+          }
+          else{
+            answer = container.spawn();
+          }
+        }
+
+        callback(answer, res);
+      })
+
+    })
+
+    supplierfn(contract, res);
+    
+    return res;
+  }
   
+  container.supplychain = supplychain;
+
   return container;
 }
 

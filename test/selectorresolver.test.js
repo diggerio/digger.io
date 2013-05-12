@@ -4,6 +4,24 @@ var _ = require('lodash');
 
 describe('selectorresolver', function(){
 
+  it('should deal with a simple container contract', function(done){
+    var supplier = digger.suppliers.nestedset();
+
+    supplier.select(function(select_query, promise){
+      select_query.selector.tag.should.equal('city');
+      promise.resolve([{
+        test:10
+      }])
+    })
+
+    var container = digger.supplychain(supplier);
+
+    container('city').ship(function(cities){
+      cities.attr('test').should.equal(10);
+      done();
+    })
+  })
+
   it('should produce a skeleton for each step', function(done){
 
     var supplier = digger.supplier();

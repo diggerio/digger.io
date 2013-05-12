@@ -32,6 +32,8 @@ var Response = require('../network/response').factory;
 var ContractResolver = require('../middleware/contractresolver');
 var SelectResolver = require('../middleware/selectresolver');
 
+var debug = require('debug')('supplier');
+
 // prototype
 var Supplier = module.exports = function(){}
 
@@ -231,17 +233,6 @@ Supplier.factory = function(settings){
 		return supplier;
 	}
 
-
-
-	/*
-	
-			GET / = list settings
-		
-	*/
-	supplier.get('/', function(req, res, next){
-		res.send(supplier.settings);
-	})
-
 	var contractresolver = ContractResolver(supplier);
 	var selectresolver = SelectResolver(supplier);
 
@@ -308,7 +299,10 @@ Supplier.factory = function(settings){
 						[selectorA, selectorB] -> [[[selectorA, selectorB]]]
 						
 					*/
-					var strings = [[selectors]];
+					var strings = [{
+						string:req.url.replace(/^\//, '').replace(/\//g, ' '),
+						phases:[selectors]
+					}]
 
 					var selector_request = Request({
 						method:'post',
@@ -328,9 +322,6 @@ Supplier.factory = function(settings){
 			}
 		},
 		post:{
-			contract:function(req, res, next){
-				contractresolver(req, res, next);
-			},
 			radio:function(req, res, next){
 				next();
 			},
@@ -436,6 +427,8 @@ Supplier.factory = function(settings){
 		}
 	}
 
+	supplier.use(contractresolver);
+
 	/*
 	
 		/dig/product.onsale
@@ -444,14 +437,19 @@ Supplier.factory = function(settings){
 	
 	*/
 
-	supplier.use(routes.get.select);
-
-	/*
+		/*
 	
-		resolve a contract within the context of this supplier
+			GET / = list settings
 		
 	*/
-	supplier.post('/contract', routes.post.contract);
+	supplier.get('/', function(req, res, next){
+		res.send(supplier.settings);
+	})
+	
+
+	supplier.use(routes.get.select);
+
+
 
 	/*
 	

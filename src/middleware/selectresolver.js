@@ -21,6 +21,7 @@ var async = require('async');
 
 var Request = require('../network/request').factory;
 var Response = require('../network/response').factory;
+var debug = require('debug')('selectresolver');
 
 //var EventResolver = require('./resolveevents');
 
@@ -73,6 +74,11 @@ function factory(handle){
   return function(req, res, next){
 
     var skeleton_array = req.body || [];
+
+    skeleton_array = _.filter(skeleton_array, function(obj){
+      return obj.tag!='supplychain';
+    })
+    
     var strings = req.getHeader('x-json-selector-strings');
 
     var final_state = new State(strings);
@@ -88,6 +94,9 @@ function factory(handle){
       B -> A
       
     */
+
+    debug('Selector: %s strings', strings.length);
+
     async.forEachSeries(strings, function(stage, next_stage){
 
       final_state.next();
@@ -106,13 +115,19 @@ function factory(handle){
         now we have the phases - these can be done in parallel
         
       */
-      async.forEach(stage, function(phase, next_phase){
+      debug(' Stage: %s - %s phases', stage.string, stage.phases.length);
+
+      async.forEach(stage.phases, function(phase, next_phase){
+
+        debug('   Phase: %s selectors', phase.length);
 
         var phase_skeleton = [].concat(skeleton_array);
 
         var selector_state = new State(phase);
 
         async.forEachSeries(phase, function(selector, next_selector){
+
+          debug(JSON.stringify(selector, null, 4));
 
           var branchselector = [].concat(final_state.arr);
           if(selector_state.arr.length>0){

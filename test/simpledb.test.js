@@ -14,21 +14,26 @@ describe('simpledb', function(){
 		
 	})
 
-	it('should load containers from file', function(){
-		/*
-		fs.createReadStream(__dirname + '/fixtures/cities.json').pipe(fs.createWriteStream('/tmp/diggertest.json'));
+	it('should load containers from file', function(done){
+		
+		var data = require(__dirname + '/fixtures/cities.json');
+		var datac = digger.container(data);
 
+		fs.writeFileSync('/tmp/diggertest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
+		
 		var db = digger.suppliers.simpledb({
 			filepath:'/tmp/diggertest.json'
 		})
 
 		var container = digger.supplychain(db);
 
-		container('city').ship(function(cities){
-			console.log('-------------------------------------------');
-			console.dir(cities.toJSON());
+		container('city').ship(function(cities, res){
+			res.statusCode.should.equal(200);
+			cities.count().should.equal(24);
+			done();
 		})
-*/
+
+		
 	})
 
 	

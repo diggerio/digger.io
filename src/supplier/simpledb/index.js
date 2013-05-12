@@ -18,6 +18,9 @@
 
 var _ = require('lodash');
 var NestedSetSupplier = require('../nestedset');
+var Container = require('../../container');
+var async = require('async');
+var fs = require('fs');
 
 module.exports = factory;
 
@@ -28,7 +31,58 @@ function factory(options){
     throw new Error('filepath requiired for simpledb');
   }
 
-  
+  var filepath = supplier.settings.attr('filepath');
+  var autocreate = supplier.settings.attr('autocreate');
+
+  var rootcontainer = Container();
+
+  function buildsupplier(){
+
+    supplier.select(function(select_query, promise){
+
+      var context = rootcontainer;
+
+      if(select_query.context && select_query.context.length>0){
+        context = rootcontainer.spawn(_.map(select_query.context, function(skeleton){
+          return rootcontainer.find('=' + skeleton.diggerid);
+        }))
+      }
+      else{
+        context = rootcontainer.descendents();
+      }
+
+      var results = context.find({string:'', phases:[[select_query.selector]]});
+
+      promise.resolve(results.toJSON());
+    })
+  }
+
+  supplier.prepare(function(finished){
+    var filedata = null;
+    async.series([
+      function(next){
+
+        fs.readFile(filepath, 'utf8', function(error, content){
+
+          if((error || !content) && !autocreate){
+            supplier = function(req, res){
+              res.error('file: ' + filepath + ' does not exist');
+            }
+          }
+          else{
+            filedata = content;
+            next();
+          }
+        })
+      },
+
+      function(next){
+        rootcontainer = Container(filedata);
+        buildsupplier();
+        next();
+      }
+    ], finished)
+  })
 
   return supplier;
 }

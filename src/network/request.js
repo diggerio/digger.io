@@ -77,6 +77,10 @@ Request.factory = function(data){
 
 util.inherits(Request, Message);
 
+Request.prototype.clone = function(){
+  return Request.factory(JSON.parse(JSON.stringify(this.toJSON())));
+}
+
 Request.prototype.toJSON = function(){
   var self = this;
   var ret = Message.prototype.toJSON.apply(this);

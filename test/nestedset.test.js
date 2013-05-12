@@ -23,7 +23,7 @@ describe('nestedset supplier', function(){
       method:'get'
     })
 
-    var res = digger.response();
+    var res = digger.response(true);
     res.on('success', function(){
       done();
     })

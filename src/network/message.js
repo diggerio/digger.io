@@ -48,6 +48,7 @@ Message.prototype.toJSON = function(){
   }
 }
 
+
 /*
 
   copied mostly from node.js/lib/http.js

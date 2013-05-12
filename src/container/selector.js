@@ -207,8 +207,8 @@ function new_selector(){
  */
 function parse(selector_string){
 
-  if(typeof(selector_string) !== 'string'){
-    throw new Error('selector must be a string')
+  if(!_.isString(selector_string)){
+    return selector_string;
   }
 
   var chunks = parseChunks(selector_string);
@@ -261,6 +261,10 @@ function parse(selector_string){
 }
 
 function miniparse(selector_string){
+
+  if(!_.isString(selector_string)){
+    return selector_string;
+  }
   selector_string = selector_string || '';
   var selector = {
     class:{},

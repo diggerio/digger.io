@@ -35,7 +35,9 @@ var sortfns = {
 
 module.exports = {
   find:function(){
-    var selectors = _.map(_.toArray(arguments), inspectselect);
+    var selectors = _.map(_.toArray(arguments), function(arg){
+      return _.isString(arg) ? inspectselect(arg) : arg;
+    })
     return finder(selectors, this);
   },
 

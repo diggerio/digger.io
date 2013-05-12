@@ -24,6 +24,8 @@ var _ = require('lodash');
 var utils = require('../utils');
 var Request = require('./request');
 var Response = require('./response');
+
+
 /*
 
 
@@ -110,9 +112,5 @@ Contract.prototype.ship = function(callback){
     return this;
   }
 
-  var res = Response.factory(callback);
-
-  this.supplychain(this, res);
-
-  return res;
+  return this.supplychain.ship(this, callback);
 }

@@ -58,6 +58,10 @@ Supplier.factory = function(settings){
 
 	supplier.methods = {};
 
+	supplier.url = function(){
+		return this.settings.attr('url');
+	}
+
 	/*
 	
 		the select handlers
@@ -115,12 +119,23 @@ Supplier.factory = function(settings){
 				result = [result];
 			}
 
+			var warehouseurl = this.url() || '/';
+
 			result = _.map(result, function(item){
 				if(!_.isObject(item)){
 					item = {
 						data:item
 					}
 				}
+
+				if(!item.__digger__){
+					item.__digger__ = {};
+				}
+
+				if(!item.__digger__.diggerwarehouse){
+					item.__digger__.diggerwarehouse = warehouseurl;
+				}
+
 				return item;
 			})
 		}

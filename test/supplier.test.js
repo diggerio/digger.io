@@ -20,7 +20,7 @@ describe('supplier', function(){
 
     function runrequest(req, throwfn, callbackfn){
       
-      var supplier = digger.supplier('warehouse:/api/products');
+      var supplier = digger.supplier();
 
       supplier.select(function(select_query, promise){
         throwfn(select_query);
@@ -120,14 +120,14 @@ describe('supplier', function(){
   it('should run contracts from multiple selectors', function(done) {
     function runrequest(req, throwfn, callbackfn){
       
-      var supplier = digger.supplier('warehouse:/api/products');
+      var supplier = digger.supplier();
 
       supplier.select(function(select_query, promise){
         throwfn(select_query);
         process.nextTick(function(){
           promise.resolve({
             ok:true
-          })  
+          })
         })
       })
 
@@ -177,7 +177,7 @@ describe('supplier', function(){
 
   it('should make creating different suppliers easy', function(done) {
 
-    var supplier = digger.supplier('warehouse:/api/products');
+    var supplier = digger.supplier();
 
     supplier.select(function(select_query, promise){
       throw new Error('wrong routing');
@@ -214,12 +214,41 @@ describe('supplier', function(){
   it('should accept a stack location as an argument', function() {
     var supplier = digger.supplier('warehouse:/api/products');
 
+    supplier.url().should.equal('warehouse:/api/products');
     supplier.settings.attr('url').should.equal('warehouse:/api/products');
+  })
+
+  it('should stamp the stack locations as the diggerwarehouse for container data returned', function(done) {
+
+    var supplier = digger.supplier('warehouse:/api/products');
+
+    supplier.select(function(select_query, promise){
+      promise.resolve({
+        name:'test'
+      })
+    })
+
+    req = digger.request({
+      url:'/product.onsale.test',
+      method:'get'
+    })
+
+    var res = digger.response(true);
+
+    res.on('success', function(){
+      res.getHeader('content-type').should.equal('digger/containers');
+      res.body.should.be.a('array');
+      res.body[0].__digger__.diggerwarehouse.should.equal('warehouse:/api/products');
+      done();
+    })
+
+    supplier(req, res);
+
   })
 
   it('should return container data', function(done) {
 
-    var supplier = digger.supplier('warehouse:/api/products');
+    var supplier = digger.supplier();
 
     supplier.select(function(select_query, promise){
       promise.resolve({
@@ -433,7 +462,7 @@ describe('supplier', function(){
 
   it('should pipe specialized selectors to each other', function(done) {
 
-    var supplier = digger.supplier('warehouse:/api/products');
+    var supplier = digger.supplier();
 
     supplier.specialize('product', function(select_query, promise){
       promise.resolve({

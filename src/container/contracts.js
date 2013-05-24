@@ -166,8 +166,6 @@ function append(childarray){
 
   appendto.__children__ = appendto.__children__.concat(appendmodels);
 
-
-
   var suppliercontract = Request({
     method:'post',
     url:this.diggerurl(),

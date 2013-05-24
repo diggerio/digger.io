@@ -58,8 +58,39 @@ describe('simpledb', function(){
 
 			done();
 		})
+	})
+
+/*
+	it('should perform an append contract', function(done){
+		
+		var data = require(__dirname + '/fixtures/cities.json');
+		var datac = digger.container(data);
+
+		fs.writeFileSync('/tmp/diggerappendtest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
+		
+		var db = digger.suppliers.simpledb({
+			filepath:'/tmp/diggerappendtest.json'
+		})
+
+		var container = digger.supplychain(db);
+
+		container('city area').ship(function(areas, res){
+			res.statusCode.should.equal(200);
+
+			var testarea = areas.eq(0);
+
+			var newthing = digger.create('house', {
+				name:'Big Test House',
+				height:123
+			})
+
+			testarea.append(newthing).ship(function(){
+
+			})
+		})
 
 		
 	})	
+*/
 
 })

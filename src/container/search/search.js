@@ -100,8 +100,8 @@ function compile(selector){
       return false;
     }
 
-    // =quarryid
-    if(selector.quarryid && container.quarryid()!=selector.quarryid){
+    // =diggerid
+    if(selector.diggerid && container.diggerid()!=selector.diggerid){
       return false;
     }
 

@@ -195,7 +195,7 @@ Container.prototype.recurse = function(fn){
 }
 
 Container.prototype.descendents = function(){
-  var ret = [this];
+  var ret = [];
 
   function scoopmodels(container){
     ret = ret.concat(container.models);
@@ -483,7 +483,7 @@ Container.prototype.summary = function(options){
     parts.push(title + ': ');
   }
 
-  parts.push(this.tagname());
+  parts.push(this.tag());
 
   var id = this.id() || '';
   if(id.length>0){

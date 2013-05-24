@@ -129,9 +129,28 @@ function select(){
   
 */
 function append(childarray){
+
+  var contract = Contract('merge');
+  contract.method = 'post';
+  contract.url = 'reception:/';
+
+  /*
+  
+    in both these cases there is nothing to do
+    
+  */
+  if(arguments.length<=0){
+    return contract;
+  }
+
+  if(this.count()<=0){
+    return contract;
+  }
+
   if(!_.isArray(childarray)){
     childarray = [childarray];
   }
+  
   var appendmodels = [];
   _.each(childarray, function(child){
     appendmodels = appendmodels.concat(child.models);
@@ -147,9 +166,7 @@ function append(childarray){
 
   appendto.__children__ = appendto.__children__.concat(appendmodels);
 
-  var contract = Contract('merge');
-  contract.method = 'post';
-  contract.url = 'reception:/';
+
 
   var suppliercontract = Request({
     method:'post',

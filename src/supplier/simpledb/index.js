@@ -38,25 +38,52 @@ function factory(options){
 
   function buildsupplier(){
 
+
+    /*
+    
+      SELECT
+      
+    */
     supplier.select(function(select_query, promise){
 
       var context = rootcontainer;
 
       if(select_query.context && select_query.context.length>0){
-        context = rootcontainer.spawn(_.map(select_query.context, function(skeleton){
-          return rootcontainer.find('=' + skeleton.diggerid);
-        }))
+
+        var models = _.filter(_.map(select_query.context, function(skeleton){
+          return rootcontainer.find('=' + skeleton.diggerid).get(0);
+        }), function(model){
+          return model!==null;
+        })
+
+        context = rootcontainer.spawn(models);
+        
       }
       else{
-        context = rootcontainer.descendents();
+        context = rootcontainer;
       }
 
       var results = context.find({string:'', phases:[[select_query.selector]]});
 
       promise.resolve(results.toJSON());
     })
+
+    /*
+    
+      APPEND
+      
+    */
+    supplier.append(function(append_query, promise){
+      console.log('-------------------------------------------');
+      console.dir(append_query);
+    })
   }
 
+  /*
+  
+    PREPARE FILE
+    
+  */
   supplier.prepare(function(finished){
     var filedata = null;
     async.series([

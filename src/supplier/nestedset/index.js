@@ -53,7 +53,7 @@ function generate_tree_query(splitter, contextmodels){
     // child mode
     if(splitter=='>'){
       or_array.push({
-        field:'__digger__.meta.parentid',
+        field:'__digger__.parentid',
         operator:'=',
         value:contextmodel.diggerid
       })
@@ -61,7 +61,7 @@ function generate_tree_query(splitter, contextmodels){
     // parent mode
     else if(splitter=='<'){
       or_array.push({
-        field:'__digger__.meta.diggerid',
+        field:'__digger__.diggerid',
         operator:'=',
         value:contextmodel.parentid
       })
@@ -69,12 +69,12 @@ function generate_tree_query(splitter, contextmodels){
     // ancestor mode
     else if(splitter=='<<'){
       or_array.push({
-        field:'__digger__.meta.left',
+        field:'__digger__.left',
         operator:'<',
         value:contextmodel.left
       })
       or_array.push({
-        field:'__digger__.meta.right',
+        field:'__digger__.right',
         operator:'>',
         value:contextmodel.right
       })
@@ -82,12 +82,12 @@ function generate_tree_query(splitter, contextmodels){
     // descendent mode
     else{
       or_array.push({
-        field:'__digger__.meta.left',
+        field:'__digger__.left',
         operator:'>',
         value:contextmodel.left
       })
       or_array.push({
-        field:'__digger__.meta.right',
+        field:'__digger__.right',
         operator:'<',
         value:contextmodel.right
       })
@@ -106,14 +106,14 @@ function parse_selector(selector){
   // i.e. folders on the root
   if(selector.splitter=='>' && skeleton_array.length<=0){
     main_query.push({
-      field:'__digger__.meta.parentid',
+      field:'__digger__.parentid',
       operator:'=',
       value:null
     })
   }
   else if(selector.diggerid){
     main_query.push({
-      field:'__digger__.meta.diggerid',
+      field:'__digger__.diggerid',
       operator:'=',
       value:selector.diggerid
     })
@@ -121,14 +121,14 @@ function parse_selector(selector){
   else{
     if(selector.tag==='*'){
       main_query.push({
-        field:'__digger__.meta',
+        field:'__digger__',
         operator:'exists'
       })
     }
     else {
       if(selector.tag){
         main_query.push({
-          field:'__digger__.meta.tag',
+          field:'__digger__.tag',
           operator:'=',
           value:selector.tag
         })
@@ -136,7 +136,7 @@ function parse_selector(selector){
 
       if(selector.id){
         main_query.push({
-          field:'__digger__.meta.id',
+          field:'__digger__.id',
           operator:'=',
           value:selector.id
         })
@@ -147,7 +147,7 @@ function parse_selector(selector){
         _.each(_.keys(selector.class), function(classname){
 
           main_query.push({
-            field:'__digger__.meta.class',
+            field:'__digger__.class',
             operator:'=',
             value:classname
           })

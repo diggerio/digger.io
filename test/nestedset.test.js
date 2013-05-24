@@ -46,7 +46,7 @@ describe('nestedset supplier', function(){
       query[3].should.be.a('array');
       query[3].length.should.equal(4);
       query[3][2].value.should.equal(89);
-      query[3][2].field.should.equal('__digger__.meta.left');
+      query[3][2].field.should.equal('__digger__.left');
       query[3][2].operator.should.equal('>');
 
       promise.resolve(45);

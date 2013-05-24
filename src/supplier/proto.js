@@ -326,12 +326,14 @@ Supplier.factory = function(settings){
 				next();
 			},
 			append:function(req, res, next){
+
 				if(!supplier.methods.append){
 					next();
 					return;
 				}
 
 				var selectors = extractselectors(req);
+
 				var append_query = {
 					selector:selectors ? selectors[0] : null,
 					selectors:selectors,
@@ -343,6 +345,7 @@ Supplier.factory = function(settings){
 
 				promise.then(function(result){
 					res.send(result);
+					supplier.emit('append', req, res);
 				}, function(error){
 					res.sendError(error);
 				})
@@ -392,6 +395,7 @@ Supplier.factory = function(settings){
 
 				promise.then(function(result){
 					res.send(result);
+					supplier.emit('save', req, res);
 				}, function(error){
 					res.sendError(error);
 				})
@@ -417,7 +421,8 @@ Supplier.factory = function(settings){
 				var promise = Promise();
 
 				promise.then(function(result){
-					res.send(result);
+					res.send(result);					
+					supplier.emit('remove', req, res);
 				}, function(error){
 					res.sendError(error);
 				})

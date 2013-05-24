@@ -30,17 +30,13 @@ describe('selectorresolver', function(){
 
       promise.resolve([{
         __digger__:{
-          meta:{
-            tag:'product',
-            diggerid:34
-          }
+          tag:'product',
+          diggerid:34
         }
       },{
         __digger__:{
-          meta:{
-            tag:'product',
-            diggerid:36
-          }
+          tag:'product',
+          diggerid:36
         }
       }])
     })
@@ -52,6 +48,7 @@ describe('selectorresolver', function(){
       select_query.context[0].diggerid.should.equal(34);
       select_query.context[1].diggerid.should.equal(36);
       select_query.selector.modifier.laststep.should.equal(true);
+
       promise.resolve(56);
     })
 
@@ -68,6 +65,8 @@ describe('selectorresolver', function(){
     supplier(req, res);
 
   })
+
+
 
 })
 

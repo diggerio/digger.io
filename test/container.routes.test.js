@@ -1,7 +1,7 @@
 var digger = require('../src');
 var data = require('./fixtures/data');
 
-describe('container.warehouse', function(){
+describe('container.routes', function(){
 
   it('should allow the diggerwarehouse property to be set', function() {
     var container = digger.create('test');

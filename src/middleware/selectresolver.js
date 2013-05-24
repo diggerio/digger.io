@@ -57,7 +57,7 @@ State.prototype.next = function(){
 function extractskeleton(data){
 
   if(data.__digger__){
-    return data.__digger__.meta || {};  
+    return data.__digger__ || {};  
   }
   else{
     return {};
@@ -165,7 +165,9 @@ function factory(handle){
               
             */
             if(!selector_state.finished){
+
               phase_skeleton = _.map(selectres.body, extractskeleton);
+
             }
             /*
             

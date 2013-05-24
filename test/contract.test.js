@@ -128,6 +128,8 @@ describe('contract', function(){
     req.method.should.equal('post');
     req.url.should.equal('/placeA/123');
     req.body[0].__digger__.tag.should.equal('child');
+
+    placeA.children().eq(0).tag().should.equal('child');
   })
 
   it('should create a contract from a simple container save action', function(){

@@ -50,12 +50,12 @@ function extractdata(data, attr){
     // we could do YAML here
     else{
       attr = attr || {};
-      attr.__digger__ = attr.__digger__ || {
+      attr._digger = attr._digger || {
         tag:data
         
       }
-      attr.__children__ = attr.__children__ || [];
-      attr.__data__ = attr.__data__ || {};
+      attr._children = attr._children || [];
+      attr._data = attr._data || {};
       data = [attr];
     }
   }
@@ -96,11 +96,11 @@ module.exports = function modelfactory(data, attr){
       return null;
     }
 
-    var digger = model.__digger__ = model.__digger__ || {};
+    var digger = model._digger = model._digger || {};
     digger.class = digger.class || [];
     digger.diggerid = digger.diggerid || utils.diggerid();
 
-    model.__children__ = model.__children__ || [];
+    model._children = model._children || [];
 
     return model;
   }), nonulls)

@@ -217,6 +217,10 @@ describe('supplier', function(){
     supplier.url().should.equal('warehouse:/api/products');
     supplier.settings.attr('url').should.equal('warehouse:/api/products');
   })
+/*
+
+  stack location are saved with containers
+
 
   it('should stamp the stack locations as the diggerwarehouse for container data returned', function(done) {
 
@@ -238,14 +242,14 @@ describe('supplier', function(){
     res.on('success', function(){
       res.getHeader('content-type').should.equal('digger/containers');
       res.body.should.be.a('array');
-      res.body[0].__digger__.diggerwarehouse.should.equal('warehouse:/api/products');
+      res.body[0]._digger.diggerwarehouse.should.equal('warehouse:/api/products');
       done();
     })
 
     supplier(req, res);
 
   })
-
+*/
   it('should return container data', function(done) {
 
     var supplier = digger.supplier();
@@ -467,7 +471,7 @@ describe('supplier', function(){
     supplier.specialize('product', function(select_query, promise){
       promise.resolve({
         name:'product',
-        __digger__:{
+        _digger:{
           diggerid:2323,
           left:10,
           right:12          

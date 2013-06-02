@@ -172,5 +172,20 @@ function search(selector, context){
   }
 
   // now we loop each child container piping it via the selector filter
-  return search_in.filter(selector_filter);
+  var ret = search_in.filter(selector_filter);
+
+  var modifier = selector.modifier || {};
+
+  if(modifier.limit){
+    ret.models = ret.models.slice(0, modifier.limit);
+  }
+
+  if(modifier.first && ret.models.length>0){
+    ret.models = [ret.models[0]];
+  }
+  else if(modifier.last && ret.models.length>0){
+    ret.models = [ret.models[ret.models.length-1]];
+  }
+
+  return ret;
 }

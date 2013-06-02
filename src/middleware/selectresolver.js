@@ -56,8 +56,8 @@ State.prototype.next = function(){
 
 function extractskeleton(data){
 
-  if(data.__digger__){
-    return data.__digger__ || {};  
+  if(data._digger){
+    return data._digger || {};  
   }
   else{
     return {};

@@ -16,6 +16,18 @@
   Module dependencies.
 */
 
+
+
+/*
+
+   this is an abstract supplier that turns the given selector into a MONGO style query based on the
+   nested set left & right necodings
+
+   this can be extended to use any nested set encoding
+
+   
+  
+*/
 var _ = require('lodash');
 var BaseSupplier = require('../proto').factory;
 
@@ -53,7 +65,7 @@ function generate_tree_query(splitter, contextmodels){
     // child mode
     if(splitter=='>'){
       or_array.push({
-        field:'__digger__.parentid',
+        field:'_digger.parentid',
         operator:'=',
         value:contextmodel.diggerid
       })
@@ -61,7 +73,7 @@ function generate_tree_query(splitter, contextmodels){
     // parent mode
     else if(splitter=='<'){
       or_array.push({
-        field:'__digger__.diggerid',
+        field:'_digger.diggerid',
         operator:'=',
         value:contextmodel.parentid
       })
@@ -69,12 +81,12 @@ function generate_tree_query(splitter, contextmodels){
     // ancestor mode
     else if(splitter=='<<'){
       or_array.push({
-        field:'__digger__.left',
+        field:'_digger.left',
         operator:'<',
         value:contextmodel.left
       })
       or_array.push({
-        field:'__digger__.right',
+        field:'_digger.right',
         operator:'>',
         value:contextmodel.right
       })
@@ -82,12 +94,12 @@ function generate_tree_query(splitter, contextmodels){
     // descendent mode
     else{
       or_array.push({
-        field:'__digger__.left',
+        field:'_digger.left',
         operator:'>',
         value:contextmodel.left
       })
       or_array.push({
-        field:'__digger__.right',
+        field:'_digger.right',
         operator:'<',
         value:contextmodel.right
       })
@@ -106,14 +118,14 @@ function parse_selector(selector){
   // i.e. folders on the root
   if(selector.splitter=='>' && skeleton_array.length<=0){
     main_query.push({
-      field:'__digger__.parentid',
+      field:'_digger.parentid',
       operator:'=',
       value:null
     })
   }
   else if(selector.diggerid){
     main_query.push({
-      field:'__digger__.diggerid',
+      field:'_digger.diggerid',
       operator:'=',
       value:selector.diggerid
     })
@@ -121,14 +133,14 @@ function parse_selector(selector){
   else{
     if(selector.tag==='*'){
       main_query.push({
-        field:'__digger__',
+        field:'_digger',
         operator:'exists'
       })
     }
     else {
       if(selector.tag){
         main_query.push({
-          field:'__digger__.tag',
+          field:'_digger.tag',
           operator:'=',
           value:selector.tag
         })
@@ -136,7 +148,7 @@ function parse_selector(selector){
 
       if(selector.id){
         main_query.push({
-          field:'__digger__.id',
+          field:'_digger.id',
           operator:'=',
           value:selector.id
         })
@@ -147,7 +159,7 @@ function parse_selector(selector){
         _.each(_.keys(selector.class), function(classname){
 
           main_query.push({
-            field:'__digger__.class',
+            field:'_digger.class',
             operator:'=',
             value:classname
           })

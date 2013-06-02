@@ -27,7 +27,8 @@
     "q": "~0.9.3",
     "dispatch": "~0.2.0",
     "wrench": "~1.5.1",
-    "debug": "~0.7.2"
+    "debug": "~0.7.2",
+    "js-yaml": "~2.0.5"
   },
   "devDependencies": {
     "grunt": "~0.4.1",

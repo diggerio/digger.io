@@ -63,18 +63,64 @@ var Response = require('../network/response');
   
 */
 
-function factory(supplierfn){
-  var container = Container.factory('supplychain');
-  
-  function supplychain(req, res){
-    container.emit('request', req);
+function factory(){
 
-    if(fn){
-      fn(req, res);
+  var url = '/';
+  var supplierfn = null;
+  var container = null;
+
+  _.each(_.toArray(arguments), function(arg){
+    if(_.isFunction(arg)){
+      /*
+      
+        it is an existing container
+        
+      */
+      if(_.isFunction(arg.diggerid)){
+        container = arg;
+      }
+      /*
+      
+        otherwise the supplierchain function
+        
+      */
+      else{
+        supplierfn = arg;  
+      }
+    }
+    /*
+    
+      it is a URL to create a container from
+      
+    */
+    else if(_.isString(arg)){
+      container = Container.factory('_supplychain');
+      url = arg;
+    }
+    else if(_.isArray(arg) || _.isObject(arg)){
+      if(!_.isArray(arg)){
+        arg = [arg];
+      }
+
+      container = Container.factory(arg);
     }
 
-    return this;
+  })
+
+  if(!supplierfn){
+    supplierfn = function(req, res){
+      res.send404();
+    }
   }
+  if(!container){
+    container = Container.factory('_supplychain');
+  }
+
+  if(!container.diggerwarehouse()){
+    container.diggerwarehouse(url);
+  }
+
+  function supplychain(){}
 
   supplychain.ship = function(contract, callback){
     var self = this;
@@ -83,7 +129,7 @@ function factory(supplierfn){
 
       res.resolve(function(results, errors){
         if(contract.getHeader('x-expect')==='digger/containers'){
-          if(results.length>0){
+          if(results && results.length>0){
             answer = container.spawn(results);
           }
           else{

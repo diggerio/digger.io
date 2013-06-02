@@ -1,6 +1,6 @@
 [
     {
-        "__digger__": {
+        "_digger": {
             "tag": "folder",
             "class": [
                 "hello"
@@ -8,9 +8,9 @@
             "id": "places",
             "diggerid": "17dcd3b0ba3411e2b58d91a4d58f5088"
         },
-        "__children__": [
+        "_children": [
             {
-                "__digger__": {
+                "_digger": {
                     "tag": "country",
                     "class": [
                         "big",
@@ -19,9 +19,9 @@
                     "id": "",
                     "diggerid": ""
                 },
-                "__children__": [
+                "_children": [
                     {
-                        "__digger__": {
+                        "_digger": {
                             "tag": "city",
                             "class": [
                                 "south"
@@ -29,9 +29,9 @@
                             "id": "",
                             "diggerid": ""
                         },
-                        "__children__": [
+                        "_children": [
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "poor"
@@ -39,12 +39,12 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "St. Pauls",
                                 "population": "103"
                             },
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "rich"
@@ -52,12 +52,12 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "Redland",
                                 "population": "79"
                             },
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "poor"
@@ -65,12 +65,12 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "Easton",
                                 "population": "38"
                             },
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "rich"
@@ -78,7 +78,7 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "Hotwells",
                                 "population": "320"
                             }
@@ -87,7 +87,7 @@
                         "team": "Bristol City"
                     },
                     {
-                        "__digger__": {
+                        "_digger": {
                             "tag": "city",
                             "class": [
                                 "south"
@@ -95,9 +95,9 @@
                             "id": "",
                             "diggerid": ""
                         },
-                        "__children__": [
+                        "_children": [
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "rich"
@@ -105,12 +105,12 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "Westminster",
                                 "population": "298"
                             },
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "rich"
@@ -118,12 +118,12 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "Ealing",
                                 "population": "98"
                             },
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "poor"
@@ -131,7 +131,7 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "Woolwich",
                                 "population": "68"
                             }
@@ -140,7 +140,7 @@
                         "team": "Arsenal"
                     },
                     {
-                        "__digger__": {
+                        "_digger": {
                             "tag": "city",
                             "class": [
                                 "midlands"
@@ -148,9 +148,9 @@
                             "id": "",
                             "diggerid": ""
                         },
-                        "__children__": [
+                        "_children": [
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "rich"
@@ -158,7 +158,7 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "Edgbaston",
                                 "population": "183"
                             }
@@ -167,7 +167,7 @@
                         "team": "Ason Villa"
                     },
                     {
-                        "__digger__": {
+                        "_digger": {
                             "tag": "city",
                             "class": [
                                 "midlands"
@@ -175,9 +175,9 @@
                             "id": "",
                             "diggerid": ""
                         },
-                        "__children__": [
+                        "_children": [
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "rich"
@@ -185,7 +185,7 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "Edgbaston",
                                 "population": "183"
                             }
@@ -194,7 +194,7 @@
                         "team": "Nottingham Forest"
                     },
                     {
-                        "__digger__": {
+                        "_digger": {
                             "tag": "city",
                             "class": [
                                 "north"
@@ -202,9 +202,9 @@
                             "id": "",
                             "diggerid": ""
                         },
-                        "__children__": [
+                        "_children": [
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "poor"
@@ -212,7 +212,7 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "Everton",
                                 "population": "89"
                             }
@@ -221,7 +221,7 @@
                         "team": "Everton"
                     },
                     {
-                        "__digger__": {
+                        "_digger": {
                             "tag": "city",
                             "class": [
                                 "north"
@@ -229,9 +229,9 @@
                             "id": "",
                             "diggerid": ""
                         },
-                        "__children__": [
+                        "_children": [
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "rich"
@@ -239,12 +239,12 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "Linthorpe",
                                 "population": "28"
                             },
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "poor"
@@ -252,7 +252,7 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "Grangetown",
                                 "population": "39"
                             }
@@ -264,7 +264,7 @@
                 "name": "UK"
             },
             {
-                "__digger__": {
+                "_digger": {
                     "tag": "country",
                     "class": [
                         "big"
@@ -272,9 +272,9 @@
                     "id": "",
                     "diggerid": ""
                 },
-                "__children__": [
+                "_children": [
                     {
-                        "__digger__": {
+                        "_digger": {
                             "tag": "city",
                             "class": [
                                 "north"
@@ -282,9 +282,9 @@
                             "id": "",
                             "diggerid": ""
                         },
-                        "__children__": [
+                        "_children": [
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "poor"
@@ -292,7 +292,7 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "Harbourside",
                                 "population": "39"
                             }
@@ -301,7 +301,7 @@
                         "team": "Aberdeen"
                     },
                     {
-                        "__digger__": {
+                        "_digger": {
                             "tag": "city",
                             "class": [
                                 "south"
@@ -309,9 +309,9 @@
                             "id": "",
                             "diggerid": ""
                         },
-                        "__children__": [
+                        "_children": [
                             {
-                                "__digger__": {
+                                "_digger": {
                                     "tag": "area",
                                     "class": [
                                         "rich"
@@ -319,7 +319,7 @@
                                     "id": "",
                                     "diggerid": ""
                                 },
-                                "__children__": [],
+                                "_children": [],
                                 "name": "Meadows",
                                 "population": "97"
                             }

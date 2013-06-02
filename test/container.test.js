@@ -61,9 +61,9 @@ describe('container', function(){
     test.models.should.be.a('array');
     test.models[0].should.be.a('object');
     test.models[0].price.should.equal(100);
-    test.models[0].__digger__.should.be.a('object');
-    test.models[0].__digger__.class.should.be.a('array');
-    test.models[0].__children__.should.be.a('array');
+    test.models[0]._digger.should.be.a('object');
+    test.models[0]._digger.class.should.be.a('array');
+    test.models[0]._children.should.be.a('array');
 
   })
 
@@ -74,9 +74,9 @@ describe('container', function(){
     test.models.should.be.a('array');
     test.models[0].should.be.a('object');
     test.models[0].price.should.equal("100");
-    test.models[0].__digger__.should.be.a('object');
-    test.models[0].__digger__.class.should.be.a('array');
-    test.models[0].__children__.should.be.a('array');
+    test.models[0]._digger.should.be.a('object');
+    test.models[0]._digger.class.should.be.a('array');
+    test.models[0]._children.should.be.a('array');
     test.hasClass('red').should.equal(true);
 
   })
@@ -104,7 +104,7 @@ describe('container', function(){
 
     test.id('hello');
     test.id().should.equal('hello');
-    test.get(0).__digger__.id.should.equal('hello');
+    test.get(0)._digger.id.should.equal('hello');
 
     test.tag().should.equal('product');
 
@@ -139,7 +139,7 @@ describe('container', function(){
 
     test.toJSON().should.be.a('array');
     test.toJSON().length.should.equal(1);
-    test.toJSON()[0].__digger__.should.be.a('object');
+    test.toJSON()[0]._digger.should.be.a('object');
 
     var xml = test.toXML();
     xml.should.be.a('string');
@@ -161,7 +161,7 @@ describe('container', function(){
 
     test.count().should.equal(1);
     test.get(0).should.be.a('object');
-    test.get(0).__digger__.id.should.equal('places');
+    test.get(0)._digger.id.should.equal('places');
 
   })
 
@@ -264,6 +264,14 @@ describe('container', function(){
 
   })
   
+  it('should apply limit and first and last modifiers', function() {
+    var test = digger.create(data.citiesxml);
+    test.find('city.south').count().should.equal(3);    
+    test.find('city.south:first').count().should.equal(1);
+    test.find('city.south:last').count().should.equal(1);
+    test.find('city.south:limit(2)').count().should.equal(2);
+  })
+
   it('should emit events', function(done) {
     var test = digger.create();
 

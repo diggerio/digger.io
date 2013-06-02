@@ -55,17 +55,17 @@ function data_factory(element){
   }
 
   var data = {
-    __digger__:{
+    _digger:{
       tag:element.nodeName,
       class:_.filter((element.getAttribute('class') || '').split(/\s+/), function(classname){
         return classname.match(/\w/);
       })
     },
-    __children__:[]
+    _children:[]
   }
   
   _.each(metafields, function(v, metafield){
-    data.__digger__[metafield] = element.getAttribute(metafield) || '';
+    data._digger[metafield] = element.getAttribute(metafield) || '';
   })
 
   _.each(element.attributes, function(attr){
@@ -74,7 +74,7 @@ function data_factory(element){
     }
   })
 
-  data.__children__ = _.filter(_.map(element.childNodes, data_factory), null_filter);
+  data._children = _.filter(_.map(element.childNodes, data_factory), null_filter);
 
   return data;
 }
@@ -124,8 +124,8 @@ function fromXML(string){
 
 function string_factory(data, depth){
 
-  var meta = data.__digger__ || {};
-  var children = data.__children__ || [];
+  var meta = data._digger || {};
+  var children = data._children || [];
   var attr = data;
 
   function get_indent_string(){
@@ -145,7 +145,7 @@ function string_factory(data, depth){
   var pair_strings = [];
 
   _.each(attr, function(val, key){
-    if(key=='__digger__'){
+    if(key=='_digger'){
       return;
     }
     pairs[key] = _.isString(val) ? val : '' + val;

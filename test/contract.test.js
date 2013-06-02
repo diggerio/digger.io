@@ -127,7 +127,7 @@ describe('contract', function(){
 
     req.method.should.equal('post');
     req.url.should.equal('/placeA/123');
-    req.body[0].__digger__.tag.should.equal('child');
+    req.body[0]._digger.tag.should.equal('child');
 
     placeA.children().eq(0).tag().should.equal('child');
   })
@@ -152,7 +152,7 @@ describe('contract', function(){
     req.method.should.equal('put');
     req.url.should.equal('/placeA/123');
     req.body.test.should.equal(10);
-    req.body.__digger__.tag.should.equal('testa');
+    req.body._digger.tag.should.equal('testa');
   })
 
   it('should create a contract from a simple container delete action', function(){

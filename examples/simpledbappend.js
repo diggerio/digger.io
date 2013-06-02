@@ -15,11 +15,8 @@ var fs = require('fs');
 
 		var container = digger.supplychain(db);
 
-		container('city area').ship(function(areas, res){
+		container('city').ship(function(cities, res){
+			console.log('-------------------------------------------');
+			console.dir(cities.count());
 			
-			areas.each(function(area){
-				console.dir(area.attr('name') + ' = ' + area.diggerid());
-			})
-			
-
 		})

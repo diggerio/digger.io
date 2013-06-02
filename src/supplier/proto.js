@@ -59,7 +59,7 @@ Supplier.factory = function(settings){
 	supplier.methods = {};
 
 	supplier.url = function(){
-		return this.settings.attr('url');
+		return this.settings.attr('url') || '/';
 	}
 
 	/*
@@ -119,7 +119,7 @@ Supplier.factory = function(settings){
 				result = [result];
 			}
 
-			var warehouseurl = this.url() || '/';
+			//var warehouseurl = this.url() || '/';
 
 			result = _.map(result, function(item){
 				if(!_.isObject(item)){
@@ -128,12 +128,13 @@ Supplier.factory = function(settings){
 					}
 				}
 
-				if(!item.__digger__){
-					item.__digger__ = {};
+				if(!item._digger){
+					item._digger = {};
 				}
 
-				if(!item.__digger__.diggerwarehouse){
-					item.__digger__.diggerwarehouse = warehouseurl;
+				if(!item._digger.diggerwarehouse){
+					//item._digger.diggerwarehouse = warehouseurl;
+					item._digger.diggerwarehouse = req.getHeader('x-inject-warehouse') || '/';
 				}
 
 				return item;
@@ -155,6 +156,13 @@ Supplier.factory = function(settings){
 		return this;
 	}
 	
+	/*
+	
+		each iteration of a nested selector ends up here
+
+		each different supplier can hook into the select query event
+		
+	*/
 	supplier.handle_select_query = function(select_query, req, res, next){
 
 		var use_stack = ([]).concat(specialized_stack, standard_stack);
@@ -162,6 +170,8 @@ Supplier.factory = function(settings){
 			next();
 			return;
 		}
+
+		//supplier.emit('select_query', select_query);
 
 		supplier.prepare_select_query(select_query);
 
@@ -274,6 +284,7 @@ Supplier.factory = function(settings){
 	var routes = {
 		get:{
 			select:function(req, res, next){
+
 				if(req.method!='get'){
 					next();
 					return;
@@ -449,6 +460,8 @@ Supplier.factory = function(settings){
 
 	supplier.use(contractresolver);
 
+
+
 	/*
 	
 		/dig/product.onsale
@@ -466,6 +479,7 @@ Supplier.factory = function(settings){
 		res.send(supplier.settings);
 	})
 	
+
 
 	supplier.use(routes.get.select);
 
@@ -492,12 +506,18 @@ Supplier.factory = function(settings){
 	*/
 	supplier.post('/radio', routes.post.radio);
 	supplier.post('/radio/:id', routes.post.radio);
+		/*
+	supplier.use(function(req, res, next){
+		console.log('-------------------------------------------');
+		console.dir(req.toJSON());
+		next();
+	})
 
-	/*
 	
 		add some containers
 		
 	*/
+
 	supplier.post('/', routes.post.append);
 	supplier.post('/:id', routes.post.append);
 	supplier.post('/container/:id', routes.post.append);

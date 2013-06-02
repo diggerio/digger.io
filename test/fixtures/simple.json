@@ -1,14 +1,14 @@
 [
     {
-        "__digger__": {
+        "_digger": {
             "tag": "folder",
             "class": [],
             "id": "",
             "diggerid": "17dc8590ba3411e2b58d91a4d58f5088"
         },
-        "__children__": [
+        "_children": [
             {
-                "__digger__": {
+                "_digger": {
                     "tag": "product",
                     "class": [
                         "red"
@@ -16,9 +16,9 @@
                     "id": "",
                     "diggerid": ""
                 },
-                "__children__": [
+                "_children": [
                     {
-                        "__digger__": {
+                        "_digger": {
                             "tag": "caption",
                             "class": [
                                 "blue"
@@ -26,11 +26,11 @@
                             "id": "",
                             "diggerid": ""
                         },
-                        "__children__": [],
+                        "_children": [],
                         "name": "User1"
                     },
                     {
-                        "__digger__": {
+                        "_digger": {
                             "tag": "caption",
                             "class": [
                                 "green"
@@ -38,11 +38,11 @@
                             "id": "",
                             "diggerid": ""
                         },
-                        "__children__": [],
+                        "_children": [],
                         "name": "User2"
                     },
                     {
-                        "__digger__": {
+                        "_digger": {
                             "tag": "caption",
                             "class": [
                                 "yellow"
@@ -50,14 +50,14 @@
                             "id": "",
                             "diggerid": ""
                         },
-                        "__children__": [],
+                        "_children": [],
                         "name": "User3"
                     }
                 ],
                 "name": "Chair"
             },
             {
-                "__digger__": {
+                "_digger": {
                     "tag": "product",
                     "class": [
                         "purple"
@@ -65,9 +65,9 @@
                     "id": "",
                     "diggerid": ""
                 },
-                "__children__": [
+                "_children": [
                     {
-                        "__digger__": {
+                        "_digger": {
                             "tag": "caption",
                             "class": [
                                 "orange"
@@ -75,11 +75,11 @@
                             "id": "",
                             "diggerid": ""
                         },
-                        "__children__": [],
+                        "_children": [],
                         "name": "User1"
                     },
                     {
-                        "__digger__": {
+                        "_digger": {
                             "tag": "caption",
                             "class": [
                                 "pink"
@@ -87,7 +87,7 @@
                             "id": "",
                             "diggerid": ""
                         },
-                        "__children__": [],
+                        "_children": [],
                         "name": "User2"
                     }
                 ],

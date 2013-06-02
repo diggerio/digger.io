@@ -103,10 +103,28 @@ var chunkers = [
   // the ':modifier' selector
   {
     name:'modifier',
-    regexp:/^:\w+/,
+    regexp:/^:\w+(\(.*?\))?/,
     mapper:function(val, map){
       map.modifier = map.modifier || {};
-      map.modifier[val.replace(/^:/, '')] = true;
+      var parts = val.split('(');
+      var key = parts[0];
+      val = parts[1];
+
+      if(val){
+        val = val.replace(/\)$/, '');
+
+        /*
+        
+          this turns '45' into 45 and '"hello"' into 'hello'
+          
+        */
+        val = JSON.parse(val);
+      }
+      else{
+        val = true;
+      }
+
+      map.modifier[key.replace(/^:/, '')] = val;
     }
   },
   // the '[attr<100]' selector

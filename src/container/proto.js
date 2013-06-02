@@ -183,9 +183,11 @@ Container.prototype.spawn = function(models){
 
 Container.prototype.children = function(){
   var models = [];
+  var self = this;
   this.each(function(container){
-    models = models.concat(container.get(0).__children__);
+    models = models.concat(container.get(0)._children);
   })
+
 	return this.spawn(models);
 }
 
@@ -216,7 +218,7 @@ Container.prototype.containers = function(){
 
 Container.prototype.skeleton = function(){
   return _.map(this.models, function(model){
-    return model.__digger__ || {};
+    return model._digger || {};
   })
 }
 
@@ -420,32 +422,43 @@ function remove_wrapper(topprop){
 Container.prototype.attr = wrapper();
 Container.prototype.removeAttr = remove_wrapper();
 
-Container.prototype.digger = wrapper('__digger__');
+Container.prototype.digger = wrapper('_digger');
 
-Container.prototype.meta = wrapper('__digger__');
-Container.prototype.removeMeta = remove_wrapper('__digger__');
+Container.prototype.meta = wrapper('_digger');
+Container.prototype.removeMeta = remove_wrapper('_digger');
 
-Container.prototype.data = wrapper('__data__');
-Container.prototype.removeData = remove_wrapper('__data__');
+Container.prototype.data = wrapper('_data');
+Container.prototype.removeData = remove_wrapper('_data');
 
-Container.prototype.diggerid = wrapper('__digger__', 'diggerid');
-Container.prototype.diggerwarehouse = wrapper('__digger__', 'diggerwarehouse');
+Container.prototype.diggerid = wrapper('_digger', 'diggerid');
+Container.prototype.diggerwarehouse = wrapper('_digger', 'diggerwarehouse');
 
 Container.prototype.diggerurl = function(){
   var warehouse = this.diggerwarehouse();
   var id = this.diggerid();
-  return (warehouse ? warehouse : '') + (id ? '/' + id : '');
+
+  var url = warehouse;
+
+  if(id && this.tag()!='_supplychain'){
+    if(warehouse!='/'){
+      url += '/';
+    }
+
+    url += id;
+  }
+  
+  return url;
 }
 
-Container.prototype.id = wrapper('__digger__', 'id');
-Container.prototype.tag = wrapper('__digger__', 'tag');
-Container.prototype.classnames = wrapper('__digger__', 'class');
+Container.prototype.id = wrapper('_digger', 'id');
+Container.prototype.tag = wrapper('_digger', 'tag');
+Container.prototype.classnames = wrapper('_digger', 'class');
 
 Container.prototype.addClass = function(classname){
   var self = this;
   _.each(this.models, function(model){
-		model.__digger__.class.push(classname);
-		model.__digger__.class = _.uniq(model.__digger__.class);
+		model._digger.class.push(classname);
+		model._digger.class = _.uniq(model._digger.class);
   })
   return this;
 }
@@ -453,7 +466,7 @@ Container.prototype.addClass = function(classname){
 Container.prototype.removeClass = function(classname){
   var self = this;
   _.each(this.models, function(model){
-    model.__digger__.class = _.without(model.__digger__.class, classname);
+    model._digger.class = _.without(model._digger.class, classname);
   })
   return this;
 }

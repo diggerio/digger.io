@@ -29,12 +29,12 @@ describe('selectorresolver', function(){
     supplier.specialize('product', function(select_query, promise){
 
       promise.resolve([{
-        __digger__:{
+        _digger:{
           tag:'product',
           diggerid:34
         }
       },{
-        __digger__:{
+        _digger:{
           tag:'product',
           diggerid:36
         }

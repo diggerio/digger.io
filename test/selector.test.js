@@ -16,6 +16,20 @@ describe('selector', function(){
 		parsed.string.should.equal(selector);
   })
 
+  it('should allow any modifier', function() {
+		var selector = 'city:somemodifier';
+
+		var parsed = digger.selector(selector).phases[0][0];
+
+		parsed.modifier.somemodifier.should.equal(true);
+
+		var selector2 = 'city:somemodifier2(45)';
+
+		var parsed2 = digger.selector(selector2).phases[0][0];
+
+		parsed2.modifier.somemodifier2.should.equal(45);
+  })
+
   it('should produce a rule with the correct attributes', function(){
 		var selector = 'product[price<=100] > caption.big';
 

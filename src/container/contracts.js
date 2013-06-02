@@ -64,10 +64,24 @@ function select(){
   
   /*
   
+    the 'context' are the models inside 'this' container
+
+    the _digger objects will be sent as the body of the select request
+    for each supplier to use as the context (i.e. starting point for the query)
+
+    _supplychain objects are ignored from the context
+    
+  */
+  var context = this.containers();/*.filter(function(container){
+    return container.tag()!='_supplychain';
+  })*/
+
+  /*
+  
     split out the current context into their warehouse origins
     
   */
-  var groups = _.groupBy(this.containers(), function(container){
+  var groups = _.groupBy(context, function(container){
     return container.diggerwarehouse() || '/';
   })
 
@@ -95,7 +109,10 @@ function select(){
       we input the context as the group of containers living in the given warehouse
       
     */
-    var containers = groups[diggerwarehouse];
+    var containers = _.filter(groups[diggerwarehouse], function(container){
+      return container.tag()!='_supplychain';
+    })
+
     var skeleton = _.map(containers, function(c){
       return c.meta();
     })
@@ -164,7 +181,7 @@ function append(childarray){
     des.diggerwarehouse(appendwarehouse);
   })
 
-  appendto.__children__ = appendto.__children__.concat(appendmodels);
+  appendto._children = appendto._children.concat(appendmodels);
 
   var suppliercontract = Request({
     method:'post',

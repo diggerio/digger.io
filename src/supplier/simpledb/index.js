@@ -17,7 +17,7 @@
 */
 
 var _ = require('lodash');
-var NestedSetSupplier = require('../nestedset');
+var BaseSupplier = require('../proto').factory;
 var Container = require('../../container');
 var async = require('async');
 var fs = require('fs');
@@ -25,7 +25,8 @@ var fs = require('fs');
 module.exports = factory;
 
 function factory(options){
-  var supplier = NestedSetSupplier(options);
+  
+  var supplier = BaseSupplier(options);
 
   if(!supplier.settings.attr('filepath')){
     throw new Error('filepath requiired for simpledb');
@@ -34,14 +35,23 @@ function factory(options){
   var filepath = supplier.settings.attr('filepath');
   var autocreate = supplier.settings.attr('autocreate');
 
+  /*
+  
+    the in-memory container that holds our data
+
+    this will be some slow-ass shiiiiiiiit but it's bootstrap (again)
+    
+  */
   var rootcontainer = Container();
 
   function buildsupplier(){
 
-
     /*
     
+
+      ----------------------------------------------
       SELECT
+      ----------------------------------------------
       
     */
     supplier.select(function(select_query, promise){
@@ -65,18 +75,39 @@ function factory(options){
 
       var results = context.find({string:'', phases:[[select_query.selector]]});
 
+      //results
       promise.resolve(results.toJSON());
     })
 
     /*
     
+      ----------------------------------------------
       APPEND
+      ----------------------------------------------
       
     */
     supplier.append(function(append_query, promise){
-      console.log('-------------------------------------------');
-      console.dir(append_query);
+
+      var append_to = rootcontainer.find({string:'', phases:[[append_query.selector]]});
+
+      var append_what = rootcontainer.spawn(append_query.body);
+
+      append_to.append(append_what);
+
+      supplier.save(function(error){
+        if(error){
+          promise.reject(error);
+        }
+        else{
+          promise.resolve(append_what);  
+        }
+      })
+
     })
+  }
+
+  supplier.save = function(done){
+    done();
   }
 
   /*
@@ -97,6 +128,25 @@ function factory(options){
             }
           }
           else{
+
+            var issaving = false;
+            var save_callbacks = [];
+
+            supplier.save = function(done){
+              save_callbacks.push(done);
+              if(issaving){
+                return;
+              }
+              issaving = true;
+              fs.writeFile(filepath, JSON.stringify(rootcontainer.toJSON(), 'utf8', null, 4), function(error){
+                _.each(save_callbacks, function(fn){
+                  fn(error);
+                })
+                save_callbacks = [];
+                issaving = false;
+              })
+            }
+
             filedata = content;
             next();
           }

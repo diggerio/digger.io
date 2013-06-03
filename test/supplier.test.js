@@ -423,8 +423,8 @@ describe('supplier', function(){
 
     supplier.append(function(append_query, promise, next){
 
-      append_query.target.diggerid.should.equal('12345');
-      append_query.target.tag.should.equal('test');
+      append_query.target._digger.diggerid.should.equal('12345');
+      append_query.target._digger.tag.should.equal('test');
 
       promise.resolve(45);
     })
@@ -466,8 +466,8 @@ describe('supplier', function(){
 
     supplier.save(function(save_query, promise, next){
 
-      save_query.target.diggerid.should.equal('12345');
-      save_query.target.tag.should.equal('test');
+      save_query.target._digger.diggerid.should.equal('12345');
+      save_query.target._digger.tag.should.equal('test');
       save_query.body.should.equal(20);
 
       promise.resolve(45);      
@@ -507,7 +507,7 @@ describe('supplier', function(){
 
     supplier.remove(function(remove_query, promise, next){
 
-      remove_query.target.diggerid.should.equal('12345');
+      remove_query.target._digger.diggerid.should.equal('12345');
       remove_query.body.should.equal(20);
       
       promise.resolve(45);

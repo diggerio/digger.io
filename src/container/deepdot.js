@@ -7,6 +7,11 @@ module.exports.factory = factory;
 
 function update(obj, prop, value){
   
+  if(_.isArray(value)){
+    obj[prop] = value;
+    return value;
+  }
+  
   var existing_prop = obj[prop];
 
   if(_.isObject(obj[prop]) && _.isObject(value)){

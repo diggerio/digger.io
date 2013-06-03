@@ -98,6 +98,7 @@ module.exports = function modelfactory(data, attr){
 
     var digger = model._digger = model._digger || {};
     digger.class = digger.class || [];
+    digger.diggerpath = digger.diggerpath || [];
     digger.diggerid = digger.diggerid || utils.diggerid();
 
     model._children = model._children || [];

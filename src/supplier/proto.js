@@ -295,26 +295,16 @@ Supplier.factory = function(settings){
 
 	/*
 	
-		a function used by append / save and remove
+		loads a single container from the supplier
 
-		this loads the target based on the selector =34324234324
+		performs a sub-request to load it
 		
 	*/
-	supplier.load_target = function(req, res, callback){
-		var selectors = extractselectors(req);
-		var target_selector = selectors[0];
+	supplier.load = function(id, callback){
 
-		/*
-		
-			if there is no digger id then we assume the target to be none
-			(i.e. the supplier itself)
-			
-		*/
-		if(!target_selector.diggerid){
-			callback();
-			return;
+		var target_selector = {
+			diggerid:id
 		}
-
 		/*
 		
 			we only want meta data
@@ -355,7 +345,7 @@ Supplier.factory = function(settings){
 				we now have the skeleton that is the target of the append/save/remove request
 				
 			*/
-			callback(null, targetdata._digger);
+			callback(null, targetdata);
 		})
 
 		supplier.handle_select_query({
@@ -365,6 +355,32 @@ Supplier.factory = function(settings){
 		}, load_target_req, load_target_res, function(){
 			res.send404();
 		})
+	}
+
+	/*
+	
+		a function used by append / save and remove
+
+		this loads the target based on the selector =34324234324
+		
+	*/
+	supplier.load_target = function(req, res, callback){
+		var selectors = extractselectors(req);
+		var target_selector = selectors[0];
+
+		/*
+		
+			if there is no digger id then we assume the target to be none
+			(i.e. the supplier itself)
+			
+		*/
+		if(!target_selector.diggerid){
+			callback();
+			return;
+		}
+
+		supplier.load(target_selector.diggerid, callback);
+		
 	}
 
 	var routes = {
@@ -605,6 +621,7 @@ Supplier.factory = function(settings){
 		var warehouseurl = supplier.url() || '/';
 		if(warehouseurl!=='/' && req.url.indexOf(warehouseurl)===0){
 			req.url = req.url.substr(warehouseurl.length);
+			req.pathname = req.pathname.substr(warehouseurl.replace(/^\w+:/, '').length);
 		}
 		next();
 	})

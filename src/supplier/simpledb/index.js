@@ -88,9 +88,37 @@ function factory(options){
     */
     supplier.append(function(append_query, promise){
 
-      var append_to = rootcontainer.find({string:'', phases:[[append_query.selector]]});
-
+      var append_to = append_query.target ? rootcontainer.spawn(append_query.target) : rootcontainer;
       var append_what = rootcontainer.spawn(append_query.body);
+
+      /*
+      
+        add one to the top level path number
+        
+      */
+      if(!append_query.target){
+       
+        /*
+        
+          it's a root append
+          
+        */
+        append_what.inject_paths([append_what.get_next_child_path_index()]);
+      }
+      else{
+
+        var append_count = append_to.digger('append_count') || 0;
+
+        append_what.inject_paths(([]).concat(append_to.diggerpath(), [append_count]))
+        append_count++;
+
+        /*
+        
+          save the append count for next time
+          
+        */
+        append_to.digger('append_count', append_count);
+      }
 
       append_to.append(append_what);
 
@@ -120,25 +148,24 @@ function factory(options){
 
     supplier.save(function(save_query, promise){
 
-      console.log('-------------------------------------------');
-      console.dir(save_query);
-      process.exit();
-/*
-      var append_to = rootcontainer.find({string:'', phases:[[append_query.selector]]});
-
-      var append_what = rootcontainer.spawn(append_query.body);
-
-      append_to.append(append_what);
+      var data = save_query.body;
+      /*
+      
+        update the in-memory model
+        
+      */
+      _.each(data, function(val, key){
+        save_query.target[key] = data[key];
+      })
 
       supplier.savefile(function(error){
         if(error){
           promise.reject(error);
         }
         else{
-          promise.resolve(append_what);  
+          promise.resolve(data);  
         }
       })
-*/      
 
     })
 
@@ -176,7 +203,7 @@ function factory(options){
                 return;
               }
               issaving = true;
-              fs.writeFile(filepath, JSON.stringify(rootcontainer.toJSON(), 'utf8', null, 4), function(error){
+              fs.writeFile(filepath, JSON.stringify(rootcontainer.toJSON(), null, 4), 'utf8', function(error){
                 _.each(save_callbacks, function(fn){
                   fn(error);
                 })
@@ -193,8 +220,14 @@ function factory(options){
 
       function(next){
         rootcontainer = Container(filedata);
-        buildsupplier();
-        next();
+
+        rootcontainer.ensure_meta();
+
+        supplier.savefile(function(){
+          buildsupplier();
+          next();  
+        })
+        
       }
     ], finished)
   })

@@ -173,6 +173,52 @@ Container.prototype.toXML = function(){
 
  */
 
+/*
+
+  called to ensure that every container has a diggerid and diggerpath
+
+  this should be called from the top most container
+  
+*/
+Container.prototype.ensure_meta = function(done){
+  if(!this.diggerid()){
+    this.diggerid(utils.diggerid());
+  }
+
+  var topcounter = 0;
+  if(this.diggerpath().length<=0){
+    this.inject_paths([topcounter]);
+    topcounter++;
+  }
+  return this;
+}
+
+/*
+
+  return the highest found path for children
+  
+*/
+Container.prototype.get_next_child_path_index = function(){
+ var highpath = 0;
+  this.each(function(c){
+    var path = c.diggerpath();
+
+    if(path[0]>highpath){
+      highpath = path[0];
+    }
+  })
+  return highpath;
+}
+
+Container.prototype.inject_paths = function(basepath){
+
+  this.diggerpath(basepath);
+
+  this.children().each(function(child, index){
+    child.inject_paths(basepath.concat([index]));
+  })
+
+}
 
 Container.prototype.spawn = function(models){
   models = models || [];
@@ -187,7 +233,6 @@ Container.prototype.children = function(){
   this.each(function(container){
     models = models.concat(container.get(0)._children);
   })
-
 	return this.spawn(models);
 }
 
@@ -432,6 +477,7 @@ Container.prototype.removeData = remove_wrapper('_data');
 
 Container.prototype.diggerid = wrapper('_digger', 'diggerid');
 Container.prototype.diggerwarehouse = wrapper('_digger', 'diggerwarehouse');
+Container.prototype.diggerpath = wrapper('_digger', 'diggerpath');
 
 Container.prototype.diggerurl = function(){
   var warehouse = this.diggerwarehouse();

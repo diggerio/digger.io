@@ -160,7 +160,7 @@ describe('simpledb', function(){
 			req.url.should.equal('/' + areas.diggerid());
 
 			contract.ship(function(){
-
+				
 				var db2 = digger.suppliers.simpledb({
 					//url:'/db3',
 					filepath:'/tmp/diggerappendtest.json'
@@ -235,6 +235,11 @@ describe('simpledb', function(){
 
 				var container2 = digger.supplychain('/db3', db2);
 
+				/*
+				
+					this also tests that the simpledb is consistent with ids
+					
+				*/
 				container2('=' + areas.diggerid()).ship(function(areas){
 
 					areas.attr('testing').should.equal(123);

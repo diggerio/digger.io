@@ -49,6 +49,17 @@ describe('container', function(){
     test.diggerid().length.should.equal(32);
   })
 
+  it('should ensure a digger path', function() {
+    var test = digger.create('product', {
+      price:100,
+      address:{
+        postcode:'apples'
+      }
+    })
+
+    test.diggerpath().should.be.a('array');
+  })
+
   it('should have the correct underlying model structure', function() {
 
     var test = digger.create('product', {

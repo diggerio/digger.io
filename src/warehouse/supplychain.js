@@ -51,8 +51,10 @@
 	
 */
 var EventEmitter = require('events').EventEmitter;
-var Container = require('../container/proto');
 var _ = require('lodash');
+
+var Container = require('../container/proto');
+var Contract = require('../network/contract');
 var Response = require('../network/response');
 
 /*
@@ -120,6 +122,15 @@ function factory(){
     container.diggerwarehouse(url);
   }
 
+  /*
+  
+    are we connected directly to some backend functions (i.e. non network mode)
+
+    if yes then we will fake serialize the requests
+    
+  */
+  var should_auto_serialize = supplierfn._diggertype=='warehouse' || supplierfn._diggertype=='supplier';
+
   function supplychain(){}
 
   supplychain.ship = function(contract, callback){
@@ -127,7 +138,15 @@ function factory(){
 
     var res = Response.factory(function(){
 
+      /*
+      
+        resolve means extracting the multipart responses
+        
+      */
       res.resolve(function(results, errors){
+        if(should_auto_serialize){
+          results = JSON.parse(JSON.stringify(results));
+        }
         if(contract.getHeader('x-expect')==='digger/containers'){
           if(results && results.length>0){
             answer = container.spawn(results);
@@ -142,8 +161,12 @@ function factory(){
 
     })
 
-    supplierfn(contract, res);
+    if(should_auto_serialize){
+      contract = Contract.factory(JSON.parse(JSON.stringify(contract.toJSON())));  
+    }
     
+    supplierfn(contract, res);
+
     return res;
   }
   

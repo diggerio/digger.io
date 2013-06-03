@@ -158,7 +158,7 @@ describe('simpledb', function(){
 
 			//req.url.should.equal('/db3/' + areas.diggerid());
 			req.url.should.equal('/' + areas.diggerid());
-			
+
 			contract.ship(function(){
 
 				var db2 = digger.suppliers.simpledb({
@@ -169,6 +169,20 @@ describe('simpledb', function(){
 				var container2 = digger.supplychain('/', db);
 
 				container2('house').ship(function(house){
+
+					/*
+					
+						this turns out to be a very important test
+
+						until the network is hooked up and requests are serialized -
+						we end up passing the actual model pointer all the way back to the supplier
+
+						the supplier appends the thing twice (front and back)
+
+						the supplychain therefore does some serialization to things if they are not 
+						throughput as strings already
+						
+					*/
 					house.count().should.equal(1);
 					done();
 				})

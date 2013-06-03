@@ -117,5 +117,42 @@ describe('supplychain', function(){
 
   })
 
+  /*
+  
+    this makes sure that the supply chain serializes requests on the way through
+    
+  */
+  it('should forcibly serialize requests to accounts for entirely local setups', function(done){
+
+    var existing = digger.create('product', {
+      _digger:{
+        diggerid:'123',
+        diggerwarehouse:'/abc'
+      },
+      name:'test',
+      price:12
+    })
+
+    var supplier = digger.supplier();
+
+    supplier.select(function(select_query, promise){
+      promise.resolve(existing.toJSON());
+    })
+
+    var supplychain = digger.supplychain(supplier);
+
+    supplychain('ting').ship(function(ting){
+      ting.attr('name').should.equal('test');
+      ting.attr('price').should.equal(12);
+
+      ting.attr('otherway', 55);
+
+      (existing.attr('otherway') || '').should.not.equal(55);
+      ting.attr('otherway').should.equal(55);
+
+      done();
+    })
+
+  })
 
 })

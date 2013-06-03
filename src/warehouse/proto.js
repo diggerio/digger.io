@@ -47,6 +47,8 @@ Warehouse.factory = function(){
     app.use(arguments[i]);
   }
 
+  app._diggertype = 'warehouse';
+
   return app;
 }
 

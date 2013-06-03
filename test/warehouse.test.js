@@ -9,6 +9,12 @@ describe('warehouse', function(){
     done();
   })
 
+
+  it('should provide a flag for being a warehouse function', function() {
+    var warehouse = digger.warehouse();
+    warehouse._diggertype.should.equal('warehouse');
+  })
+
   it('should complete a request response cycle', function(done) {
 
     var warehouse = digger.warehouse();

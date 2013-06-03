@@ -49,6 +49,8 @@ Supplier.factory = function(settings){
 
 	var supplier = Warehouse();
 
+	supplier._diggertype = 'supplier';
+
 	/*
 	
 		we keep a container that can connect to radio to control this supplier remotely

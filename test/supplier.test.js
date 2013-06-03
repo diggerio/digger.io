@@ -16,6 +16,11 @@ describe('supplier', function(){
     supplier.emit('hello');
   })
 
+  it('should provide a flag for being a supplier function', function() {
+    var supplier = digger.supplier();
+    supplier._diggertype.should.equal('supplier');
+  })
+
   it('should extract the context for GET requests', function(done) {
 
     function runrequest(req, throwfn, callbackfn){

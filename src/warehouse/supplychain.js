@@ -147,6 +147,7 @@ function factory(){
         if(should_auto_serialize){
           results = JSON.parse(JSON.stringify(results));
         }
+        var answer = results;
         if(contract.getHeader('x-expect')==='digger/containers'){
           if(results && results.length>0){
             answer = container.spawn(results);
@@ -156,13 +157,16 @@ function factory(){
           }
         }
 
+        contract.emit('shipped', answer);
         callback(answer, res);
       })
 
     })
 
     if(should_auto_serialize){
-      contract = Contract.factory(JSON.parse(JSON.stringify(contract.toJSON())));  
+      _.each(JSON.parse(JSON.stringify(contract.toJSON())), function(v, k){
+        contract[k] = v;
+      })
     }
     
     supplierfn(contract, res);

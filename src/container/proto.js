@@ -190,6 +190,8 @@ Container.prototype.ensure_meta = function(done){
     this.inject_paths([topcounter]);
     topcounter++;
   }
+
+  this.ensure_parent_ids();
   return this;
 }
 
@@ -208,6 +210,19 @@ Container.prototype.get_next_child_path_index = function(){
     }
   })
   return highpath;
+}
+
+Container.prototype.ensure_parent_ids = function(parent){
+
+  var self = this;
+
+  if(parent){
+    this.diggerparentid(parent.diggerid());
+  }
+
+  this.children().each(function(child){
+    child.ensure_parent_ids(self);
+  })
 }
 
 Container.prototype.inject_paths = function(basepath){
@@ -476,6 +491,7 @@ Container.prototype.data = wrapper('_data');
 Container.prototype.removeData = remove_wrapper('_data');
 
 Container.prototype.diggerid = wrapper('_digger', 'diggerid');
+Container.prototype.diggerparentid = wrapper('_digger', 'diggerparentid');
 Container.prototype.diggerwarehouse = wrapper('_digger', 'diggerwarehouse');
 Container.prototype.diggerpath = wrapper('_digger', 'diggerpath');
 

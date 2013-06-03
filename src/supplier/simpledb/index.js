@@ -120,6 +120,7 @@ function factory(options){
         append_to.digger('append_count', append_count);
       }
 
+      append_what.diggerparentid(append_to.diggerid());
       append_to.append(append_what);
 
       /*
@@ -132,7 +133,7 @@ function factory(options){
           promise.reject(error);
         }
         else{
-          promise.resolve(append_what);  
+          promise.resolve(append_what.toJSON());  
         }
       })
 
@@ -168,6 +169,38 @@ function factory(options){
       })
 
     })
+
+    /*
+    
+      ----------------------------------------------
+      REMOVE
+      ----------------------------------------------
+      
+    */
+
+    supplier.remove(function(remove_query, promise){
+
+      var target = rootcontainer.spawn(remove_query.target);
+      var parent = rootcontainer;
+
+      if(target.diggerparentid()){
+        parent = rootcontainer.find('=' + target.diggerparentid());
+      }
+
+      parent.get(0)._children = _.filter(parent.get(0)._children, function(model){
+        return model._digger.diggerid!=target.diggerid();
+      })
+
+      supplier.savefile(function(error){
+        if(error){
+          promise.reject(error);
+        }
+        else{
+          promise.resolve();  
+        }
+      })
+
+    })    
 
   }
 

@@ -153,11 +153,6 @@ function append(childarray){
   contract.method = 'post';
   contract.url = 'reception:/';
 
-  /*
-  
-    in both these cases there is nothing to do
-    
-  */
   if(arguments.length<=0){
     return contract;
   }
@@ -189,7 +184,22 @@ function append(childarray){
     method:'post',
     url:this.diggerurl(),
     body:appendmodels || []
-  })    
+  })
+
+  contract.on('shipped', function(results){
+    var map = {};
+    _.each(appendmodels, function(model){
+      map[model._digger.diggerid] = model;
+    })
+    _.each(results, function(result){
+      var model = map[result._digger.diggerid];
+      if(model){
+        _.each(result, function(v, k){
+          model[k] = v;
+        })
+      }
+    })
+  })
 
   contract.body = [suppliercontract.toJSON()];
   

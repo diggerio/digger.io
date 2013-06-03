@@ -703,8 +703,36 @@ describe('supplier', function(){
       done();
     })
 
+  })
 
+  it('should return appended data and inject it before returning the contract', function(done) {
 
+    var supplier = digger.supplier({
+      url:'/some/place'
+    })
+
+    supplier.select(function(select_query, promise){
+      promise.resolve({
+        title:'apple',
+        _digger:{
+          tag:'fruit'
+        }
+      })
+    })
+
+    supplier.append(function(append_query, promise){
+      var target = append_query.target;
+      var data = append_query.body;
+      data[0].fromdb = 3435;
+      promise.resolve(data);
+    })
+
+    var supplychain = digger.supplychain(supplier);
+    var test = digger.create('thing');
+    supplychain.append(test).ship(function(){
+      test.attr('fromdb').should.equal(3435);
+      done()
+    })
 
   })
 

@@ -160,6 +160,8 @@ describe('simpledb', function(){
 			req.url.should.equal('/' + areas.diggerid());
 
 			contract.ship(function(){
+
+				newthing.diggerparentid().should.equal(areas.diggerid());
 				
 				var db2 = digger.suppliers.simpledb({
 					//url:'/db3',
@@ -251,5 +253,65 @@ describe('simpledb', function(){
 		})
 		
 	})	
+
+	it('should perform a delete contract', function(done){
+		
+		var data = require(__dirname + '/fixtures/cities.json');
+
+		var datac = digger.container(data);
+
+		fs.writeFileSync('/tmp/diggerappendtest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
+		
+		var db = digger.suppliers.simpledb({
+			url:'/db3',
+			filepath:'/tmp/diggerappendtest.json'
+		})
+
+		db.url().should.equal('/db3');
+
+		var container = digger.supplychain('/db3', db);
+
+		container('city area').ship(function(areas, res){
+			res.statusCode.should.equal(200);
+
+			areas.count().should.equal(14);
+			areas.diggerwarehouse().should.equal('/db3');
+
+			var contract = areas.eq(3).remove();
+
+			contract.getHeader('x-contract-type').should.equal('merge');
+
+			var req = contract.body[0];
+
+			req.url.should.equal('/db3/' + areas.eq(3).diggerid());
+			req.method.should.equal('delete');
+
+			contract.ship(function(){
+
+				var db2 = digger.suppliers.simpledb({
+					url:'/db3',
+					filepath:'/tmp/diggerappendtest.json'
+				})
+
+				var container2 = digger.supplychain('/db3', db2);
+
+				/*
+				
+					this also tests that the simpledb is consistent with ids
+					
+				*/
+				container2('city area').ship(function(areas){
+
+					areas.count().should.equal(13);
+					done();
+
+				})
+				
+			})
+
+		})
+		
+	})	
+
 
 })

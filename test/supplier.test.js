@@ -217,10 +217,6 @@ describe('supplier', function(){
     supplier.url().should.equal('warehouse:/api/products');
     supplier.settings.attr('url').should.equal('warehouse:/api/products');
   })
-/*
-
-  stack location are saved with containers
-
 
   it('should stamp the stack locations as the diggerwarehouse for container data returned', function(done) {
 
@@ -243,13 +239,111 @@ describe('supplier', function(){
       res.getHeader('content-type').should.equal('digger/containers');
       res.body.should.be.a('array');
       res.body[0]._digger.diggerwarehouse.should.equal('warehouse:/api/products');
+      res.body[0]._digger.diggerwarehouse.should.equal(supplier.url());
       done();
     })
 
     supplier(req, res);
 
   })
-*/
+
+  it('should pass the request as part of the query', function(done) {
+
+    var supplier = digger.supplier();
+    var supplychain = digger.supplychain(supplier);
+
+    supplier.select(function(select_query, promise){
+      var req = select_query.req;
+      select_query.selector.tag.should.equal('product');
+      req.method.should.equal('post');
+      req.url.should.equal('/select');
+
+      /*
+      
+        send a single container on purpose
+
+        the supplier should turn it into an array
+        
+      */
+      promise.resolve({
+        name:'test',
+        _digger:{
+          diggerid:123
+        }
+      })
+    })
+
+    supplier.append(function(append_query, promise){
+      var req = append_query.req;
+      append_query.body[0]._digger.tag.should.equal('appendtest');
+      req.method.should.equal('post');
+      req.url.should.equal('/');
+      promise.resolve(append_query.body);
+    })
+
+    supplier.save(function(save_query, promise){
+      var req = save_query.req;
+      req.method.should.equal('put');
+      req.url.should.equal('/123');
+      promise.resolve({
+        name:'test'
+      })
+    })
+
+    supplier.remove(function(remove_query, promise){
+      var req = remove_query.req;
+      req.method.should.equal('delete');
+      req.url.should.equal('/123');
+      promise.resolve({
+        name:'test'
+      })
+    })
+
+    var loadedproduct = null;
+    async.series([
+      function(next){
+        supplychain('product').ship(function(product){
+          product.attr('name').should.equal('test');
+          product.diggerwarehouse().should.equal('/');
+          product.diggerurl().should.equal('/123');
+          loadedproduct = product;
+          next();
+        })
+      },
+
+      function(next){
+
+        var appendcontainer = digger.create('appendtest', {
+          title:'test'
+        })
+
+        supplychain.append(appendcontainer).ship(function(){
+          next();
+        })
+      },
+
+      function(next){
+        loadedproduct.attr('price', 456).save().ship(function(){
+          next();
+        })
+      },
+
+      function(next){
+        loadedproduct.remove().ship(function(){
+          next();
+        })
+      }
+    ], function(error){
+      if(error){
+        throw new Error(error);
+      }
+
+      done();
+    })
+
+  })
+
+
   it('should return container data', function(done) {
 
     var supplier = digger.supplier();

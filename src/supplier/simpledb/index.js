@@ -94,7 +94,12 @@ function factory(options){
 
       append_to.append(append_what);
 
-      supplier.save(function(error){
+      /*
+      
+        we save the file and wait for confirmation before returning
+        
+      */
+      supplier.savefile(function(error){
         if(error){
           promise.reject(error);
         }
@@ -104,9 +109,39 @@ function factory(options){
       })
 
     })
+
+    /*
+    
+      ----------------------------------------------
+      SAVE
+      ----------------------------------------------
+      
+    */
+
+    supplier.save(function(save_query, promise){
+
+/*
+      var append_to = rootcontainer.find({string:'', phases:[[append_query.selector]]});
+
+      var append_what = rootcontainer.spawn(append_query.body);
+
+      append_to.append(append_what);
+
+      supplier.savefile(function(error){
+        if(error){
+          promise.reject(error);
+        }
+        else{
+          promise.resolve(append_what);  
+        }
+      })
+*/      
+
+    })
+
   }
 
-  supplier.save = function(done){
+  supplier.savefile = function(done){
     done();
   }
 
@@ -132,7 +167,7 @@ function factory(options){
             var issaving = false;
             var save_callbacks = [];
 
-            supplier.save = function(done){
+            supplier.savefile = function(done){
               save_callbacks.push(done);
               if(issaving){
                 return;

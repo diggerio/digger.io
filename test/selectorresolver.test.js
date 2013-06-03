@@ -5,6 +5,7 @@ var _ = require('lodash');
 describe('selectorresolver', function(){
 
   it('should deal with a simple container contract', function(done){
+
     var supplier = digger.suppliers.nestedset();
 
     supplier.select(function(select_query, promise){
@@ -16,7 +17,7 @@ describe('selectorresolver', function(){
 
     var container = digger.supplychain(supplier);
 
-    container('city').ship(function(cities){
+    container('city').ship(function(cities, res){
       cities.attr('test').should.equal(10);
       done();
     })

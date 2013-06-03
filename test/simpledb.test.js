@@ -160,7 +160,19 @@ describe('simpledb', function(){
 			req.url.should.equal('/' + areas.diggerid());
 			
 			contract.ship(function(){
-				done();
+
+				var db2 = digger.suppliers.simpledb({
+					//url:'/db3',
+					filepath:'/tmp/diggerappendtest.json'
+				})
+
+				var container2 = digger.supplychain('/', db);
+
+				container2('house').ship(function(house){
+					house.count().should.equal(1);
+					done();
+				})
+				
 			})
 
 		})

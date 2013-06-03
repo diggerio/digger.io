@@ -110,7 +110,7 @@ Supplier.factory = function(settings){
 		
 	*/
 	supplier.handle_container_response = function(req, res, result){
-		
+
 		if(!result || (_.isArray(result) && result.length<=0)){
 			result = [];
 		}
@@ -119,7 +119,7 @@ Supplier.factory = function(settings){
 				result = [result];
 			}
 
-			//var warehouseurl = this.url() || '/';
+			var warehouseurl = this.url() || '/';
 
 			result = _.map(result, function(item){
 				if(!_.isObject(item)){
@@ -133,8 +133,8 @@ Supplier.factory = function(settings){
 				}
 
 				if(!item._digger.diggerwarehouse){
-					//item._digger.diggerwarehouse = warehouseurl;
-					item._digger.diggerwarehouse = req.getHeader('x-inject-warehouse') || '/';
+					item._digger.diggerwarehouse = warehouseurl || '/';
+					//item._digger.diggerwarehouse = req.getHeader('x-warehouse-url') || '/';
 				}
 
 				return item;
@@ -178,6 +178,12 @@ Supplier.factory = function(settings){
 		var promise = Promise();
 
 		promise.then(function(result){
+			if(result && !_.isArray(result)){
+				result = [result];
+			}
+			else if(!result){
+				result = [];
+			}
 			supplier.handle_container_response(req, res, result);
 		}, function(error){
 			res.sendError(error);
@@ -302,6 +308,7 @@ Supplier.factory = function(settings){
 				if(selectors.length<=1){
 
 					supplier.handle_select_query({
+						req:req,
 						selector:selectors[0],
 						context:[]
 					}, req, res, next)
@@ -396,6 +403,7 @@ Supplier.factory = function(settings){
 				*/
 				var selector = req.getHeader('x-json-selector');
 				supplier.handle_select_query({
+					req:req,
 					selector:req.getHeader('x-json-selector') || {},
 					context:req.body || []
 				}, req, res, next)	
@@ -458,9 +466,54 @@ Supplier.factory = function(settings){
 		}
 	}
 
+
+	/*
+	
+		the built in contract resolver
+
+		when running in network mode - this will not usually get hit because
+		the reception contract resolver will have filtered out the contract layer
+		and sent on just the requests to the suppliers
+
+
+		however - when running a supplychain directly onto a supplier and not via reception
+		this middleware will pick up contract requests and process them self-referencing
+		to ourselves for the supplychain
+		
+	*/
 	supplier.use(contractresolver);
 
+	/*
+	
+		this picks up the x-warehouse-url (if present)
+		and removes that from the start of the url
 
+		this enables all routing to not have to touch the url
+
+		i.e. each supplier looks after the following:
+
+			/some/long/path/to/get/here/product/caption
+
+		becomes locally to the supplier
+
+			/product/caption
+
+		and
+
+			/some/long/path/to/get/here
+
+		is injected into each containers _digger.diggerwarehouse property
+
+		x-warehouse-url is ONLY set from reception
+		
+	*/
+	supplier.use(function(req, res, next){
+		var warehouseurl = supplier.url() || '/';
+		if(warehouseurl!=='/' && req.url.indexOf(warehouseurl)===0){
+			req.url = req.url.substr(warehouseurl.length);
+		}
+		next();
+	})
 
 	/*
 	
@@ -479,64 +532,49 @@ Supplier.factory = function(settings){
 		res.send(supplier.settings);
 	})
 	
-
-
+	/*
+	
+		why this is not get I do not know
+		
+	*/
 	supplier.use(routes.get.select);
-
-
 
 	/*
 	
-		resolve a select stage as part of a contract
+		POST /resolve -> SELECT single selector
 		
 	*/
 	supplier.post('/select', routes.post.select);
 
 	/*
 	
-		selector resolver when posted to /resolve
+		POST /resolve -> SELECT multiple selector
 		
 	*/
 	supplier.post('/resolve', selectresolver);
 
 	/*
 	
-		speak over radio from HTTP
-		
-	*/
-	supplier.post('/radio', routes.post.radio);
-	supplier.post('/radio/:id', routes.post.radio);
-		/*
-	supplier.use(function(req, res, next){
-		console.log('-------------------------------------------');
-		console.dir(req.toJSON());
-		next();
-	})
-
-	
-		add some containers
+		POST / APPEND
 		
 	*/
 
 	supplier.post('/', routes.post.append);
 	supplier.post('/:id', routes.post.append);
-	supplier.post('/container/:id', routes.post.append);
 
 	/*
 	
-		save a container
+		PUT / SAVE
 		
 	*/
 	supplier.put('/:id', routes.put.save);
-	supplier.put('/container/:id', routes.put.save);
 
 	/*
 	
-		delete a container
+		DELETE / REMOVE
 		
 	*/
 	supplier.del('/:id', routes.del.remove);
-	supplier.del('/container/:id', routes.del.remove);
 
 	/*
 	

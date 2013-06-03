@@ -69,12 +69,9 @@ function select(){
     the _digger objects will be sent as the body of the select request
     for each supplier to use as the context (i.e. starting point for the query)
 
-    _supplychain objects are ignored from the context
     
   */
-  var context = this.containers();/*.filter(function(container){
-    return container.tag()!='_supplychain';
-  })*/
+  var context = this.containers();
 
   /*
   
@@ -85,7 +82,7 @@ function select(){
     return container.diggerwarehouse() || '/';
   })
 
-  var warehouseids = _.keys(groups);
+  var warehouseurls = _.keys(groups);
 
   /*
   
@@ -98,7 +95,7 @@ function select(){
   contract.method = 'post';
   contract.url = 'reception:/';
 
-  contract.body = _.map(warehouseids, function(diggerwarehouse){
+  contract.body = _.map(warehouseurls, function(warehouseurl){
 
     /*
     
@@ -107,13 +104,18 @@ function select(){
       a PIPE of the selector strings, reversed
 
       we input the context as the group of containers living in the given warehouse
+
+
+      Filter out any _supplychain objects from the skeleton context
+
+      we are using the warehouseurl as the entry point
       
     */
-    var containers = _.filter(groups[diggerwarehouse], function(container){
+    var groupedcontainers = _.filter(groups[warehouseurl], function(container){
       return container.tag()!='_supplychain';
     })
 
-    var skeleton = _.map(containers, function(c){
+    var skeleton = _.map(groupedcontainers, function(c){
       return c.meta();
     })
 
@@ -127,7 +129,7 @@ function select(){
       headers:{
         'x-json-selector-strings':selectors
       },
-      url:((diggerwarehouse=='/' ? null : diggerwarehouse) || '') + '/resolve',
+      url:((warehouseurl=='/' ? null : warehouseurl) || '') + '/resolve',
       body:skeleton || []
     })    
 

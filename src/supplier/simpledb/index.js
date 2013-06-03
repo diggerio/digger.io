@@ -18,7 +18,7 @@
 
 var _ = require('lodash');
 var BaseSupplier = require('../proto').factory;
-var Container = require('../../container');
+var Container = require('../../container/proto').factory;
 var async = require('async');
 var fs = require('fs');
 
@@ -120,6 +120,9 @@ function factory(options){
 
     supplier.save(function(save_query, promise){
 
+      console.log('-------------------------------------------');
+      console.dir(save_query);
+      process.exit();
 /*
       var append_to = rootcontainer.find({string:'', phases:[[append_query.selector]]});
 

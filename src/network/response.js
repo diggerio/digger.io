@@ -57,6 +57,17 @@ Response.factory = function(data, errorfn){
 
   var sent = false;
 
+  /*
+  
+    AUTO RESOLVE
+
+    this is for client sided responses that will parse the body
+    for multipart messages
+
+    server side responses are more often concerned with just moving stuff
+    around to want to open the content and process - hence not 'resolving'
+    
+  */
   if(autoresolve){
     ret.on('send', function(){
       ret.resolve();

@@ -30,7 +30,7 @@ var utils = require('../utils');
 var _ = require('lodash');
 var async = require('async');
 var EventEmitter = require('events').EventEmitter;
-var Container = require('../container');
+var Container = require('../container/proto');
 var Router = require('./router');
 
 // prototype

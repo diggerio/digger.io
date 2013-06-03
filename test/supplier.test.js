@@ -252,16 +252,14 @@ describe('supplier', function(){
 
   })
 
-  it('should pass the request as part of the query', function(done) {
+  it('should pass the request as part of the query and emit events for each', function(done) {
 
     var supplier = digger.supplier();
     var supplychain = digger.supplychain(supplier);
 
+    var hitevents = {};
+
     supplier.select(function(select_query, promise){
-      var req = select_query.req;
-      select_query.selector.tag.should.equal('product');
-      req.method.should.equal('post');
-      req.url.should.equal('/select');
 
       /*
       
@@ -286,13 +284,22 @@ describe('supplier', function(){
       promise.resolve(append_query.body);
     })
 
+    supplier.on('append', function(){
+      hitevents.append = true;
+    })
+
     supplier.save(function(save_query, promise){
       var req = save_query.req;
       req.method.should.equal('put');
       req.url.should.equal('/123');
+
       promise.resolve({
         name:'test'
       })
+    })
+
+    supplier.on('save', function(){
+      hitevents.save = true;
     })
 
     supplier.remove(function(remove_query, promise){
@@ -304,13 +311,19 @@ describe('supplier', function(){
       })
     })
 
+    supplier.on('remove', function(){
+      hitevents.remove = true;
+    })
+
     var loadedproduct = null;
     async.series([
       function(next){
         supplychain('product').ship(function(product){
+          
           product.attr('name').should.equal('test');
           product.diggerwarehouse().should.equal('/');
           product.diggerurl().should.equal('/123');
+
           loadedproduct = product;
           next();
         })
@@ -323,6 +336,7 @@ describe('supplier', function(){
         })
 
         supplychain.append(appendcontainer).ship(function(){
+          
           next();
         })
       },
@@ -343,7 +357,15 @@ describe('supplier', function(){
         throw new Error(error);
       }
 
-      done();
+      setTimeout(function(){
+        hitevents.append.should.equal(true);
+        hitevents.save.should.equal(true);
+        hitevents.remove.should.equal(true);  
+        done();
+      }, 10)
+      
+
+      
     })
 
   })
@@ -384,11 +406,26 @@ describe('supplier', function(){
       
     })
 
+    /*
+    
+      the select is needed to deal with the auto-skeleton
+      
+    */
+    supplier.select(function(select_query, promise){
+      promise.resolve({
+        name:'test',
+        _digger:{
+          tag:'test',
+          diggerid:'12345'
+        }
+      })
+    })
+
     supplier.append(function(append_query, promise, next){
 
-      append_query.selector.diggerid.should.equal('12345');
-      append_query.body.should.equal(20);
-      
+      append_query.target.diggerid.should.equal('12345');
+      append_query.target.tag.should.equal('test');
+
       promise.resolve(45);
     })
 
@@ -412,12 +449,28 @@ describe('supplier', function(){
       
     })
 
-    supplier.save(function(append_query, promise, next){
-
-      append_query.selector.diggerid.should.equal('12345');
-      append_query.body.should.equal(20);
+    /*
+    
+      the select is needed to deal with the auto-skeleton
       
-      promise.resolve(45);
+    */
+    supplier.select(function(select_query, promise){
+      promise.resolve({
+        name:'test',
+        _digger:{
+          tag:'test',
+          diggerid:'12345'
+        }
+      })
+    })
+
+    supplier.save(function(save_query, promise, next){
+
+      save_query.target.diggerid.should.equal('12345');
+      save_query.target.tag.should.equal('test');
+      save_query.body.should.equal(20);
+
+      promise.resolve(45);      
     })
 
     req = digger.request({
@@ -425,6 +478,8 @@ describe('supplier', function(){
       url:'/12345',
       body:20
     })
+
+    req.setHeader('x-debug', true);
 
     var res = digger.response(true);
     res.on('success', function(answer){
@@ -440,10 +495,20 @@ describe('supplier', function(){
       
     })
 
-    supplier.remove(function(append_query, promise, next){
+    supplier.select(function(select_query, promise){
+      promise.resolve({
+        name:'test',
+        _digger:{
+          tag:'test',
+          diggerid:'12345'
+        }
+      })
+    })
 
-      append_query.selector.diggerid.should.equal('12345');
-      append_query.body.should.equal(20);
+    supplier.remove(function(remove_query, promise, next){
+
+      remove_query.target.diggerid.should.equal('12345');
+      remove_query.body.should.equal(20);
       
       promise.resolve(45);
     })
@@ -468,6 +533,12 @@ describe('supplier', function(){
     var hit = {};
     var supplier = digger.supplier({
       
+    })
+
+    supplier.select(function(select_query, promise){
+      promise.resolve({
+        test:10
+      })
     })
 
     supplier.append(function(append_query, promise, next){
@@ -608,6 +679,32 @@ describe('supplier', function(){
     })
 
     supplier(req, res);
+
+  })
+
+  it('should deal with the URL of the supplier and still match requests', function(done) {
+
+    var supplier = digger.supplier({
+      url:'/some/place'
+    })
+
+    supplier.specialize('apples', function(select_query, promise){
+      promise.resolve({
+        title:'hello'
+      })
+    })
+
+    var supplychain = digger.supplychain('/some/place', supplier);
+
+    supplychain('apples.test').ship(function(apples, res){
+      apples.count().should.equal(1);
+      apples.attr('title').should.equal('hello');
+      apples.diggerwarehouse().should.equal('/some/place');
+      done();
+    })
+
+
+
 
   })
 

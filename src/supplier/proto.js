@@ -21,8 +21,8 @@ var utils = require('../utils');
 var _ = require('lodash');
 var async = require('async');
 var EventEmitter = require('events').EventEmitter;
-var Container = require('../container');
-var Warehouse = require('../warehouse');
+var Container = require('../container/proto').factory;
+var Warehouse = require('../warehouse/proto').factory;
 var ParseSelector = require('../container/selector');
 
 var Promise = require('../network/promise');
@@ -251,6 +251,10 @@ Supplier.factory = function(settings){
 		return supplier;
 	}
 
+	supplier.has_select_method = function(){
+		return standard_stack.length>0;
+	}
+
 	supplier.append = function(fn){
 		supplier.methods.append = fn;
 		return supplier;
@@ -287,6 +291,80 @@ Supplier.factory = function(settings){
 		})
 
 		return selectors;
+	}
+
+	/*
+	
+		a function used by append / save and remove
+
+		this loads the target based on the selector =34324234324
+		
+	*/
+	supplier.load_target = function(req, res, callback){
+		var selectors = extractselectors(req);
+		var target_selector = selectors[0];
+
+		/*
+		
+			if there is no digger id then we assume the target to be none
+			(i.e. the supplier itself)
+			
+		*/
+		if(!target_selector.diggerid){
+			callback();
+			return;
+		}
+
+		/*
+		
+			we only want meta data
+			
+		*/
+		target_selector.laststep = true;
+
+		/*
+		
+			for appends we load the container to append to automatically
+			using a self referential request
+			
+		*/
+		var load_target_req = Request({
+			method:'post',
+			url:'/selector',
+			headers:{
+				'x-json-selector':target_selector
+			}
+		})
+
+		var load_target_res = Response(function(){
+
+			if(load_target_res.hasError()){
+				res.error(load_target_res.body);
+				return;
+			}
+
+			var targetdata = _.isArray(load_target_res.body) ? load_target_res.body[0] : null;
+
+			if(!targetdata){
+				res.send404();
+				return;
+			}
+
+			/*
+			
+				we now have the skeleton that is the target of the append/save/remove request
+				
+			*/
+			callback(null, targetdata._digger);
+		})
+
+		supplier.handle_select_query({
+			req:load_target_req,
+			selector:target_selector || {},
+			context:[]
+		}, load_target_req, load_target_res, function(){
+			res.send404();
+		})
 	}
 
 	var routes = {
@@ -360,33 +438,6 @@ Supplier.factory = function(settings){
 			radio:function(req, res, next){
 				next();
 			},
-			append:function(req, res, next){
-
-				if(!supplier.methods.append){
-					next();
-					return;
-				}
-
-				var selectors = extractselectors(req);
-
-				var append_query = {
-					selector:selectors ? selectors[0] : null,
-					selectors:selectors,
-					req:req,
-					body:req.body
-				}
-
-				var promise = Promise();
-
-				promise.then(function(result){
-					res.send(result);
-					supplier.emit('append', req, res);
-				}, function(error){
-					res.sendError(error);
-				})
-
-				supplier.methods.append(append_query, promise, next);
-			},
 
 			/*
 			
@@ -403,67 +454,108 @@ Supplier.factory = function(settings){
 					are we in single selector or array mode?
 					
 				*/
-				var selector = req.getHeader('x-json-selector');
 				supplier.handle_select_query({
 					req:req,
 					selector:req.getHeader('x-json-selector') || {},
 					context:req.body || []
 				}, req, res, next)	
+			},
+
+			append:function(req, res, next){
+
+				if(!supplier.methods.append || !supplier.has_select_method()){
+					next();
+					return;
+				}
+
+				supplier.load_target(req, res, function(error, target){
+
+					var append_query = {
+						req:req,
+						target:target,
+						body:req.body
+					}
+
+					var promise = Promise();
+
+					promise.then(function(result){
+						res.send(result);
+						supplier.emit('append', req, res);
+					}, function(error){
+						res.sendError(error);
+					})
+
+					supplier.methods.append(append_query, promise, next);
+				})
+
 			}
 
 		},
 		put:{
 			save:function(req, res, next){
-				if(!supplier.methods.save){
+
+				if(!supplier.methods.save || !supplier.has_select_method()){
 					next();
 					return;
 				}
 
-				var selectors = extractselectors(req);
-				var save_query = {
-					selector:selectors ? selectors[0] : null,
-					selectors:selectors,
-					req:req,
-					body:req.body
-				}
+				supplier.load_target(req, res, function(error, target){
 
-				var promise = Promise();
+					if(!target){
+						res.send404();
+						return;
+					}
 
-				promise.then(function(result){
-					res.send(result);
-					supplier.emit('save', req, res);
-				}, function(error){
-					res.sendError(error);
+					var save_query = {
+						req:req,
+						target:target,
+						body:req.body
+					}
+
+					var promise = Promise();
+
+					promise.then(function(result){
+						res.send(result);
+						supplier.emit('save', req, res);
+					}, function(error){
+						res.sendError(error);
+					})
+
+					supplier.methods.save(save_query, promise, next);
 				})
-
-				supplier.methods.save(save_query, promise, next);
 			}
 		},
 		del:{
 			remove:function(req, res, next){
-				if(!supplier.methods.remove){
+				if(!supplier.methods.remove || !supplier.has_select_method()){
 					next();
 					return;
 				}
 
-				var selectors = extractselectors(req);
-				var remove_query = {
-					selector:selectors ? selectors[0] : null,
-					selectors:selectors,
-					req:req,
-					body:req.body
-				}
+				supplier.load_target(req, res, function(error, target){
 
-				var promise = Promise();
+					if(!target){
+						res.send404();
+						return;
+					}
 
-				promise.then(function(result){
-					res.send(result);					
-					supplier.emit('remove', req, res);
-				}, function(error){
-					res.sendError(error);
+					var remove_query = {
+						req:req,
+						target:target,
+						body:req.body
+					}
+
+					var promise = Promise();
+
+					promise.then(function(result){
+						res.send(result);
+						supplier.emit('remove', req, res);
+					}, function(error){
+						res.sendError(error);
+					})
+
+					supplier.methods.remove(remove_query, promise, next);
 				})
-
-				supplier.methods.remove(remove_query, promise, next);
 			}
 		}
 	}

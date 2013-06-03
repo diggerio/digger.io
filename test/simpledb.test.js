@@ -166,7 +166,7 @@ describe('simpledb', function(){
 					filepath:'/tmp/diggerappendtest.json'
 				})
 
-				var container2 = digger.supplychain('/', db);
+				var container2 = digger.supplychain('/', db2);
 
 				container2('house').ship(function(house){
 
@@ -193,5 +193,58 @@ describe('simpledb', function(){
 		
 	})	
 
+	it('should perform a save contract', function(done){
+		
+		var data = require(__dirname + '/fixtures/cities.json');
+		var datac = digger.container(data);
+
+		fs.writeFileSync('/tmp/diggerappendtest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
+		
+		var db = digger.suppliers.simpledb({
+			url:'/db3',
+			filepath:'/tmp/diggerappendtest.json'
+		})
+
+		db.url().should.equal('/db3');
+
+		var container = digger.supplychain('/db3', db);
+
+		container('city area:first').ship(function(areas, res){
+			res.statusCode.should.equal(200);
+
+			areas.count().should.equal(1);
+			areas.diggerwarehouse().should.equal('/db3');
+
+			areas.attr('testing', 123);
+
+			var contract = areas.save();
+
+			contract.getHeader('x-contract-type').should.equal('merge');
+
+			var req = contract.body[0];
+
+			req.url.should.equal('/db3/' + areas.diggerid());
+			req.method.should.equal('put');
+
+			contract.ship(function(){
+
+				var db2 = digger.suppliers.simpledb({
+					url:'/db3',
+					filepath:'/tmp/diggerappendtest.json'
+				})
+
+				var container2 = digger.supplychain('/db3', db2);
+
+				container2('=' + areas.diggerid()).ship(function(areas){
+
+					areas.attr('testing').should.equal(123);
+					done();
+				})
+				
+			})
+
+		})
+		
+	})	
 
 })

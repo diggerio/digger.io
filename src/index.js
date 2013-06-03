@@ -23,38 +23,74 @@
 	
 */
 
+
+/*
+
+  prepare the env
+  
+*/
 var bootstrap = require('./bootstrap');
 
 module.exports = {
 
   /*
   
-    modules
+    container
+
+    client framework
     
   */
-	container:require('./container'),
-  create:require('./container'),
-
+	container:require('./container/proto').factory,
+  create:require('./container/proto').factory,
   selector:require('./container/selector'),
+
+  /*
+  
+    network
+
+    messaging framework
+    
+  */
   promise:require('./network/promise'),
   request:require('./network/request').factory,
   response:require('./network/response').factory,
   contract:require('./network/contract').factory,
-
-  warehouse:require('./warehouse'),
-  supplier:require('./supplier'),
-  supplychain:require('./warehouse/supplychain'),
-
   merge:require('./network/contract').mergefactory,
   sequence:require('./network/contract').sequencefactory,
+
+  /*
+  
+    warehouse / supplier
+
+    server framework
+    
+  */
+  warehouse:require('./warehouse/proto').factory,
+  supplier:require('./supplier/proto').factory,
+  supplychain:require('./warehouse/supplychain'),
+
+  /*
+    
+    middleware
+
+    functional server plugins
+      
+  */
 
   middleware:{
     contractresolver:require('./middleware/contractresolver'),
     selectresolver:require('./middleware/selectresolver')
   },
   
+  
+  /*
+  
+    suppliers
+    
+    database connectors
+
+  */
   suppliers:{
-    diggerdb:require('./supplier/diggerdb'),
     simpledb:require('./supplier/simpledb'),
     nestedset:require('./supplier/nestedset')
   }

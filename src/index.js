@@ -35,6 +35,13 @@ module.exports = {
 
   /*
   
+    export utils for supplier modules
+    
+  */
+  utils:require('./utils'),
+  
+  /*
+  
     container
 
     client framework

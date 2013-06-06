@@ -27,7 +27,7 @@ function getLineNumber(){
 
 module.exports = function(){
   
-  if(process.env.NODE_ENV==='production' || process.env.CONSOLE==='false'){
+  if(process.env.NODE_ENV!=='development' || process.env.CONSOLE==='false'){
     return;
   }
 

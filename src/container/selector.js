@@ -25,11 +25,11 @@ module.exports.mini = miniparse;
       [
           {
               "splitter": ">",
-              "tagname": "*"
+              "tag": "*"
           },
           {
               "splitter": "",
-              "tagname": "product",
+              "tag": "product",
               "classnames": {
                   "onsale": true
               },
@@ -43,11 +43,11 @@ module.exports.mini = miniparse;
           },
           {
               "splitter": ">",
-              "tagname": "img"
+              "tag": "img"
           },
           {
               "splitter": "",
-              "tagname": "caption",
+              "tag": "caption",
               "classnames": {
                   "red": true
               }
@@ -55,7 +55,7 @@ module.exports.mini = miniparse;
       ],
       [
           {
-              "tagname": "friend"
+              "tag": "friend"
           }
       ]
     ]

@@ -30,7 +30,7 @@ global.should = require("chai").should();
 process.env.NODE_ENV = 'test';
 
 // test coverage
-require('blanket');
+//require('blanket');
 
 // get the application server module
 //global.app = require('./../app');

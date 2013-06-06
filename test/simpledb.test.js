@@ -32,7 +32,6 @@ describe('simpledb', function(){
 			cities.count().should.equal(8);
 			done();
 		})
-
 		
 	})
 

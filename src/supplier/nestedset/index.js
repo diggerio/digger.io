@@ -46,14 +46,16 @@ function factory(options){
 
 function query_factory(selector, contextmodels){
   var query = parse_selector(selector);
+  var skeleton = [];
 
   if(contextmodels && contextmodels.length>0){
-    var treequery = generate_tree_query(selector.splitter, contextmodels);
-
-    query.push(treequery);
+    skeleton = generate_tree_query(selector.splitter, contextmodels);
   }
 
-  return query;
+  return {
+    search:query,
+    skeleton:skeleton
+  }
 }
 
 function generate_tree_query(splitter, contextmodels){
@@ -154,7 +156,7 @@ function parse_selector(selector){
         })
       }
 
-      if(selector.class){
+      if(_.keys(selector.class).length>0){
 
         _.each(_.keys(selector.class), function(classname){
 

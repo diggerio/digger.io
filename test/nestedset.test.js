@@ -15,7 +15,7 @@ describe('nestedset supplier', function(){
       select_query.context.should.be.a('array');
       select_query.context.length.should.equal(0);
       select_query.selector.should.be.a('object');
-      select_query.query.should.be.a('array');
+      select_query.query.should.be.a('object');
       promise.resolve();
     })
 
@@ -40,14 +40,25 @@ describe('nestedset supplier', function(){
     supplier.select(function(select_query, promise){
       var query = select_query.query;
 
-      query.length.should.equal(4);
-      query[2].field.should.equal('price');
-      query[2].value.should.equal(100);
-      query[3].should.be.a('array');
-      query[3].length.should.equal(4);
-      query[3][2].value.should.equal(89);
-      query[3][2].field.should.equal('_digger.left');
-      query[3][2].operator.should.equal('>');
+      var search = query.search;
+      var skeleton = query.skeleton;
+
+      search.length.should.equal(3);
+      search[0].field.should.equal('_digger.tag');
+      search[0].value.should.equal('product');
+      search[0].operator.should.equal('=');
+      search[1].field.should.equal('_digger.class');
+      search[1].value.should.equal('onsale');
+      search[1].operator.should.equal('=');
+      search[2].field.should.equal('price');
+      search[2].value.should.equal(100);
+      search[2].operator.should.equal('<');
+
+      skeleton.should.be.a('array');
+      skeleton.length.should.equal(4);
+      skeleton[2].value.should.equal(89);
+      skeleton[2].field.should.equal('_digger.left');
+      skeleton[2].operator.should.equal('>');
 
       promise.resolve(45);
     })
@@ -58,7 +69,9 @@ describe('nestedset supplier', function(){
       headers:{
         'x-json-selector':{
           tag:'product',
-          class:['onsale'],
+          class:{
+            'onsale':true
+          },
           attr:[{
             field:'price',
             operator:'<',

@@ -30,6 +30,7 @@
 */
 var _ = require('lodash');
 var BaseSupplier = require('../proto').factory;
+var RationalEncoder = require('./rationalencoder');
 
 module.exports = factory;
 
@@ -40,6 +41,9 @@ function factory(options){
     select_query.query = query_factory(select_query.selector, select_query.context);
     return this;
   }
+
+  supplier.generate_tree_query = generate_tree_query;
+  supplier.encode = RationalEncoder;
 
   return supplier;
 }
@@ -59,8 +63,8 @@ function query_factory(selector, contextmodels){
 }
 
 function generate_tree_query(splitter, contextmodels){
-  var or_array = [];
 
+  var or_array = [];
 
   _.each(contextmodels, function(contextmodel){
 

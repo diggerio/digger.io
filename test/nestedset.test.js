@@ -99,5 +99,21 @@ describe('nestedset supplier', function(){
 
   })
 
+  it('should encode nested set indexes for us', function(done) {
+
+    var supplier = digger.suppliers.nestedset({
+      url:'warehouse:/api/products'
+    })
+
+    var result = supplier.encode([45,3,4,5]);
+
+    result.left.numerator.should.equal(7739);
+    result.left.denominator.should.equal(169);
+    result.right.numerator.should.equal(9067);
+    result.right.denominator.should.equal(198);
+
+    done();
+  })
+
 
 })

@@ -62,6 +62,8 @@ function factory(supplychain){
         next();
       })
 
+      req.inject(contract_req);      
+
       debug('merge contract - part: %s %s', contract_req.method, contract_req.url);
       supplychain(contract_req, contract_res);
     }, function(error){
@@ -82,6 +84,7 @@ function factory(supplychain){
     debug('pipe contract');
     async.forEachSeries(req.body || [], function(raw, next){
       var contract_req = Request(raw);
+      req.inject(contract_req);
       contract_req.body = lastresults || contract_req.body;
       var contract_res = Response(function(){
         if(contract_res.hasError()){
@@ -109,6 +112,7 @@ function factory(supplychain){
     debug('sequence contract');
     async.forEachSeries(req.body || [], function(raw, next){
       var contract_req = Request(raw);
+      req.inject(contract_req);
       var contract_res = Response(function(){
         if(contract_res.hasError()){
           res.fill(contract_res);

@@ -66,7 +66,7 @@ function Request(data){
 
   _.each(url_fields, function(field){
     self[field] = parsed[field] || default_fields[field];
-  })  
+  })
 }
 
 
@@ -79,6 +79,22 @@ util.inherits(Request, Message);
 
 Request.prototype.clone = function(){
   return Request.factory(JSON.parse(JSON.stringify(this.toJSON())));
+}
+
+Request.prototype.debug = function(){
+  this.setHeader('x-digger-debug', true);
+  return this;
+}
+
+Request.prototype.inject = function(child){
+  var self = this;
+  _.each([
+    'x-digger-debug',
+    'x-digger-resource'
+  ], function(field){
+    child.setHeader(field, self.getHeader(field));
+  })
+  return this;
 }
 
 Request.prototype.toJSON = function(){

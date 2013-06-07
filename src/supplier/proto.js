@@ -60,6 +60,8 @@ Supplier.factory = function(settings){
 
 	supplier.methods = {};
 
+	var providermode = supplier.settings.attr('provider')===true;
+
 	supplier.url = function(){
 		return this.settings.attr('url') || '/';
 	}
@@ -193,7 +195,7 @@ Supplier.factory = function(settings){
 
 		async.forEachSeries(use_stack, function(fn, nextfn){
 
-			fn(select_query, promise, nextfn);
+			fn.apply(supplier, [select_query, promise, nextfn]);
 
 		}, next);
 
@@ -470,6 +472,7 @@ Supplier.factory = function(settings){
 					are we in single selector or array mode?
 					
 				*/
+
 				supplier.handle_select_query({
 					req:req,
 					selector:req.getHeader('x-json-selector') || {},
@@ -501,7 +504,7 @@ Supplier.factory = function(settings){
 						res.sendError(error);
 					})
 
-					supplier.methods.append(append_query, promise, next);
+					supplier.methods.append.apply(supplier, [append_query, promise, next]);
 				})
 
 			}
@@ -537,7 +540,7 @@ Supplier.factory = function(settings){
 						res.sendError(error);
 					})
 
-					supplier.methods.save(save_query, promise, next);
+					supplier.methods.save.apply(supplier, [save_query, promise, next]);
 				})
 			}
 		},
@@ -570,7 +573,7 @@ Supplier.factory = function(settings){
 						res.sendError(error);
 					})
 
-					supplier.methods.remove(remove_query, promise, next);
+					supplier.methods.remove.apply(supplier, [remove_query, promise, next]);
 				})
 			}
 		}
@@ -595,37 +598,49 @@ Supplier.factory = function(settings){
 
 	/*
 	
-		this picks up the x-warehouse-url (if present)
-		and removes that from the start of the url
-
-		this enables all routing to not have to touch the url
-
-		i.e. each supplier looks after the following:
-
-			/some/long/path/to/get/here/product/caption
-
-		becomes locally to the supplier
-
-			/product/caption
-
-		and
-
-			/some/long/path/to/get/here
-
-		is injected into each containers _digger.diggerwarehouse property
-
-		x-warehouse-url is ONLY set from reception
+		removes the URL of the supplier from the request so the supplier functions
+		don't care where the supplier is mounted
 		
 	*/
 	supplier.use(function(req, res, next){
+
 		var warehouseurl = supplier.url() || '/';
 		if(warehouseurl!=='/' && req.url.indexOf(warehouseurl)===0){
-			req.url = req.url.substr(warehouseurl.length);
 			req.pathname = req.pathname.substr(warehouseurl.replace(/^\w+:/, '').length);
 		}
 		next();
 	})
 
+	/*
+	
+		checks if we are in provider mode and extracts the first chunk of the path as the
+		resource
+		*/
+
+	var reserved_resource_names = {
+		resolve:true,
+		select:true
+	}
+		
+	supplier.use(function(req, res, next){
+		
+		if(providermode){
+
+			req.pathname = req.pathname.replace(/^\/\w+/, function(match){
+				var resource = match.substr(1);
+				if(!reserved_resource_names[resource]){
+					req.setHeader('x-digger-resource', resource);
+					return '';
+				}
+				else{
+					return match;
+				}
+			})
+		}
+		next();
+
+	})
+			
 	/*
 	
 		/dig/product.onsale

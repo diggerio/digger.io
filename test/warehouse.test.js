@@ -146,7 +146,6 @@ describe('warehouse', function(){
     var subwarehouse = digger.warehouse();
 
     subwarehouse.use(function(req, res){
-      req.getHeader('x-digger-path').should.equal('/a/toppath/123');
       res.send(req.pathname);
     })
 

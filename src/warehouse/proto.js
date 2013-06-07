@@ -199,14 +199,6 @@ Warehouse.prototype.handle = function(req, res, parentout) {
   function next(err) {
     var layer, url, status, c;
 
-    if(!req.getHeader('x-digger-path')){
-      req.setHeader('x-digger-path', req.pathname);
-    }
-
-    if(!req.getHeader('x-digger-url')){
-      req.setHeader('x-digger-url', req.url);
-    }
-
     if (slashAdded) {
       req.pathname = req.pathname.substr(1);
       slashAdded = false;

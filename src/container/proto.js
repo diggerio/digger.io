@@ -91,7 +91,6 @@ Container.factory = function factory(){
     now map in the prototype
     
   */
-
   _.extend(instance, Container.prototype);
   _.extend(instance, EventEmitter.prototype);
 

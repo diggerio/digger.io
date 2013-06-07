@@ -195,4 +195,20 @@ describe('contract', function(){
 
   })
 
+  it('should inject core headers into child spawned requests', function(){
+    var containerA = digger.container('A');
+    
+    containerA.attr('test', 10);
+
+    var contract = containerA.save();
+
+    contract.debug();
+
+    var req = digger.request();
+
+    contract.inject(req);
+
+    req.getHeader('x-digger-debug').should.equal(true);
+  })
+
 })

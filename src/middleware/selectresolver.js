@@ -75,6 +75,7 @@ function factory(handle){
 
     var skeleton_array = req.body || [];
 
+
     skeleton_array = _.filter(skeleton_array, function(obj){
       return obj.tag!='supplychain';
     })
@@ -96,7 +97,7 @@ function factory(handle){
     */
 
     debug('Selector: %s strings', strings.length);
-
+    
     async.forEachSeries(strings, function(stage, next_stage){
 
       final_state.next();
@@ -148,6 +149,8 @@ function factory(handle){
             url:'/select',
             body:phase_skeleton
           })
+
+          req.inject(selectreq);
 
           selectreq.setHeader('x-json-selector', selector);
 

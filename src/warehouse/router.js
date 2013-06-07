@@ -68,7 +68,8 @@ function compile_routes(urls){
     return function(req, res, next){
         if(!compiled.some(function(x){
 
-            var match = x[0].exec(url.parse(req.url).pathname);
+            var match = x[0].exec(req.pathname);
+            
             if (match) {
                 if (!x[1] || x[1] === req.method) {
                     var paramfields = x[x.length-1];

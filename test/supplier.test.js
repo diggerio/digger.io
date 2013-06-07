@@ -736,5 +736,25 @@ describe('supplier', function(){
 
   })
 
+  it('should run in provider mode chunk the URL as pass x-digger-resource header', function(done){
+    
+    var supplier = digger.supplier({
+      url:'/api/database',
+      provider:true
+    });
+    
+    supplier.select(function(select_query, promise){
+      select_query.req.getHeader('x-digger-resource').should.equal('34');
+      done();
+    })
+
+    var supplychain = digger.supplychain('/api/database/34', supplier);
+
+    supplychain('thing').debug().ship(function(things){
+
+    })
+
+
+  })
 
 })

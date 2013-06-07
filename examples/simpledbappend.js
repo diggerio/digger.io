@@ -16,7 +16,7 @@ var fs = require('fs');
 		var container = digger.supplychain(db);
 
 		container('city').ship(function(cities, res){
-			console.log('-------------------------------------------');
-			console.dir(cities.count());
-			
+			res.statusCode.should.equal(200);
+			cities.count().should.equal(8);
+			done();
 		})

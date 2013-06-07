@@ -736,7 +736,7 @@ describe('supplier', function(){
 
   })
 
-  it('should run in provider mode chunk the URL as pass x-digger-resource header', function(done){
+  it('should run in provider mode chunk the URL and pass x-digger-resource header', function(done){
     
     var supplier = digger.supplier({
       url:'/api/database',

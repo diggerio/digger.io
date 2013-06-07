@@ -195,23 +195,6 @@ Container.prototype.ensure_meta = function(done){
   return this;
 }
 
-/*
-
-  return the highest found path for children
-  
-*/
-Container.prototype.get_next_child_path_index = function(){
- var highpath = 0;
-  this.each(function(c){
-    var path = c.diggerpath();
-
-    if(path[0]>highpath){
-      highpath = path[0];
-    }
-  })
-  return highpath;
-}
-
 Container.prototype.ensure_parent_ids = function(parent){
 
   var self = this;

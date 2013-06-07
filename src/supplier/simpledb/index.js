@@ -103,21 +103,27 @@ function factory(options){
           it's a root append
           
         */
-        append_what.inject_paths([append_what.get_next_child_path_index()]);
+        var pos = 0;
+        rootcontainer.each(function(rootcontainer){
+          if(rootcontainer.digger('rootposition')>pos){
+            pos = rootcontainer.digger('rootposition');
+          }
+        })
+        append_what.inject_paths([pos]);
       }
       else{
 
-        var append_count = append_to.digger('append_count') || 0;
+        var next_child_position = append_to.digger('next_child_position') || 0;
 
-        append_what.inject_paths(([]).concat(append_to.diggerpath(), [append_count]))
-        append_count++;
+        append_what.inject_paths(([]).concat(append_to.diggerpath(), [next_child_position]))
+        next_child_position++;
 
         /*
         
           save the append count for next time
           
         */
-        append_to.digger('append_count', append_count);
+        append_to.digger('next_child_position', next_child_position);
       }
 
       append_what.diggerparentid(append_to.diggerid());

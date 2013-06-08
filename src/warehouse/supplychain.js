@@ -57,6 +57,9 @@ var Container = require('../container/proto');
 var Contract = require('../network/contract');
 var Response = require('../network/response');
 
+var Merge = Contract.mergefactory;
+var Sequence = Contract.sequencefactory;
+
 /*
 
   create a new supply chain that will pipe a req and res object into the
@@ -129,7 +132,7 @@ function factory(){
     if yes then we will fake serialize the requests
     
   */
-  var should_auto_serialize = supplierfn._diggertype=='warehouse' || supplierfn._diggertype=='supplier';
+  var should_auto_serialize = supplierfn._diggertype=='warehouse' || supplierfn._diggertype=='supplier' || supplierfn._diggertype=='provider';
 
   function supplychain(){}
 
@@ -173,8 +176,33 @@ function factory(){
 
     return res;
   }
-  
+
+
   container.supplychain = supplychain;
+
+  /*
+  
+    used to create other container with different URLs
+    
+  */
+  container.connect = function(url){
+    var ret = Container.factory('_supplychain');
+    ret.diggerwarehouse(url);
+    return ret;
+  }
+  
+  container.merge = function(arr){
+    var contract = Merge(arr);
+    contract.supplychain = supplychain;
+    return contract;
+  }
+
+  container.sequence = function(arr){
+    var contract = Sequence(arr);
+    contract.supplychain = supplychain;
+    return contract;
+  }
+  
 
   return container;
 }

@@ -224,6 +224,16 @@ Container.prototype.spawn = function(models){
 	return container;
 }
 
+Container.prototype.clone = function(){
+  var data = JSON.parse(JSON.stringify(this.models));
+  var ret = this.spawn(data);
+  ret.recurse(function(des){
+    des.diggerid(utils.diggerid());
+  })
+  ret.ensure_parent_ids();
+  return ret;
+}
+
 Container.prototype.children = function(){
   var models = [];
   var self = this;
@@ -475,7 +485,17 @@ Container.prototype.removeData = remove_wrapper('_data');
 Container.prototype.diggerid = wrapper('_digger', 'diggerid');
 Container.prototype.diggerparentid = wrapper('_digger', 'diggerparentid');
 Container.prototype.diggerwarehouse = wrapper('_digger', 'diggerwarehouse');
-Container.prototype.diggerpath = wrapper('_digger', 'diggerpath');
+
+var pathwrapper = wrapper('_digger', 'diggerpath');
+Container.prototype.diggerpath = function(){
+  var ret = pathwrapper.apply(this, _.toArray(arguments));
+
+  if(!_.isArray(ret)){
+    ret = [];
+  }
+
+  return ret;
+}
 
 Container.prototype.diggerurl = function(){
   var warehouse = this.diggerwarehouse();

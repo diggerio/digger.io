@@ -62,8 +62,6 @@ module.exports = {
   request:require('./network/request').factory,
   response:require('./network/response').factory,
   contract:require('./network/contract').factory,
-  merge:require('./network/contract').mergefactory,
-  sequence:require('./network/contract').sequencefactory,
 
   /*
   

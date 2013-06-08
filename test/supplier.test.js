@@ -736,19 +736,25 @@ describe('supplier', function(){
 
   })
 
-  it('should run in provider mode chunk the URL and pass x-digger-resource header', function(done){
+  it('should run in provision mode and process the path presenting the chunks as a names object', function(done){
     
     var supplier = digger.supplier({
-      url:'/api/database',
-      provider:true
-    });
-    
-    supplier.select(function(select_query, promise){
-      select_query.req.getHeader('x-digger-resource').should.equal('34');
+      url:'/api/database'
+    })
+
+    supplier.provision('database', 'resource', function(names, callback){
+      names.database.should.equal('binocarlos');
+      names.resource.should.equal('hello');
       done();
     })
 
-    var supplychain = digger.supplychain('/api/database/34', supplier);
+    supplier.select(function(select_query, promise){
+      console.log('-------------------------------------------');
+      console.dir(select_query);
+      process.exit();
+    })
+
+    var supplychain = digger.supplychain('/api/database/binocarlos/hello', supplier);
 
     supplychain('thing').debug().ship(function(things){
 

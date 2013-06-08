@@ -90,9 +90,12 @@ Request.prototype.inject = function(child){
   var self = this;
   _.each([
     'x-digger-debug',
-    'x-digger-resource'
+    'x-json-resource'
   ], function(field){
-    child.setHeader(field, self.getHeader(field));
+    var val = self.getHeader(field);
+    if(val){
+      child.setHeader(field, val);  
+    }
   })
   return this;
 }

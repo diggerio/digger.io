@@ -55,7 +55,7 @@ Warehouse.factory = function(){
 Warehouse.prototype.initialize = function(){
   this.route = '/';
   this.stack = [];
-  this.router = Router();
+  this._router = Router();
   this._prepared = true;
   this._preparestack = [];
   this._mounts = {};
@@ -113,7 +113,7 @@ Warehouse.prototype.use = function(route, fn){
 
   // wrap dispatch configs
   if ('object' == typeof fn){
-    this.router.use(route, fn);
+    this._router.use(route, fn);
     return this;
   }
 
@@ -144,7 +144,7 @@ _.each([
 
   Warehouse.prototype[method] = function(route, fn) {
 
-    this.router[method].apply(this.router, [route, fn]);
+    this._router[method].apply(this._router, [route, fn]);
     return this;
 
   }
@@ -172,7 +172,7 @@ Warehouse.prototype.handle = function(req, res, parentout) {
       return;
     }
 
-    self.router(req, res, function(){
+    self._router(req, res, function(){
       if(parentout){
         parentout(req, res);
       }

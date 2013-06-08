@@ -78,6 +78,24 @@ describe('container', function(){
 
   })
 
+  it('should clone another container and have changed the ids', function() {
+
+    var test = digger.create('product', {
+      price:100,
+      address:{
+        postcode:'apples'
+      }
+    })
+
+    var copy = test.clone();
+
+    copy.attr('price').should.equal(100);
+    copy.diggerid().should.not.equal(test.diggerid());
+    
+
+  })
+
+
   it('XML should have the correct underlying model structure', function() {
 
     var test = digger.create('<product price="100" class="red" />');

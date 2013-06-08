@@ -69,6 +69,8 @@ Contract.factory = function(data){
 
 Contract.mergefactory = function(data){
   var contract = Contract.factory('merge');
+  contract.url = 'reception:/';
+  contract.method = 'post';
   contract.body = _.map(data, function(child){
     return child.toJSON();
   })
@@ -77,6 +79,8 @@ Contract.mergefactory = function(data){
 
 Contract.sequencefactory = function(data){
   var contract = Contract.factory('sequence');
+  contract.url = 'reception:/';
+  contract.method = 'post';
   contract.body = _.map(data, function(child){
     return child.toJSON();
   })

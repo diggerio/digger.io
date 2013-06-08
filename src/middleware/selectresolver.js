@@ -154,6 +154,13 @@ function factory(handle){
 
           selectreq.setHeader('x-json-selector', selector);
 
+          /*
+          
+            this means the suppliers will leave the path alone
+            
+          */
+          selectreq.setHeader('x-digger-internal', true);
+
           var selectres = Response(function(){
 
             if(selectres.hasError() || selectres.body.length<=0){

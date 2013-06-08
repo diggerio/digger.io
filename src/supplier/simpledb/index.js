@@ -21,6 +21,7 @@ var BaseSupplier = require('../proto').factory;
 var Container = require('../../container/proto').factory;
 var async = require('async');
 var fs = require('fs');
+var path = require('path');
 var wrench = require('wrench');
 
 module.exports = factory;
@@ -28,10 +29,7 @@ module.exports = factory;
 function factory(options){
   
   var supplier = BaseSupplier(options);
-  //  var filepath = supplier.settings.attr('filepath');
-  var autocreate = supplier.settings.attr('autocreate');
 
-  var get_filepath = function(){}
   /*
   
     in provider mode we want a directory
@@ -41,45 +39,24 @@ function factory(options){
     /db/apples -> /dir/apples.json
     
   */
-  if(supplier.settings.attr('provider')){
-    if(!supplier.settings.attr('folder')){
-      throw new Error('folder requiired for simpledb provider');
-    }
+  var databasepath = supplier.settings.attr('database');
+  var folderpath = supplier.settings.attr('folder');
+  var filepath = supplier.settings.attr('file');
 
-    if(!fs.existsSync(supplier.settings.attr('folder'))){
-      if(!autocreate){
-        throw new Error('The folder: ' + supplier.settings.attr('folder') + ' does not exist');  
-      }
-      else{
-        wrench.mkdirSyncRecursive(dir, 0777);
-      }
-    }
-
-    get_filepath = function(req){
-      return supplier.settings.attr('folder') + '/' + req.getHeader('x-digger-resource') + '.json';
-    }
-  }
-  /*
-  
-    in this mode we are speaking to just one file
-
-    we expect a filepath to say where it is
-    
-  */
-  else{
-    if(!supplier.settings.attr('filepath')){
-      throw new Error('filepath requiired for simpledb');
-    }
-
-    if(!fs.existsSync(supplier.settings.attr('filepath')) && !autocreate){
-      throw new Error('The folder: ' + supplier.settings.attr('folder') + ' does not exist');
-    }
-
-    get_filepath = function(req){
-      return supplier.settings.attr('filepath');      
-    }
+  if(!databasepath && !folderpath && !filepath){
+    throw new Error('you must provide a database, folder for file path');
   }
 
+  if(databasepath){
+    if(!fs.existsSync(databasepath)){
+      wrench.mkdirSyncRecursive(databasepath);
+    }
+  }
+  else if(folderpath){
+    if(!fs.existsSync(folderpath)){
+      wrench.mkdirSyncRecursive(folderpath);
+    } 
+  }
 
   /*
   
@@ -91,108 +68,133 @@ function factory(options){
   
   var containers = {};
 
+  function get_provision_routes(){
+    var routes = [];
 
-  
-
-  /*
-  
-    keep a count of how many requests to save each file
-
-    if the count is above zero when we get back then do again
-
-    if the count is zero when we trigger then we are the one that does it
-
-  */
-  var savecallbacks = {};
-
-  function savefile(container, filepath, done){
-
-    if(!savecallbacks[filepath]){
-      savecallbacks[filepath] = [];
+    if(databasepath){
+      routes = ['folder', 'file'];
+    }
+    else if(folderpath){
+      routes = ['file'];
     }
 
-    savecallbacks[filepath].push(done);
-
-    /*
-    
-      this means we are already saving
-      
-    */
-    if(savecallbacks[filepath].length>1){
-      return;
-    }
-
-    fs.writeFile(filepath, JSON.stringify(container.toJSON(), null, 4), 'utf8', function(error){
-
-      _.each(savecallbacks[filepath], function(fn){
-        fn(error);
-      })
-
-      /*
-      
-        this means others have arrived in the meantime
-        
-      */
-      if(savecallbacks[filepath].length>1){
-        savefile(container, filepath, function(){
-
-        })
-      }
-
-      savecallbacks[filepath] = [];
-    })
+    return routes;
   }
 
+  function get_folderpath(resource){
+    return path.dirname(get_filepath(resource));
+  }
+
+  function get_filepath(resource){
+    if(databasepath){
+      return databasepath + '/' + resource.folder + '/' + resource.file + '.json';
+    }
+    else if(folderpath){
+      return folderpath + '/' + resource.file + '.json';
+    }
+    else{
+      return filepath;
+    }
+  }
+
+
   /*
   
-    PREPARE FILE
+    this is called once per file
     
   */
-  function load_file(req, finished){
-
-    var path = get_filepath(req);
-
-    var container = containers[path];
-
-    if(container){
-      finished(null, container);
+  function provision_container(filepath, loaded){
+    if(containers[filepath]){
+      loaded(null, containers[filepath]);
       return;
     }
 
-    var filedata = null;
-    async.series([
-      function(next){
+    var dir = path.dirname(filepath);
 
-        fs.readFile(path, 'utf8', function(error, content){
-
-          if((error || !content) && !autocreate){
-            finished(error);
-            return;
-          }
-          else{
-            filedata = content;
-            next();
-          }
-        })
-      },
-
-      function(next){
-        container = Container(filedata);
-
-        container.ensure_meta();
-
-        container.savefile = function(callback){
-          savefile(container, path, callback);
+    function ensurefolder(done){
+      fs.exists(dir, function(exists){
+        if(!exists){
+          fs.mkdir(dir, done);    
         }
+        else{
+          done();
+        }
+      })
+    }
 
-        container.savefile(function(){
-          containers[path] = container;
-          finished(null, container);
+    function ensurefile(done){
+      fs.exists(filepath, function(exists){
+        if(!exists){
+          fs.writeFile(filepath, JSON.stringify([]), 'utf8', done);
+        }
+        else{
+          done();
+        }
+      })
+    }
+
+    function loadfile(done){
+      fs.readFile(filepath, 'utf8', done);
+    }
+
+    function savefile(done){
+      fs.writeFile(filepath, JSON.stringify(this.toJSON(), null, 4), 'utf8', done);
+    }
+
+    async.series([
+      ensurefolder,
+
+      ensurefile,
+
+      function(next){
+        loadfile(function(error, data){
+          var container = Container(data);
+
+          container.ensure_meta();
+
+          container.savefile = savefile;
+
+          container.savefile(function(){
+            containers[filepath] = container;
+            next()
+          })
         })
-        
       }
-    ])
+
+    ], loaded)
+
   }
+
+  
+  /*
+  
+    this is called each time to get the container into the methods
+    
+  */
+  function load_container(req, loaded){
+    var filepath = get_filepath(req.getHeader('x-json-resource'));
+
+    loaded(null, containers[filepath]);
+  }
+
+  /*
+  
+
+    ----------------------------------------------
+    PROVISION
+    ----------------------------------------------
+    
+  */
+  var provisionfn = function(routes, callback){
+    var filepath = get_filepath(routes);
+
+    provision_container(filepath, callback);
+  }
+
+  var routes = get_provision_routes();
+  routes.push(provisionfn);
+
+  supplier.provision.apply(supplier, routes);
 
   /*
   
@@ -203,8 +205,13 @@ function factory(options){
     
   */
   supplier.select(function(select_query, promise){
-    load_file(select_query.req, function(error, rootcontainer){
 
+    load_container(select_query.req, function(error, rootcontainer){
+
+      if(!rootcontainer){
+        promise.reject('file not found');
+        return;
+      }
       var context = rootcontainer;
 
       if(select_query.context && select_query.context.length>0){
@@ -238,8 +245,13 @@ function factory(options){
   */
   supplier.append(function(append_query, promise){
 
-    load_file(append_query.req, function(error, rootcontainer){
+    load_container(append_query.req, function(error, rootcontainer){
       
+      if(!rootcontainer){
+        promise.reject('file not found');
+        return;
+      }
+
       var append_to = append_query.target ? rootcontainer.spawn(append_query.target) : rootcontainer;
       var append_what = rootcontainer.spawn(append_query.body);
 
@@ -262,6 +274,7 @@ function factory(options){
           }
         })
         append_what.inject_paths([pos]);
+        rootcontainer.add(append_what);
       }
       else{
 
@@ -276,10 +289,9 @@ function factory(options){
           
         */
         append_to.digger('next_child_position', next_child_position);
+        append_what.diggerparentid(append_to.diggerid());
+        append_to.append(append_what);  
       }
-
-      append_what.diggerparentid(append_to.diggerid());
-      append_to.append(append_what);
 
       /*
       
@@ -308,7 +320,12 @@ function factory(options){
 
   supplier.save(function(save_query, promise){
 
-    load_file(save_query.req, function(error, rootcontainer){
+    load_container(save_query.req, function(error, rootcontainer){
+
+      if(!rootcontainer){
+        promise.reject('file not found');
+        return;
+      }
 
       var data = save_query.body;
       /*
@@ -343,8 +360,13 @@ function factory(options){
 
   supplier.remove(function(remove_query, promise){
 
-    load_file(remove_query.req, function(error, rootcontainer){
+    load_container(remove_query.req, function(error, rootcontainer){
 
+      if(!rootcontainer){
+        promise.reject('file not found');
+        return;
+      }
+      
       var target = rootcontainer.spawn(remove_query.target);
       var parent = rootcontainer;
 

@@ -60,8 +60,6 @@ Supplier.factory = function(settings){
 
 	supplier.methods = {};
 
-	var providermode = supplier.settings.attr('provider')===true;
-
 	supplier.url = function(){
 		return this.settings.attr('url') || '/';
 	}
@@ -270,6 +268,15 @@ Supplier.factory = function(settings){
 	supplier.remove = function(fn){
 		supplier.methods.remove = fn;
 		return supplier;
+	}
+
+	supplier.provision = function(){
+		var args = _.toArray(arguments);
+		var fn = args[args.length-1];
+		args.pop();
+		this._provisionroutes = args || [];
+		this._provisionfn = fn;
+		return this;
 	}
 
 	var contractresolver = ContractResolver(supplier);
@@ -579,6 +586,10 @@ Supplier.factory = function(settings){
 		}
 	}
 
+	supplier.use(function(req, res, next){
+		supplier.emit('request:entry', req);
+		next();
+	})
 
 	/*
 	
@@ -607,40 +618,74 @@ Supplier.factory = function(settings){
 		var warehouseurl = supplier.url() || '/';
 		if(warehouseurl!=='/' && req.url.indexOf(warehouseurl)===0){
 			req.pathname = req.pathname.substr(warehouseurl.replace(/^\w+:/, '').length);
+			if(req.pathname===''){
+				req.pathname = '/';
+			}
 		}
+
 		next();
 	})
 
 	/*
 	
-		checks if we are in provider mode and extracts the first chunk of the path as the
-		resource
+		removes a chunk from the pathname of the request and returns what it removed
+   */
+
+  function chunkpath(req){
+		var resource = null;
+		req.pathname = req.pathname.replace(/^\/[^\/]+/, function(match){
+			resource = match.substr(1);
+			return '';
+		})
+		if(req.pathname===''){
+			req.pathname = '/';
+		}
+		return resource;
+  }
+
+	supplier.use(function(req, res, next){
+
+		/*
+		
+			this means the request is coming from within our select resolver
+			and is not an entry request - therefore we don't need any provisioning
+			because the x-json-resource header has already been set
+			
 		*/
 
-	var reserved_resource_names = {
-		resolve:true,
-		select:true
-	}
-		
-	supplier.use(function(req, res, next){
-		
-		if(providermode){
-
-			req.pathname = req.pathname.replace(/^\/\w+/, function(match){
-				var resource = match.substr(1);
-				if(!reserved_resource_names[resource]){
-					req.setHeader('x-digger-resource', resource);
-					return '';
-				}
-				else{
-					return match;
-				}
-			})
+		if(req.getHeader('x-digger-internal')){
+			next();
+			return;
 		}
-		next();
 
-	})
+		var routes = {};
+
+		/*
+		
+			this removes chunks from the start of the pathname and presents them to
+			the x-json-resource header
 			
+		*/
+		if(supplier._provisionroutes && supplier._provisionroutes.length>0){
+			
+			_.each(supplier._provisionroutes, function(routename){
+				var path = chunkpath(req);
+				routes[routename] = path;
+			})
+
+			req.setHeader('x-json-resource', routes);
+		}
+
+		if(supplier._provisionfn){
+			supplier._provisionfn.apply(supplier, [routes, next]);
+		}
+		else{
+			next();
+		}
+
+		
+	})
+				
 	/*
 	
 		/dig/product.onsale

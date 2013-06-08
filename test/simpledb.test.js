@@ -410,19 +410,16 @@ describe('simpledb', function(){
 		
 	})
 
-/*
 	it('should provide several databases in provider mode', function(done){
 		
-		var folder = '/tmp/diggersimpletestsfolder';
+		var folder = '/tmp/diggersimpletests';
 
 		wrench.rmdirSyncRecursive(folder, true);
 
-		var supplier = digger.suppliers.simpledb.file({
+		var supplier = digger.suppliers.simpledb({
 			
 			url:'/json',
-			folder:folder,
-			provide:'database',
-			autocreate:true
+			database:folder
 			
 		})
 
@@ -432,8 +429,8 @@ describe('simpledb', function(){
 
 		var supplychain = digger.supplychain(supplier);
 
-		var db1 = supplychain.connect('/json/apples/db1');
-		var db2 = supplychain.connect('/json/oranges/db2');
+		var db1 = supplychain.connect('/json/apples/grannysmith');
+		var db2 = supplychain.connect('/json/oranges/jaffa');
 
 		async.series([
 
@@ -444,8 +441,8 @@ describe('simpledb', function(){
 					db2.append(digger.create('fruit').addClass('orange'))
 				]).ship(function(){
 					
-					fs.existsSync('/tmp/diggersimpletests/apples/db1.json').should.equal(true);
-					fs.existsSync('/tmp/diggersimpletests/oranges/db2.json').should.equal(true);
+					fs.existsSync('/tmp/diggersimpletests/apples/grannysmith.json').should.equal(true);
+					fs.existsSync('/tmp/diggersimpletests/oranges/jaffa.json').should.equal(true);
 
 					next();
 				})
@@ -468,7 +465,7 @@ describe('simpledb', function(){
 
 		], function(){
 
-			wrench.rmdirSyncRecursive(folder, true);
+			//wrench.rmdirSyncRecursive(folder, true);
 			done();
 		})
 		
@@ -476,5 +473,4 @@ describe('simpledb', function(){
 
 		
 	})
-*/
 })

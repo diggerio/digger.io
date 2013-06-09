@@ -178,4 +178,23 @@ describe('supplychain', function(){
 
         
   })
+
+
+  it('should assign the container a supplychain with all various arguments', function(){
+
+    var supplier = digger.supplier();
+
+    var db1 = digger.supplychain(supplier);
+
+    if(!db1.supplychain){
+      throw new Error('db1 does not have a supplychain');
+    }
+
+    var db2 = digger.supplychain('/', supplier);
+
+    if(!db2.supplychain){
+      throw new Error('db1 does not have a supplychain');
+    }
+
+  })
 })

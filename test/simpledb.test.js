@@ -83,6 +83,7 @@ describe('simpledb', function(){
 		})
 	})
 
+
 	it('should perform a multi-stage selector and apply the first and last modifiers', function(done){
 		
 		var data = require(__dirname + '/fixtures/cities.json');
@@ -459,6 +460,78 @@ describe('simpledb', function(){
 				.ship(function(fruit){
 					fruit.count().should.equal(2);
 					fruit.find('.apple').count().should.equal(1);
+					next();
+				})
+			}
+
+		], function(){
+
+			//wrench.rmdirSyncRecursive(folder, true);
+			done();
+		})
+		
+
+
+		
+	})
+
+	it('should branch to several databases in provider mode', function(done){
+		
+		var folder = '/tmp/diggersimpletests';
+
+		wrench.rmdirSyncRecursive(folder, true);
+
+		var supplier = digger.suppliers.simpledb({
+			
+			url:'/json',
+			database:folder
+			
+		})
+
+
+		if(!fs.existsSync(folder)){
+			throw new Error('The supplier should have created the folder')
+		}		
+
+		var supplychain = digger.supplychain('/', supplier);
+
+		var uk = supplychain.connect('/json/uk/fruit');
+		var france = supplychain.connect('/json/france/orchard');
+
+		var ukfruit = digger.create('<folder><fruit name="Apple" class="green" /><fruit name="Pear" class="green" /><fruit name="Orange" class="orange" /></folder>');
+		var francefruit = digger.create('<folder><fruit name="Lime" class="green" /><fruit name="Grape" class="green" /><fruit name="Lemon" class="yellow" /></folder>');
+
+		var linkfolder = digger.create('folder', {
+			_digger:{
+				diggerbranch:['/json/france/orchard']
+			},
+			name:'French Fruit'
+		})
+
+		ukfruit.add(linkfolder);
+
+		async.series([
+
+			function(next){
+
+
+				var append = supplychain.merge([
+					uk.append(ukfruit),
+					france.append(francefruit)
+				]).ship(function(){
+					
+					fs.existsSync('/tmp/diggersimpletests/uk/fruit.json').should.equal(true);
+					fs.existsSync('/tmp/diggersimpletests/france/orchard.json').should.equal(true);
+
+					next();
+				})
+
+				
+			},
+			
+			function(next){
+				uk('folder fruit.green').debug().ship(function(fruit){
+					fruit.count().should.equal(4);
 					next();
 				})
 			}

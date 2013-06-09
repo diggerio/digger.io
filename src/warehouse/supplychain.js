@@ -188,6 +188,7 @@ function factory(){
   container.connect = function(url){
     var ret = Container.factory('_supplychain');
     ret.diggerwarehouse(url);
+    ret.supplychain = supplychain;
     return ret;
   }
   

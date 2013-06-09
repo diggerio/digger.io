@@ -36,6 +36,24 @@ describe('container', function(){
     test.tag().should.equal('product');
 
   })
+    var linkfolder = digger.create('folder', {
+      _digger:{
+        diggerbranch:['/json/france/orchard']
+      },
+      name:'French Fruit'
+    })
+
+  it('should not obliterate the tag if _digger data is given also', function() {
+
+    var test = digger.create('product', {
+      price:100,
+      _digger:{
+        id:'test'
+      }
+    })
+
+    test.tag().should.equal('product');
+  })
 
   it('should ensure a digger id', function() {
     var test = digger.create('product', {
@@ -45,6 +63,7 @@ describe('container', function(){
       }
     })
 
+    test.tag().should.equal('product');
     test.diggerid().should.be.a('string');
     test.diggerid().length.should.equal(32);
   })

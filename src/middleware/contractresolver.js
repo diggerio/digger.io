@@ -66,6 +66,8 @@ function factory(supplychain){
         next();
       })
 
+
+
       req.inject(contract_req);      
 
       //debug('merge contract - part: %s %s', contract_req.method, contract_req.url);
@@ -156,6 +158,7 @@ function factory(supplychain){
   }
 
   resolver.handle = function(req, res, next){
+
     /*
     
       make sure we actually have a contract

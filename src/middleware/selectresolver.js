@@ -94,8 +94,7 @@ function factory(handle){
 
     function process_skeleton(skeletonarr, branchselectors){
       _.each(skeletonarr, function(skeleton){
-
-        if(skeleton.diggerbranch){
+        if(skeleton.diggerbranch && skeleton.diggerbranch.length>0){
           var brancharr = skeleton.diggerbranch;
           if(!_.isArray(brancharr)){
             brancharr = [brancharr];

@@ -502,11 +502,8 @@ describe('simpledb', function(){
 		var francefruit = digger.create('<folder><fruit name="Lime" class="green" /><fruit name="Grape" class="green" /><fruit name="Lemon" class="yellow" /></folder>');
 
 		var linkfolder = digger.create('folder', {
-			_digger:{
-				diggerbranch:['/json/france/orchard']
-			},
 			name:'French Fruit'
-		})
+		}).branchto(france)
 
 		ukfruit.add(linkfolder);
 
@@ -546,4 +543,5 @@ describe('simpledb', function(){
 
 		
 	})
+
 })

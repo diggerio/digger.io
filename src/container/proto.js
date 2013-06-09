@@ -508,6 +508,16 @@ Container.prototype.diggerbranch = function(){
   return ret;
 }
 
+Container.prototype.branchto = function(where){
+  var self = this;
+  var branches = this.diggerbranch();
+  where.each(function(container){
+    branches.push(container.diggerurl());
+  })
+  this.diggerbranch(branches);
+  return this;
+}
+
 Container.prototype.diggerurl = function(){
   var warehouse = this.diggerwarehouse();
   var id = this.diggerid();

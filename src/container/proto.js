@@ -497,9 +497,9 @@ Container.prototype.diggerpath = function(){
   return ret;
 }
 
-var pathwrapper = wrapper('_digger', 'diggerbranch');
+var branchwrapper = wrapper('_digger', 'diggerbranch');
 Container.prototype.diggerbranch = function(){
-  var ret = pathwrapper.apply(this, _.toArray(arguments));
+  var ret = branchwrapper.apply(this, _.toArray(arguments));
 
   if(!_.isArray(ret)){
     ret = [];

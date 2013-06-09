@@ -50,9 +50,8 @@ function extractdata(data, attr){
     // we could do YAML here
     else{
       attr = attr || {};
-      attr._digger = attr._digger || {
-        tag:data
-      }
+      attr._digger = attr._digger || {};
+      attr._digger.tag = data;
       attr._children = attr._children || [];
       attr._data = attr._data || {};
       data = [attr];

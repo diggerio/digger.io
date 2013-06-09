@@ -321,4 +321,14 @@ describe('container', function(){
     skeleton[0].tag.should.equal('city');
     
   })
+
+  it('should provide a summary', function() {
+
+    var test = digger.create('product', {
+      name:'test'
+    }).addClass('thing').id('45')
+
+    test.summary().should.equal('test: product#45.thing');
+    
+  })
 })

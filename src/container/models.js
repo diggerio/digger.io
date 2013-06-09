@@ -52,7 +52,6 @@ function extractdata(data, attr){
       attr = attr || {};
       attr._digger = attr._digger || {
         tag:data
-        
       }
       attr._children = attr._children || [];
       attr._data = attr._data || {};

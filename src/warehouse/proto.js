@@ -239,8 +239,9 @@ Warehouse.prototype.handle = function(req, res, parentout) {
       // Call the layer handler
       // Trim off the part of the url that matches the route
       removed = layer.route;
-      req.pathname = req.pathname.substr(removed.length);
+      req.pathname = req.pathname.substr(removed.length);  
 
+      
       // Ensure leading slash
       if ('/' != req.pathname[0]) {
         req.pathname = '/' + req.pathname;

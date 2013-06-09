@@ -18,10 +18,11 @@
 
 var _ = require('lodash');
 var async = require('async');
-
+var utils = require('../utils');
 var Request = require('../network/request').factory;
 var Response = require('../network/response').factory;
-var debug = require('debug')('selectresolver');
+var EventEmitter = require('events').EventEmitter;
+//var debug = require('debug')('selectresolver');
 
 //var EventResolver = require('./resolveevents');
 
@@ -71,7 +72,7 @@ function factory(handle){
     throw new Error('Select resolver requires a handle method');
   }
 
-  return function(req, res, next){
+  function selectresolver(req, res, next){
 
     var skeleton_array = req.body || [];
 
@@ -79,11 +80,53 @@ function factory(handle){
     skeleton_array = _.filter(skeleton_array, function(obj){
       return obj.tag!='supplychain';
     })
+
+
+    /*
+    
+      here we scan the context for any branch skeletons - this will emit a branch event
+
+      the request should have already had the x-json-branch-selectors filled in
+      
+    */
+    
+    var allbranches = [];
+
+    function process_skeleton(skeletonarr, branchselectors){
+      _.each(skeletonarr, function(skeleton){
+
+        if(skeleton.diggerbranch){
+          var brancharr = skeleton.diggerbranch;
+          if(!_.isArray(brancharr)){
+            brancharr = [brancharr];
+          }
+          _.each(brancharr, function(location){
+
+            var branch = {
+              method:'post',
+              url:location + '/resolve',
+              headers:{
+                'x-branch-id':utils.diggerid(),
+                'x-branch-contract-id':req.getHeader('x-contract-id'),
+                'x-branch-from':skeleton.diggerwarehouse + '/' + skeleton.diggerid,
+                'x-branch-to':location,
+                'x-json-selector-strings':branchselectors
+              }
+            }
+
+            allbranches.push(branch);
+            selectresolver.emit('branch', branch);
+          })
+        }
+      })
+    }
     
     var strings = req.getHeader('x-json-selector-strings');
 
     var final_state = new State(strings);
     var final_results = [];
+    var final_branches = [];
+
     //var select_resolver = EventResolver('select', req, res);
 
     /*
@@ -96,7 +139,7 @@ function factory(handle){
       
     */
 
-    debug('Selector: %s strings', strings.length);
+    //debug('Selector: %s strings', strings.length);
     
     async.forEachSeries(strings, function(stage, next_stage){
 
@@ -116,11 +159,11 @@ function factory(handle){
         now we have the phases - these can be done in parallel
         
       */
-      debug(' Stage: %s - %s phases', stage.string, stage.phases.length);
+      //debug(' Stage: %s - %s phases', stage.string, stage.phases.length);
 
       async.forEach(stage.phases, function(phase, next_phase){
 
-        debug('   Phase: %s selectors', phase.length);
+        //debug('   Phase: %s selectors', phase.length);
 
         var phase_skeleton = [].concat(skeleton_array);
 
@@ -128,15 +171,26 @@ function factory(handle){
 
         async.forEachSeries(phase, function(selector, next_selector){
 
-          debug(JSON.stringify(selector, null, 4));
-
-          var branchselector = [].concat(final_state.arr);
-          if(selector_state.arr.length>0){
-            branchselector.unshift([[].concat(selector_state.arr)]);
-          }
+          /*
           
+            the selector used by branches - it has removed the parts we have done already
+            
+          */
+          var branchselectors = [].concat(final_state.arr);
+          if(selector_state.arr.length>0){
+            branchselectors.unshift({
+              string:'',
+              phases:[[].concat(selector_state.arr)]
+            });
+          }
+
+
+          //debug(JSON.stringify(selector, null, 4));
+
           selector_state.next();
 
+          process_skeleton(phase_skeleton, branchselectors);
+          
           /*
             
             this means we are at the end of the whole reduction!
@@ -151,12 +205,11 @@ function factory(handle){
           })
 
           req.inject(selectreq);
-
           selectreq.setHeader('x-json-selector', selector);
 
           /*
           
-            this means the suppliers will leave the path alone
+            this means the suppliers will leave the path alone - HACK ALERT
             
           */
           selectreq.setHeader('x-digger-internal', true);
@@ -222,13 +275,20 @@ function factory(handle){
 
     }, function(error){
 
+      res.setHeader('x-json-branches', allbranches);
+
       if(error){
         res.sendError(error);
       }
       else{
         res.send(final_results);
       }
+
     })
     
   }
+
+  _.extend(selectresolver, EventEmitter.prototype);
+
+  return selectresolver;
 }

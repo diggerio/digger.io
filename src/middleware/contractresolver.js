@@ -20,8 +20,9 @@ var _ = require('lodash');
 var async = require('async');
 var Request = require('../network/request').factory;
 var Response = require('../network/response').factory;
+var Contract = require('../network/contract').factory;
 var EventEmitter = require('events').EventEmitter;
-var debug = require('debug')('contractresolver');
+//var debug = require('debug')('contractresolver');
 
 /*
   digger.io - Contract Resolver
@@ -54,20 +55,45 @@ function factory(supplychain){
   */
   resolver.merge = function(req, res, next){
     
-    debug('merge contract');
+    var branches = [];
+
+    //debug('merge contract');
     async.forEach(req.body || [], function(raw, next){
       var contract_req = Request(raw);
       var contract_res = Response(function(){
         res.add(contract_res);
+        branches = branches.concat(contract_res.getHeader('x-json-branches') || []);
         next();
       })
 
       req.inject(contract_req);      
 
-      debug('merge contract - part: %s %s', contract_req.method, contract_req.url);
+      //debug('merge contract - part: %s %s', contract_req.method, contract_req.url);
       supplychain(contract_req, contract_res);
     }, function(error){
-      res.send();
+
+      if(branches.length>0){
+        /*
+        
+          this is a sub-contract that enables us to wait for branches of branches
+          
+        */
+        var branch_req = Contract('merge');
+        branch_req.method = 'post';
+        branch_req.url = 'reception:/';
+        branch_req.body = branches;
+
+        var branch_res = Response(function(){
+          res.add(branch_res);
+          res.send();
+        })
+
+        resolver(branch_req, branch_res);
+      }
+      else{
+        res.send();  
+      }
+      
     })
   }
 
@@ -81,7 +107,7 @@ function factory(supplychain){
   */
   resolver.pipe = function(req, res, next){
     var lastresults = null;
-    debug('pipe contract');
+    //debug('pipe contract');
     async.forEachSeries(req.body || [], function(raw, next){
       var contract_req = Request(raw);
       req.inject(contract_req);
@@ -95,7 +121,7 @@ function factory(supplychain){
           next();
         }
       })
-      debug('pipe contract - part: %s %s', contract_req.method, contract_req.url);
+      //debug('pipe contract - part: %s %s', contract_req.method, contract_req.url);
       supplychain(contract_req, contract_res, next);
     }, function(error){
       res.send(lastresults);
@@ -109,7 +135,7 @@ function factory(supplychain){
   */
   resolver.sequence = function(req, res, next){
     var lastresults = null;
-    debug('sequence contract');
+    //debug('sequence contract');
     async.forEachSeries(req.body || [], function(raw, next){
       var contract_req = Request(raw);
       req.inject(contract_req);
@@ -122,7 +148,7 @@ function factory(supplychain){
           next();
         }
       })
-      debug('sequence contract - part: %s %s', contract_req.method, contract_req.url);
+      //debug('sequence contract - part: %s %s', contract_req.method, contract_req.url);
       supplychain(contract_req, contract_res, next);
     }, function(error){
       res.send(lastresults);

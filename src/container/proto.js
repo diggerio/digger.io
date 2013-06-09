@@ -497,6 +497,17 @@ Container.prototype.diggerpath = function(){
   return ret;
 }
 
+var pathwrapper = wrapper('_digger', 'diggerbranch');
+Container.prototype.diggerbranch = function(){
+  var ret = pathwrapper.apply(this, _.toArray(arguments));
+
+  if(!_.isArray(ret)){
+    ret = [];
+  }
+
+  return ret;
+}
+
 Container.prototype.diggerurl = function(){
   var warehouse = this.diggerwarehouse();
   var id = this.diggerid();

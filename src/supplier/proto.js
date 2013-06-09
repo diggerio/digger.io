@@ -54,6 +54,13 @@ Supplier.factory = function(settings){
 	var supplier = Warehouse();
 
 	supplier._diggertype = 'supplier';
+	
+	/*
+	
+		prevent warehouses from messing with the path
+		
+	*/
+	supplier._fixedpaths = true;
 
 	/*
 	
@@ -156,9 +163,12 @@ Supplier.factory = function(settings){
 		this stub for query preparation
 
 		depending on what flavour supplier will decide what happens here
-		
+
+
+
 	*/
 	supplier.prepare_select_query = function(select_query){
+
 		return this;
 	}
 	
@@ -166,7 +176,8 @@ Supplier.factory = function(settings){
 	
 		each iteration of a nested selector ends up here
 
-		each different supplier can hook into the select query event
+		each supplier will issue it's handler via the 'select' method
+
 		
 	*/
 	supplier.handle_select_query = function(select_query, req, res, next){
@@ -178,7 +189,6 @@ Supplier.factory = function(settings){
 		}
 
 		//supplier.emit('select_query', select_query);
-
 		supplier.prepare_select_query(select_query);
 
 		var promise = Promise();
@@ -285,6 +295,10 @@ Supplier.factory = function(settings){
 
 	var contractresolver = ContractResolver(supplier);
 	var selectresolver = SelectResolver(supplier);
+
+	selectresolver.on('branch', function(branch){
+		supplier.emit('branch', branch);
+	})
 
 	function extractselectors(req){
 		var path = req.pathname;
@@ -402,6 +416,11 @@ Supplier.factory = function(settings){
 		get:{
 			select:function(req, res, next){
 
+				/*
+				
+					below the method is supplier.use() - it should work with supplier.get() - HACK ALERT
+					
+				*/
 				if(req.method!='get'){
 					next();
 					return;
@@ -491,6 +510,13 @@ Supplier.factory = function(settings){
 					selector:req.getHeader('x-json-selector') || {},
 					context:req.body || []
 				}, req, res, next)	
+			},
+
+			selectresolverid:function(req, res, next){
+				supplier.load(req.params.id, function(error, target){
+					req.body = [target._digger];
+					selectresolver(req, res, next);
+				})
 			},
 
 			append:function(req, res, next){
@@ -617,6 +643,8 @@ Supplier.factory = function(settings){
 	
 		removes the URL of the supplier from the request so the supplier functions
 		don't care where the supplier is mounted
+
+		this is if we are running without a reception router
 		
 	*/
 	supplier.use(function(req, res, next){
@@ -732,6 +760,12 @@ Supplier.factory = function(settings){
 	*/
 	supplier.post('/resolve', selectresolver);
 
+	/*
+	
+		POST /resolve/:id -> select resolver but load the context from string id first (from branches)
+		
+	*/
+	supplier.post('/:id/resolve', routes.post.selectresolverid);
 	/*
 	
 		POST / APPEND

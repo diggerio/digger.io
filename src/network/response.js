@@ -122,6 +122,7 @@ Response.prototype.resolve = function(fn){
 
   var results = [];
   var errors = [];
+  var branches = this.getHeader('x-json-branches') || [];
 
   function resolvemutlipart(multires){
     if(multires.statusCode==200){
@@ -134,6 +135,8 @@ Response.prototype.resolve = function(fn){
         })
       } 
       else{
+        var subbranches = multires.getHeader('x-json-branches') || [];
+        branches = branches.concat(subbranches);
         if(_.isArray(multires.body)){
           results = results.concat(multires.body);
         }
@@ -167,6 +170,8 @@ Response.prototype.resolve = function(fn){
     errors = this.body;
     this.emit('failure', this.body, this);
   }
+
+  this.setHeader('x-json-branches', branches);
 
   if(fn){
     fn(results, errors);

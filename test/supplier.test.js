@@ -749,14 +749,65 @@ describe('supplier', function(){
     })
 
     supplier.select(function(select_query, promise){
-      console.log('-------------------------------------------');
-      console.dir(select_query);
-      process.exit();
+      
     })
 
     var supplychain = digger.supplychain('/api/database/binocarlos/hello', supplier);
 
     supplychain('thing').debug().ship(function(things){
+
+    })
+
+
+  })
+
+  it('emit a branch event and return the branch in the response', function(done){
+    
+    var supplier = digger.supplier({
+      url:'/api/database'
+    })
+
+    supplier.select(function(select_query, promise){
+
+      var selector = select_query.selector;
+
+      if(selector.tag=='this'){
+        promise.resolve({
+          _digger:{
+            diggerid:4345,
+            tag:'thing',
+            diggerbranch:['/api/database/4534346']
+          },
+          name:'Test'
+        })  
+      }
+      else{
+        promise.resolve({
+          _digger:{
+            diggerid:123,
+            tag:'thingy'
+          },
+          name:'Test2'
+        })
+      }
+      
+    })
+
+    supplier.on('branch', function(branch, req){
+      branch.headers['x-branch-from'].should.equal('/api/database/4345');
+      branch.headers['x-branch-to'].should.equal('/api/database/4534346');
+    })
+
+    var supplychain = digger.supplychain('/api/database', supplier);
+
+    supplychain('this that').ship(function(things, res){
+
+      var branches = res.getHeader('x-json-branches');
+      branches.length.should.equal(1);
+      branches[0].headers['x-branch-from'].should.equal('/api/database/4345');
+      branches[0].headers['x-branch-to'].should.equal('/api/database/4534346');
+      branches[0].headers['x-json-selector-strings'][0].phases[0][0].tag.should.equal('that');
+      done();
 
     })
 

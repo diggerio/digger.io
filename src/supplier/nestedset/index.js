@@ -35,6 +35,7 @@ var RationalEncoder = require('./rationalencoder');
 module.exports = factory;
 
 function factory(options){
+
   var supplier = BaseSupplier(options);
 
   supplier.prepare_select_query = function(select_query){
@@ -86,29 +87,27 @@ function generate_tree_query(splitter, contextmodels){
     }
     // ancestor mode
     else if(splitter=='<<'){
-      or_array.push({
+      or_array.push([{
         field:'_digger.left',
         operator:'<',
         value:contextmodel.left
-      })
-      or_array.push({
+      },{
         field:'_digger.right',
         operator:'>',
         value:contextmodel.right
-      })
+      }])
     }
     // descendent mode
     else{
-      or_array.push({
+      or_array.push([{
         field:'_digger.left',
         operator:'>',
         value:contextmodel.left
-      })
-      or_array.push({
+      },{
         field:'_digger.right',
         operator:'<',
         value:contextmodel.right
-      })
+      }])
     }
   })
 

@@ -1,223 +1,101 @@
-#Containers
-Containers are the fundamental building block of a digger.io system.
+#digger.io
+digger is a designer database.
 
-They provide you with a common method of talking to lots of different databases and for moving data around the world.
+It lets you:
 
-Understanding how to put data into a container and then get it out at the other end will make you a database ninja!
+ * create database systems very quickly
+ * do so without any server-side programming knowledge
+ * integrate those databases with HTML very easily
+ * link databases together to make bigger, better databases
+ * run the databases on thousands of servers to cope with 'web scale'
+ * speak to those databases using a 'CSS' style query language just like JQuery
 
-So - just like Karate Kid - time for some wax on.
+In short - if you have ever found yourself doing some JQuery then you can now program database systems!
 
-##What are containers?
-Containers do not actually exist - they just 'wrap' your data and move it around as required.
-
-They provide you with 2 main features:
-
- * to get at the data inside
- * to make contracts that will load more containers from the server
-
-Before we learn how to do these things - let us study a library we must pay homage to.
-
-##JQuery
-JQuery works very well because it can treat lots of different things (Images, Links, Divs etc) as an ambiguous list of 'stuff'.
-
-Take this HTML:
+##Background
+Every web designer should understand the following HTML:
 
 ```html
-		<div class="red"></div>
-		<span class="blue"></span>
-		<img src="img.png" />
+<div>
+	<div class="product" id="123">
+		<span class="title">Product 1</span>
+	</div>
+	<div class="product" id="456">
+		<span class="title">Product 2</span>
+	</div>
+	<div class="product" id="789">
+		<span class="title">Product 3</span>
+	</div>
+</div>
 ```
 
-It is a mix mash of different things entirely - yet JQuery elegantly lets us alter properties of all 3 in 1 line of code:
+Now lets do some CSS to make our title spans red:
 
-```
-	$('*').attr('title', 'all 3 have this');
-```
-
-##Digger
-Just like JQuery gives you an array of underlying DOM elements - digger.io containers are an array of underlying JavaScript objects.
-
-Take this data structure:
-
-```js
-
-var data = 
-	[{
-		name:'Sofa',
-		size:45
-	},{
-		name:'Chair',
-		size:28
-	},{
-		name:'Beanbag',
-		size:16
-	}]
-```
-
-digger.io can work with the data above:
-
-```js
-	var container = digger.create(data);
-
-	container.attr('title', 'all 3 have this');
-```
-
-##Basic Container
-
-
-
-
-
-
-
-
-
-
-
-##Basic Data Structure
-Here is some raw data in container format:
-
-```js
-[{
-
-	name:'My Orange',
-	price:20,
-
-	__digger__:{
-		meta:{
-			tagname:'orange',
-			class:['organic']
-		},
-		children:[]
+```html
+<style>
+	div.product span.title {
+		background-color:red;
 	}
-},{
-
-	name:'My Plastic Toy',
-	price:24,
-
-	__digger__:{
-		meta:{
-			tag:'product',
-			class:['synthetic']
-		},
-		children:[]
-	}
-}]
-
-Each model has top level attributes - it is just a plain old JavaScript object.
-
-Th
-
-##Models
-Think of a model as the same as a single DOM element in JQuery speak.
-
-Each model will contain the following data:
-
- * attributes
- * meta
- * children
-
-###Underlying structure
-An example of a model with everything specified:
-
-```js
-{
-
-	// these are the attributes - the actual data for the model
-	name:'My big model',
-	description:'This is a model with lots of things plugged in',
-
-	// this is the meta data - the stuff digger needs to work with
-	__meta__:{
-		tag:'parent',
-		id:'bigmodel',
-		class:['big', 'example']
-	},
-
-	// these are the children - <div><span></span></div> is an example of a span inside a div
-	__children__:[{
-		name:'A child of the parent',
-		__meta__:{
-			tag:'child'
-		}
-	}]
-}
+</style>
 ```
 
-###In XML format
-and example of the same data in XML:
+Cool - nice and easy so far - these ideas are EVERYWHERE on the Internet.
 
-```xml
-<parent id="bigmodel" class="big example" name="My big model" description="This is a model with lots of things plugged in">
-	<child name="A child of the parent" />
-</parent>
+###CSS is a powerful database query language
+The thing is - the above CSS statement did something that server side databases make a proper meal out of.
 
+Here is a 'simple' SQL statement - it says 'load all captions belonging to products less than £100':
+
+```sql
+select
+	caption.*
+from
+	caption, product
+where
+	caption.product_id = product.id
+	and
+	product.price<100
+group by
+	caption.id
 ```
 
-As you can see, the XML version is shorter and much more like JQuery speak.
+Now lets do the same in CSS:
 
-##Putting data into containers
-When you have some raw data - the next step is to pour it into a container, this then lets us use the cool container API on the data.
-
-Creating a container from some raw data:
-
-```js
-var rawdata = [...]; // the JSON data above
-
-var stuff = Container.new(rawdata);
+```css
+product[price<100] caption
 ```
 
-Now we have a container rather than a raw JavaScript object, we can start to do JQuery type stuff:
+###But CSS is a client side language - WTF?
+That is the point of digger.io - to extend the thinking of a client side web developer and apply it to the server and database systems.
 
-```js
-// add a class name to each model
-stuff.addClass('hello');
+A digger.io network can run on many thousands of servers or just a single one.
 
-// add a class name to the 2nd model
-stuff.eq(1).addClass('hello');
+It can speak to many different databases systems (MySQL, Redis, MongoDB, Facebook, Twitter, Google etc) and merge the results from them together.
 
-// add an attribute to all models
-stuff.attr('akey', 'avalue');
+The 2 languages that every client side web developer knows are:
 
-// get the raw data for the 4th model
-var raw = stuff.get(3);
+	CSS and JavaScript
 
-// 
+The 2 languages that digger.io speaks on the client AND the server are:
 
+	CSS and JavaScript
 
-// loop over each model wrapped in it's own container
-stuff.each(function(container){
-	// this will always echo '1'
-	console.log(container.length);
-})
+###JQuery
+There is another library that with massive success - combined the ideas of CSS and JavaScript into something altogether useful for web-designers - JQuery.
+	
+	52% of ALL websites use JQuery
 
+Wow - think about that number!
 
-```
+Why has JQuery dominated other client side libraries?
 
+The answer is simple - because it uses CSS at it's core and web designers 'think' in CSS.
 
+It has enabled whole armies of people to use cool plugins and make their web-pages interactive.
 
+###The Database Shortage
+There is however - a HUGE shortage of people able to work the servers.
 
-Here is some code that creates a new container object from the XML above:
+JQuery helped 52% of the Internet to become interative.
 
-	var test = Container(xmlstring);
-	test.log(container.toJSON())
-
-Here would be the output:
-
-```js
-{
-	name:'My big model',
-	description:'This is a model with lots of things plugged in',
-	__meta__:{
-		tag:'parent',
-		id:'bigmodel',
-		class:['big', 'example']
-	},
-	__children__:[{
-		name:'A child of the parent',
-		__meta__:{
-			tag:'child'
-		}
-	}]
-}
-```
+digger.io is a tool that can help the same people create realtime scalable database systems.

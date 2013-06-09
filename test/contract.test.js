@@ -108,6 +108,7 @@ describe('contract', function(){
     req.headers["x-json-selector-strings"][0].phases[0][0].tag.should.equal('product');
   })
 
+
   it('should create a contract from a simple container append action', function(){
     var placeA = digger.container('testa');
     placeA.diggerid('123');
@@ -211,5 +212,60 @@ describe('contract', function(){
     req.getHeader('x-digger-debug').should.equal(true);
   })
 
+  it('should allow the client side piping of contracts and functions', function(done){
+    var supplier = digger.supplier({
+      url:'/some/place'
+    })
+
+    supplier.select(function(select_query, promise){
+      promise.resolve({
+        title:'apple',
+        _digger:{
+          tag:'fruit'
+        }
+      })
+    })
+
+    supplier.append(function(append_query, promise){
+      var target = append_query.target;
+      var data = append_query.body;
+      promise.resolve(data);
+    })
+
+    var supplychain = digger.supplychain(supplier);
+
+    async.series([
+
+      function(seqnext){
+        digger.pipe([
+          supplychain('thing'),
+
+          function(thing, next){
+            thing.attr('title').should.equal('apple');
+            next(null, 10);
+          }
+
+        ], function(error, result){
+          result.should.equal(10);
+          seqnext();
+        });
+      },
+
+      function(seqnext){
+        digger.merge([
+          supplychain('thing'),
+
+          function(next){
+            next(null, 10);
+          }
+
+        ], function(error, results){
+          results[0].attr('title').should.equal('apple');
+          results[1].should.equal(10);
+          seqnext();
+        })
+      }
+    ], done);
+  })
 
 })

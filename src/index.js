@@ -31,7 +31,7 @@
 */
 var bootstrap = require('./bootstrap');
 
-module.exports = {
+var exports = module.exports = {
 
   /*
   
@@ -62,6 +62,8 @@ module.exports = {
   request:require('./network/request').factory,
   response:require('./network/response').factory,
   contract:require('./network/contract').factory,
+  pipe:require('./network/async').pipe,
+  merge:require('./network/async').merge,
 
   /*
   
@@ -99,6 +101,9 @@ module.exports = {
     simpledb:require('./supplier/simpledb'),
     nestedset:require('./supplier/nestedset')
   }
+
+
+
 }
 
 bootstrap();

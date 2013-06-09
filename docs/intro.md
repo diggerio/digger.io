@@ -29,47 +29,6 @@ What can we do about this?
 
 Well, some re-branding might help.
 
-##Shipping Containers
-A detour - here is an example of how one might interact with a shipping company:
-
- 1. You take a contract to reception - the contract lists what you want to recieve (oranges, plastic toys and coffee for us).
-
- 2. The contract is analysed and multiple orders are placed with suppliers around the world based upon it.
-
- 3. Empty shipping containers are loaded onto boats which make their way around the world to fetch your stuff.
-
- 4. Warehouse suppliers fetch the stuff and fill up containers with it before putting them onto the boat.
-
- 5. All of the boats make their way home, laden with goods.
-
- 6. The holding bay pours all of the stuff from the different places into a container and it is on to the customer.
-
-The whole process might take a few weeks, but you get your stuff because it's a system that works.
-
-There are many busy shipping ports and they are all loading/unloading thousands of containers each day.
-
-The crane operator does not care what's inside the container, he just follows instructions to move it from A to B.
-
-##Keep It Simple Stupid
-Take this statement:
-
-	Execute a recursive database query that filters results based on their hierarchical relationships
-
-And turn it into this one:
-
-	Find me all the stuff that lives inside that other stuff
-
-They mean the same thing and one is much easier than the other.
-
-How can we make databases feel easy like this?
-
-Well, we might learn a thing or two from the shipping companies!
-
-##Data Containers
-We need a way of moving data from lots of different places around in standard containers.
-
-We also need a way of writing contracts in a language that the maximum number of people can understand.
-
 ##Enter JQuery
 JQuery is used on more than 50% of ALL pages on the Internet [source](http://w3techs.com/blog/entry/jquery_now_runs_on_every_second_website)
 
@@ -144,7 +103,7 @@ Now lets take an example of digger.io code running on the server (perhaps we are
 ```js
 // create a container with the data inside
 
-var container = $digger.new(data);
+var container = $digger.create(data);
 
 // add .stamped class to each child of everything with the .top class
 

@@ -55,10 +55,10 @@ describe('nestedset supplier', function(){
       search[2].operator.should.equal('<');
 
       skeleton.should.be.a('array');
-      skeleton.length.should.equal(4);
-      skeleton[2].value.should.equal(89);
-      skeleton[2].field.should.equal('_digger.left');
-      skeleton[2].operator.should.equal('>');
+      skeleton.length.should.equal(2);
+      skeleton[1][0].value.should.equal(89);
+      skeleton[1][0].field.should.equal('_digger.left');
+      skeleton[1][0].operator.should.equal('>');
 
       promise.resolve(45);
     })

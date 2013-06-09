@@ -219,12 +219,15 @@ function save(){
   contract.url = 'reception:/';
 
   var url = contract.url;
-  var data = this.get(0);
+  var data = _.clone(this.eq(0).toJSON()[0]);
+
+  delete(data._children);
+  delete(data._data);
 
   var suppliercontract = Request({
     method:'put',
     url:this.diggerurl(),
-    body:this.eq(0).toJSON()[0]
+    body:data
   })
 
   contract.body = [suppliercontract.toJSON()];

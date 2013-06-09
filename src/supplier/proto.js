@@ -39,13 +39,17 @@ var Supplier = module.exports = function(){}
 
 Supplier.factory = function(settings){
 
-	settings = settings || {};
+	settings = _.clone(settings || {});
 
 	if(_.isString(settings)){
 		settings = {
 			url:settings
 		}
 	}
+
+	settings = _.defaults(settings, {
+		url:'/'
+	})
 
 	var supplier = Warehouse();
 
@@ -312,14 +316,16 @@ Supplier.factory = function(settings){
 	supplier.load = function(id, callback){
 
 		var target_selector = {
-			diggerid:id
-		}
-		/*
-		
-			we only want meta data
+			diggerid:id,
+			/*
 			
-		*/
-		target_selector.laststep = true;
+				we only want meta data
+				
+			*/
+			modifier:{
+				laststep:true
+			}
+		}
 
 		/*
 		
@@ -670,7 +676,9 @@ Supplier.factory = function(settings){
 			
 			_.each(supplier._provisionroutes, function(routename){
 				var path = chunkpath(req);
-				routes[routename] = path;
+				if(path){
+					routes[routename] = path;	
+				}
 			})
 
 			req.setHeader('x-json-resource', routes);

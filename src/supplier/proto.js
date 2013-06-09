@@ -286,9 +286,23 @@ Supplier.factory = function(settings){
 
 	supplier.provision = function(){
 		var args = _.toArray(arguments);
-		var fn = args[args.length-1];
-		args.pop();
-		this._provisionroutes = args || [];
+
+		var fn = null;
+		var routes = [];
+
+		_.each(args, function(arg){
+			if(_.isFunction(arg)){
+				fn = arg;
+			}
+			else if(_.isArray(arg)){
+				routes = routes.concat(arg);
+			}
+			else if(_.isString(arg)){
+				routes.push(arg);
+			}
+		})
+		
+		this._provisionroutes = routes;
 		this._provisionfn = fn;
 		return this;
 	}
@@ -358,14 +372,14 @@ Supplier.factory = function(settings){
 		var load_target_res = Response(function(){
 
 			if(load_target_res.hasError()){
-				res.error(load_target_res.body);
+				callback(load_target_res.body);
 				return;
 			}
 
 			var targetdata = _.isArray(load_target_res.body) ? load_target_res.body[0] : null;
 
 			if(!targetdata){
-				res.send404();
+				callback('not found');
 				return;
 			}
 
@@ -382,7 +396,7 @@ Supplier.factory = function(settings){
 			selector:target_selector || {},
 			context:[]
 		}, load_target_req, load_target_res, function(){
-			res.send404();
+			callback('not found');
 		})
 	}
 
@@ -514,7 +528,12 @@ Supplier.factory = function(settings){
 
 			selectresolverid:function(req, res, next){
 				supplier.load(req.params.id, function(error, target){
-					req.body = [target._digger];
+					if(error || !target || target.length<=0){
+						req.body = [];
+					}
+					else{
+						req.body = [target._digger];	
+					}
 					selectresolver(req, res, next);
 				})
 			},
@@ -538,7 +557,12 @@ Supplier.factory = function(settings){
 
 					promise.then(function(result){
 						res.send(result);
-						supplier.emit('append', req, res);
+						supplier.emit('switchboard', {
+							action:'append',
+							target:target,
+							body:req.body,						
+							result:result
+						})
 					}, function(error){
 						res.sendError(error);
 					})
@@ -574,7 +598,12 @@ Supplier.factory = function(settings){
 
 					promise.then(function(result){
 						res.send(result);
-						supplier.emit('save', req, res);
+						supplier.emit('switchboard', {
+							action:'save',
+							target:target,
+							body:req.body,						
+							result:result
+						})
 					}, function(error){
 						res.sendError(error);
 					})
@@ -607,7 +636,12 @@ Supplier.factory = function(settings){
 
 					promise.then(function(result){
 						res.send(result);
-						supplier.emit('remove', req, res);
+						supplier.emit('switchboard', {
+							action:'remove',
+							target:target,
+							body:req.body,						
+							result:result
+						})
 					}, function(error){
 						res.sendError(error);
 					})

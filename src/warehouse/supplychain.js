@@ -112,13 +112,15 @@ function factory(){
 
   })
 
+
+  if(!container){
+    container = Container.factory('_supplychain');
+  }
+
   if(!supplierfn){
     supplierfn = function(req, res){
       res.send404();
     }
-  }
-  if(!container){
-    container = Container.factory('_supplychain');
   }
 
   if(!container.diggerwarehouse()){
@@ -135,6 +137,8 @@ function factory(){
   var should_auto_serialize = supplierfn._diggertype=='warehouse' || supplierfn._diggertype=='supplier' || supplierfn._diggertype=='provider';
 
   function supplychain(){}
+
+  _.extend(supplychain, EventEmitter.prototype);
 
   supplychain.ship = function(contract, callback){
     var self = this;
@@ -175,6 +179,25 @@ function factory(){
     supplierfn(contract, res);
 
     return res;
+  }
+
+  /*
+  
+    the switchboard features of the supplychain
+    
+  */
+  supplychain.listen = function(key, callback){
+    if(supplierfn.switchboard){
+      supplierfn.switchboard.listen(key, callback);
+    }
+    return this;
+  }
+
+  supplychain.broadcast = function(key, message){
+    if(supplierfn.switchboard){
+      supplierfn.switchboard.broadcast(key, message);
+    }
+    return this;
   }
 
 

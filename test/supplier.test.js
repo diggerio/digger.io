@@ -276,16 +276,17 @@ describe('supplier', function(){
       })
     })
 
+
+    supplier.on('switchboard', function(message){
+      hitevents[message.action] = true;
+    })
+
     supplier.append(function(append_query, promise){
       var req = append_query.req;
       append_query.body[0]._digger.tag.should.equal('appendtest');
       req.method.should.equal('post');
       req.url.should.equal('/');
       promise.resolve(append_query.body);
-    })
-
-    supplier.on('append', function(){
-      hitevents.append = true;
     })
 
     supplier.save(function(save_query, promise){
@@ -298,10 +299,6 @@ describe('supplier', function(){
       })
     })
 
-    supplier.on('save', function(){
-      hitevents.save = true;
-    })
-
     supplier.remove(function(remove_query, promise){
       var req = remove_query.req;
       req.method.should.equal('delete');
@@ -309,10 +306,6 @@ describe('supplier', function(){
       promise.resolve({
         name:'test'
       })
-    })
-
-    supplier.on('remove', function(){
-      hitevents.remove = true;
     })
 
     var loadedproduct = null;
@@ -545,30 +538,28 @@ describe('supplier', function(){
       promise.resolve(45);
     })
     supplier.save(function(append_query, promise, next){
-      promise.resolve(45);
+      promise.resolve(46);
     })
     supplier.remove(function(append_query, promise, next){
-      promise.resolve(45);
+      promise.resolve(47);
     })
 
-    supplier.on('append', function(req, res){
-      hit.append = true;
-      req.method.should.equal('post');
-      req.body.should.equal(20);
-      res.body.should.equal(45);
-    })
-
-    supplier.on('save', function(req, res){
-      hit.save = true;
-      req.method.should.equal('put');
-      req.body.should.equal(20);
-      res.body.should.equal(45);
-    })
-
-    supplier.on('remove', function(req, res){
-      hit.remove = true;
-      req.method.should.equal('delete');
-      res.body.should.equal(45);
+    supplier.on('switchboard', function(message){
+      if(message.action==='append'){
+        hit.append = true;
+        message.body.should.equal(20);
+        message.result.should.equal(45);
+      }
+      else if(message.action==='save'){
+        hit.save = true;
+        message.body.should.equal(20);
+        message.result.should.equal(46);
+      }
+      else if(message.action==='remove'){
+        hit.remove = true;
+        message.result.should.equal(47);
+      }
+      
     })
 
     async.series([
@@ -598,7 +589,7 @@ describe('supplier', function(){
 
         var res = digger.response(true);
         res.on('success', function(answer){
-          answer.should.equal(45);
+          answer.should.equal(46);
           next();
         })
 
@@ -615,7 +606,7 @@ describe('supplier', function(){
         var res = digger.response(true);
         res.on('success', function(answer){
 
-          answer.should.equal(45);
+          answer.should.equal(47);
 
           setTimeout(function(){
             next();

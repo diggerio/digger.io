@@ -1,7 +1,7 @@
 {
   "name": "digger.io",
-  "version": "0.0.0",
-  "description": "industrial grade digging spade",
+  "version": "0.0.1",
+  "description": "develop databases like a boss",
   "main": "src/index.js",
   "directories": {
     "doc": "docs"

@@ -36,12 +36,6 @@ describe('container', function(){
     test.tag().should.equal('product');
 
   })
-    var linkfolder = digger.create('folder', {
-      _digger:{
-        diggerbranch:['/json/france/orchard']
-      },
-      name:'French Fruit'
-    })
 
   it('should not obliterate the tag if _digger data is given also', function() {
 

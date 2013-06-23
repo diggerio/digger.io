@@ -18,6 +18,7 @@
 
 var _ = require('lodash');
 var BaseSupplier = require('../proto').factory;
+var FileProvisioner = require('../fileprovisioner');
 var Container = require('../../container/proto').factory;
 var async = require('async');
 var fs = require('fs');
@@ -30,72 +31,7 @@ function factory(options){
   
   var supplier = BaseSupplier(options);
 
-  /*
-  
-    in provider mode we want a directory
-
-    we create one file per x-digger-resource header (i.e. path)
-
-    /db/apples -> /dir/apples.json
-    
-  */
-  var databasepath = supplier.settings.attr('database');
-  var folderpath = supplier.settings.attr('folder');
-  var filepath = supplier.settings.attr('file');
-
-  if(!databasepath && !folderpath && !filepath){
-    throw new Error('you must provide a database, folder for file path');
-  }
-
-  if(databasepath){
-    if(!fs.existsSync(databasepath)){
-      wrench.mkdirSyncRecursive(databasepath);
-    }
-  }
-  else if(folderpath){
-    if(!fs.existsSync(folderpath)){
-      wrench.mkdirSyncRecursive(folderpath);
-    } 
-  }
-
-  /*
-  
-    the in-memory container that holds our data
-
-    this will be some slow-ass shiiiiiiiit but it's bootstrap (again)
-    
-  */
-  
   var containers = {};
-
-  function get_provision_routes(){
-    var routes = [];
-
-    if(databasepath){
-      routes = ['folder', 'file'];
-    }
-    else if(folderpath){
-      routes = ['file'];
-    }
-
-    return routes;
-  }
-
-  function get_folderpath(resource){
-    return path.dirname(get_filepath(resource));
-  }
-
-  function get_filepath(resource){
-    if(databasepath){
-      return databasepath + '/' + resource.folder + '/' + resource.file + '.json';
-    }
-    else if(folderpath){
-      return folderpath + '/' + resource.file + '.json';
-    }
-    else{
-      return filepath;
-    }
-  }
 
 
   /*
@@ -171,30 +107,11 @@ function factory(options){
     this is called each time to get the container into the methods
     
   */
-  function load_container(req, loaded){
-    var filepath = get_filepath(req.getHeader('x-json-resource'));
-
+  load_container = function(filepath, loaded){
     loaded(null, containers[filepath]);
   }
 
-  /*
-  
-
-    ----------------------------------------------
-    PROVISION
-    ----------------------------------------------
-    
-  */
-  var provisionfn = function(routes, callback){
-    var filepath = get_filepath(routes);
-
-    provision_container(filepath, callback);
-  }
-
-  var routes = get_provision_routes();
-  routes.push(provisionfn);
-
-  supplier.provision.apply(supplier, routes);
+  FileProvisioner(supplier, provision_container);
 
   /*
   
@@ -206,7 +123,9 @@ function factory(options){
   */
   supplier.select(function(select_query, promise){
 
-    load_container(select_query.req, function(error, rootcontainer){
+    var filepath = supplier.get_filepath(select_query.req.getHeader('x-json-resource'))
+
+    load_container(filepath, function(error, rootcontainer){
 
       if(!rootcontainer){
         promise.reject('file not found');
@@ -245,7 +164,9 @@ function factory(options){
   */
   supplier.append(function(append_query, promise){
 
-    load_container(append_query.req, function(error, rootcontainer){
+    var filepath = supplier.get_filepath(append_query.req.getHeader('x-json-resource'))
+
+    load_container(filepath, function(error, rootcontainer){
       
       if(!rootcontainer){
         promise.reject('file not found');
@@ -320,7 +241,9 @@ function factory(options){
 
   supplier.save(function(save_query, promise){
 
-    load_container(save_query.req, function(error, rootcontainer){
+    var filepath = supplier.get_filepath(save_query.req.getHeader('x-json-resource'))
+
+    load_container(filepath, function(error, rootcontainer){
 
       if(!rootcontainer){
         promise.reject('file not found');
@@ -360,7 +283,9 @@ function factory(options){
 
   supplier.remove(function(remove_query, promise){
 
-    load_container(remove_query.req, function(error, rootcontainer){
+    var filepath = supplier.get_filepath(remove_query.req.getHeader('x-json-resource'))
+
+    load_container(filepath, function(error, rootcontainer){
 
       if(!rootcontainer){
         promise.reject('file not found');

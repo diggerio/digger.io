@@ -22,7 +22,7 @@ var _ = require('lodash'),
 module.exports = function save(){
   return function(save_query, promise){
 
-  	var self = this;
+		var self = this;
 		var target = save_query.target;
 		var body = save_query.body;
 

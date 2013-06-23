@@ -22,7 +22,7 @@ var _ = require('lodash'),
 
 module.exports = function remove(){
   return function(remove_query, promise){
-  	var self = this;
+		var self = this;
 		var target = remove_query.target;
 		self._remove(remove_query.req, target, function(error){
 			if(error){

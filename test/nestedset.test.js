@@ -109,8 +109,10 @@ describe('nestedset supplier', function(){
 
     result.left.numerator.should.equal(7739);
     result.left.denominator.should.equal(169);
+    result.left.encoding.should.equal('004579289940828402366863905325443786');
     result.right.numerator.should.equal(9067);
     result.right.denominator.should.equal(198);
+    result.right.encoding.should.equal('004579292929292929292929292929292929');
 
     done();
   })

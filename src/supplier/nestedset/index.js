@@ -30,7 +30,7 @@
 */
 var _ = require('lodash');
 var BaseSupplier = require('../proto').factory;
-var RationalEncoder = require('./rationalencoder');
+var RationalEncoder = require('rationalnestedset');
 
 module.exports = factory;
 
@@ -43,11 +43,24 @@ function factory(options){
     return this;
   }
 
-  supplier.generate_tree_query = generate_tree_query;
   supplier.encode = RationalEncoder;
+  supplier.generate_tree_query = generate_tree_query;
+  supplier.assign_tree_encodings = assign_tree_encodings;
 
   return supplier;
 }
+
+function assign_tree_encodings(diggerdata){
+
+  var encodings = RationalEncoder(diggerdata.diggerpath);
+    
+  //diggerdata.left = tools.getEncodingValue(encodings.left.numerator, encodings.left.denominator);
+  //diggerdata.right = tools.getEncodingValue(encodings.right.numerator, encodings.right.denominator);
+
+  diggerdata.left = encodings.left.encoding;
+  diggerdata.right = encodings.right.encoding;
+}
+
 
 function query_factory(selector, contextmodels){
   var query = parse_selector(selector);
@@ -190,115 +203,3 @@ function parse_selector(selector){
 
   return main_query;
 }
-
-
-
-
-/*
-
-
-
-
-    // are we looking within other results?
-    if(skeleton_array.length>0){
-     
-      // the query that applies nested set on the links inside the _meta
-      var tree_query = getTreeQuery(selector.splitter, skeleton_array);
-
-      if(tree_query){
-        query_array.push(tree_query);  
-      }
-    }
-
-    main_query = query_array.length<=1 ? query_array[0] : {
-      '$and':query_array
-    }
-  }
-
-  var queryoptions = {
-
-  }
-
-  return {
-    query:main_query,
-    //fields:fields,
-    fields:includedata ? null : {
-      "meta":true
-    },
-    options:queryoptions,
-    tree:includechildren
-  }
-
-}
-
-var select = module.exports = function(mongoclient){
-
-  return function(req, res, next){
-
-    var selector = req.getHeader('x-json-selector');
-
-    ensure_skeleton(mongoclient, req, res, function(){
-
-      var skeleton = req.getHeader('x-json-skeleton');
-
-      var query = getQuery({
-        skeleton:skeleton,
-        selector:selector
-      })
-
-      var self = this;
-
-      mongoclient.find(query, function(error, results){
-
-        if(error){
-          res.error(error);
-          return;
-        }
-
-        // here are the final results
-        // check for a tree query to load all descendents also
-        if(query.tree && results.length>0){
-
-          // first lets map the results we have by id
-          var results_map = {};
-
-          _.each(results, function(result){
-            results_map[result.meta.quarryid] = result;
-          })
-
-          // now build a descendent query based on the results
-          var descendent_tree_query = getTreeQuery('', _.map(results, extractskeleton));
-
-          descendent_query = {
-            query:descendent_tree_query,
-            fields:query.fields
-          }
-          
-          // trigger the find of the descendents
-          mongoclient.find(descendent_query, function(error, descendent_results){
-
-            // loop each result and it's links to see if we have a parent in the original results
-            // or in these results
-            _.each(descendent_results, function(descendent_result){
-              results_map[descendent_result.meta.quarryid] = descendent_result;
-            })
-
-            _.each(descendent_results, function(descendent_result){
-              var parent = results_map[descendent_result.meta.parent_id];
-
-              if(parent){
-                parent.children || (parent.children = []);
-                parent.children.push(descendent_result);
-              }
-            })
-
-            res.containers(results).send();
-          })
-        }
-        else{
-          res.containers(results).send();
-        }      
-      })
-    })
-  }
-}*/

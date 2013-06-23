@@ -99,6 +99,7 @@ var exports = module.exports = {
   */
   suppliers:{
     simpledb:require('./supplier/simpledb'),
+    mongo:require('./supplier/mongo'),
     nestedset:require('./supplier/nestedset')
   }
 

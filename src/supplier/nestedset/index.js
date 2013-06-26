@@ -63,7 +63,7 @@ function assign_tree_encodings(diggerdata){
 
 
 function query_factory(selector, contextmodels){
-  var query = parse_selector(selector);
+  var query = parse_selector(selector, contextmodels);
   var skeleton = [];
 
   if(contextmodels && contextmodels.length>0){
@@ -85,7 +85,7 @@ function generate_tree_query(splitter, contextmodels){
     // child mode
     if(splitter=='>'){
       or_array.push({
-        field:'_digger.parentid',
+        field:'_digger.diggerparentid',
         operator:'=',
         value:contextmodel.diggerid
       })
@@ -127,16 +127,16 @@ function generate_tree_query(splitter, contextmodels){
   return or_array;
 }
 
-function parse_selector(selector){
+function parse_selector(selector, skeleton_array){
 
   var main_query = [];
 
   // this is for a thing like:
   //    > folder.red product
   // i.e. folders on the root
-  if(selector.splitter=='>' && skeleton_array.length<=0){
+  if(selector.splitter=='>' && (!skeleton_array || skeleton_array.length<=0)){
     main_query.push({
-      field:'_digger.parentid',
+      field:'_digger.diggerparentid',
       operator:'=',
       value:null
     })

@@ -200,6 +200,7 @@ Supplier.factory = function(settings){
 			else if(!result){
 				result = [];
 			}
+			supplier.emit('select', select_query.selector, result);
 			supplier.handle_container_response(req, res, result);
 		}, function(error){
 			res.sendError(error);
@@ -341,7 +342,7 @@ Supplier.factory = function(settings){
 		performs a sub-request to load it
 		
 	*/
-	supplier.load = function(id, callback){
+	supplier.load = function(id, resource, callback){
 
 		var target_selector = {
 			diggerid:id,
@@ -365,12 +366,12 @@ Supplier.factory = function(settings){
 			method:'post',
 			url:'/selector',
 			headers:{
-				'x-json-selector':target_selector
+				'x-json-selector':target_selector,
+				'x-json-resource':resource
 			}
 		})
 
 		var load_target_res = Response(function(){
-
 			if(load_target_res.hasError()){
 				callback(load_target_res.body);
 				return;
@@ -408,8 +409,16 @@ Supplier.factory = function(settings){
 		
 	*/
 	supplier.load_target = function(req, res, callback){
-		var selectors = extractselectors(req);
-		var target_selector = selectors[0];
+
+		var id = null;
+		if(req.params.id){
+			id = req.params.id;
+		}
+		else{
+			var selectors = extractselectors(req);
+			var target_selector = selectors[0];
+			id = target_selector.diggerid;
+		}
 
 		/*
 		
@@ -417,12 +426,14 @@ Supplier.factory = function(settings){
 			(i.e. the supplier itself)
 			
 		*/
-		if(!target_selector.diggerid){
+		if(!id){
 			callback();
 			return;
 		}
 
-		supplier.load(target_selector.diggerid, callback);
+		supplier.load(id, req.getHeader('x-json-resource'), function(error, user){
+			callback(error, user);
+		});
 		
 	}
 
@@ -489,6 +500,8 @@ Supplier.factory = function(settings){
 						}
 					})
 
+					req.inject(selector_request);
+
 					var selector_response = Response(function(){
 						supplier.handle_container_response(req, res, selector_response.body);
 					})
@@ -527,7 +540,7 @@ Supplier.factory = function(settings){
 			},
 
 			selectresolverid:function(req, res, next){
-				supplier.load(req.params.id, function(error, target){
+				supplier.load(req.params.id, req.getHeader('x-json-resource'), function(error, target){
 					if(error || !target || target.length<=0){
 						req.body = [];
 					}
@@ -553,6 +566,13 @@ Supplier.factory = function(settings){
 						body:req.body
 					}
 
+					var appendcontainer = Container(req.body || []);
+
+					appendcontainer.recurse(function(container){
+						container.digger('created', new Date().getTime());
+						container.digger('modified', new Date().getTime());
+					})
+
 					var promise = Promise();
 
 					promise.then(function(result){
@@ -575,7 +595,6 @@ Supplier.factory = function(settings){
 		},
 		put:{
 			save:function(req, res, next){
-
 				if(!supplier.methods.save || !supplier.has_select_method()){
 					next();
 					return;
@@ -593,6 +612,13 @@ Supplier.factory = function(settings){
 						target:target,
 						body:req.body
 					}
+
+/*
+					if(!req.body._digger){
+						req.body._digger = {};
+					}
+					req.body._digger.modieid = new Date().getTime();
+*/					
 
 					var promise = Promise();
 
@@ -743,6 +769,7 @@ Supplier.factory = function(settings){
 				}
 			})
 
+			supplier.emit('provision', routes);
 			req.setHeader('x-json-resource', routes);
 		}
 

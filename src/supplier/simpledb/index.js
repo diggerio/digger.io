@@ -164,6 +164,7 @@ function factory(options){
   */
   supplier.append(function(append_query, promise){
 
+
     var filepath = supplier.get_filepath(append_query.req.getHeader('x-json-resource'))
 
     load_container(filepath, function(error, rootcontainer){

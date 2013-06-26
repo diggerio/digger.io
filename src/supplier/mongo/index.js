@@ -60,6 +60,13 @@ module.exports = factory;
 */
 
 var operator_functions = {
+  "exists":function(query){
+    var ret = {};
+    ret[query.field] = {
+      '$exists':true
+    }
+    return ret;
+  },
   "=":function(query){
     var ret = {};
     ret[query.field] = query.value;
@@ -243,13 +250,15 @@ function factory(options){
       return results;
     }
 
-    return {
+    var ret = {
       query:query,
       fields:fields,
       options:options,
       get_tree_query:get_tree_query,
       combine_tree_results:combine_tree_results
     }
+
+    return ret;
   
   }
 

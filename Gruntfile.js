@@ -5,6 +5,7 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-contrib-watch');
   grunt.loadNpmTasks('grunt-contrib-concat');
+  grunt.loadNpmTasks('grunt-browserify');
 
   process.env.DEBUG = '';
   process.env.CONSOLE = 'false';
@@ -14,6 +15,20 @@ module.exports = function(grunt) {
     exec: {
       coverage: {
         command: 'node_modules/.bin/mocha -R html-cov > coverage.html'
+      }
+    },
+    browserify: {
+      'build/container.js': ['src/container/browserapi.js']
+    },
+    uglify: {
+      options: {
+        // the banner is inserted at the top of the output
+        banner: '/*! <%= pkg.name %> <%= grunt.template.today("dd-mm-yyyy") %> */\n'
+      },
+      dist: {
+        files: {
+          'build/container.min.js': ['build/container.js']
+        }
       }
     },
     concat: {
@@ -26,17 +41,6 @@ module.exports = function(grunt) {
         src: ['src/client/*.js'],
         // the location of the resulting JS file
         dest: 'dist/<%= pkg.name %>.js'
-      }
-    },
-    uglify: {
-      options: {
-        // the banner is inserted at the top of the output
-        banner: '/*! <%= pkg.name %> <%= grunt.template.today("dd-mm-yyyy") %> */\n'
-      },
-      dist: {
-        files: {
-          'dist/<%= pkg.name %>.min.js': ['<%= concat.dist.dest %>']
-        }
       }
     },
     mochaTest: {
@@ -66,8 +70,8 @@ module.exports = function(grunt) {
       }
     },
     watch: {
-      files: ['<%= jshint.files %>'],
-      tasks: ['jshint', 'mochaTest']
+      files: ['src/container/**/*.js'],
+      tasks: ['browserify', 'uglify']
     }
   });
 
@@ -77,7 +81,9 @@ module.exports = function(grunt) {
   // this would be run by typing "grunt test" on the command line
   grunt.registerTask('test', ['jshint', 'mochaTest']);
 
+  grunt.registerTask('build', ['browserify', 'uglify', 'watch']);
+
   // the default task can be run just by typing "grunt" on the command line
-  grunt.registerTask('default', ['watch', 'jshint', 'mochaTest']);
+  grunt.registerTask('default', ['jshint', 'mochaTest']);
 
 };

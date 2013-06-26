@@ -84,6 +84,7 @@ function factory(supplier, provisionfn){
   }
 
   function get_filepath(resource){
+
     if(databasepath){
       return databasepath + '/' + resource.folder + '/' + resource.file + '.json';
     }

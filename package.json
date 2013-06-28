@@ -7,7 +7,8 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "grunt test"
+    "test": "grunt test",
+    "install": "grunt build"
   },
   "repository": {
     "type": "git",

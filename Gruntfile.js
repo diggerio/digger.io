@@ -81,7 +81,9 @@ module.exports = function(grunt) {
   // this would be run by typing "grunt test" on the command line
   grunt.registerTask('test', ['jshint', 'mochaTest']);
 
-  grunt.registerTask('build', ['browserify', 'uglify', 'watch']);
+  grunt.registerTask('buildwatch', ['browserify', 'uglify', 'watch']);
+
+  grunt.registerTask('build', ['browserify', 'uglify']);
 
   // the default task can be run just by typing "grunt" on the command line
   grunt.registerTask('default', ['jshint', 'mochaTest']);

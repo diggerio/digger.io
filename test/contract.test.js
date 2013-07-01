@@ -212,6 +212,26 @@ describe('contract', function(){
     req.getHeader('x-digger-debug').should.equal(true);
   })
 
+  it('should provide the supplychain to any appended containers', function(){
+    var supplier = digger.supplier({
+      url:'/some/place'
+    })
+
+    var supplychain = digger.supplychain(supplier);
+
+    var containerA = digger.container('A');
+    
+    containerA.attr('test', 10);
+
+    containerA.supplychain = supplychain;
+
+    var containerB = digger.container('B');
+
+    containerA.append(containerB);
+
+    (containerA.supplychain === containerB.supplychain).should.equal(true);
+  })
+
   it('should allow the client side piping of contracts and functions', function(done){
     var supplier = digger.supplier({
       url:'/some/place'

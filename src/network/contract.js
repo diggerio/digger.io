@@ -113,6 +113,8 @@ Contract.prototype.add = function(req){
 
 Contract.prototype.ship = function(callback){
   if(!this.supplychain){
+    console.log('-------------------------------------------');
+    console.log('there is no supplychain to ship with');
     throw new Error('contract has not been given a supply chain to ship with');
   }
 

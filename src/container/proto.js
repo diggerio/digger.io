@@ -564,6 +564,14 @@ Container.prototype.hasAttr = function(name){
   return !_.isEmpty(this.attr(name));
 }
 
+Container.prototype.isEmpty = function(){
+  return this.count()===0;
+}
+
+Container.prototype.inject_data = function(data){
+  _.extend(this.get(0), data);
+  return this;
+}
 
 /*
 

@@ -149,6 +149,7 @@ function select(){
 */
 function append(childarray){
 
+  var self = this;
   var contract = Contract('merge');
   contract.method = 'post';
   contract.url = 'reception:/';
@@ -167,6 +168,7 @@ function append(childarray){
   
   var appendmodels = [];
   _.each(childarray, function(child){
+    child.supplychain = self.supplychain;
     appendmodels = appendmodels.concat(child.models);
   })
 

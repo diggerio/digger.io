@@ -1,14 +1,13 @@
 {
   "name": "digger.io",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "develop databases like a boss",
   "main": "src/index.js",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
-    "test": "grunt test",
-    "install": "grunt build"
+    "test": "grunt test"
   },
   "repository": {
     "type": "git",

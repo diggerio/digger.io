@@ -95,7 +95,7 @@ function generate_tree_query(splitter, contextmodels){
       or_array.push({
         field:'_digger.diggerid',
         operator:'=',
-        value:contextmodel.parentid
+        value:contextmodel.diggerparentid
       })
     }
     // ancestor mode

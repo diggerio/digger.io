@@ -27,11 +27,6 @@ function getLineNumber(){
 
 module.exports = function(){
   
-  process.on('uncaughtException', function(err) {
-    console.log(err.stack);
-    throw err;
-  });
-    
   if(process.env.NODE_ENV!=='development' || process.env.CONSOLE==='false'){
     return;
   }

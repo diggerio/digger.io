@@ -37,6 +37,9 @@ module.exports = function select(){
       return;
     }
 
+    console.log('-------------------------------------------');
+    console.log(JSON.stringify(mongoquery, null, 4));
+
     self._select(select_query.req, mongoquery, function(error, results){
       if(error){
         promise.reject(error);

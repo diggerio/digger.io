@@ -77,6 +77,13 @@ var exports = module.exports = {
   supplychain:require('./warehouse/supplychain'),
 
   /*
+  
+    auxillary
+    
+  */
+  reception:require('./reception/proto').factory,
+  
+  /*
     
     middleware
 

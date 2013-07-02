@@ -195,7 +195,9 @@ function factory(options){
             pos = rootcontainer.digger('rootposition');
           }
         })
+        pos = pos+1;
         append_what.inject_paths([pos]);
+        append_what.digger('rootposition', pos);
         rootcontainer.add(append_what);
       }
       else{

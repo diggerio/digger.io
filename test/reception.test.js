@@ -6,42 +6,7 @@ var wrench = require('wrench');
 
 describe('reception', function(){
 
-	it('should host several suppliers and route to them', function(done){
-		done();
-/*
-		function makeselect(tag){
-			return function(select_query, promise){
-				promise.resolve({
-					_digger:{
-						tag:tag
-					}
-				})
-			}
-		}
-
-		var supplierA = digger.supplier({
-			url:'/a'
-		})
-
-		var supplierB = digger.supplier({
-			url:'/b'
-		})
-
-		supplierA.select(makeselect('a'));
-		supplierB.select(makeselect('b'));
-
-		var reception = digger.reception();
-
-		})
-
-		reception.use(function(req, res, next){
-
-		})
-
-
-
-
-
+	it('should cope with a branching response', function(done){
 
 		var folder = '/tmp/diggersimpletests';
 
@@ -54,13 +19,21 @@ describe('reception', function(){
 			
 		})
 
+		var reception = digger.reception();
+
+		reception.use(supplier);
 
 		if(!fs.existsSync(folder)){
 			throw new Error('The supplier should have created the folder')
 		}		
 
-		var supplychain = digger.supplychain('/', supplier);
+		var supplychain = digger.supplychain('/', reception);
 
+		/*
+		
+			we make 2 databases and add data
+			
+		*/
 		var uk = supplychain.connect('/json/uk/fruit');
 		var france = supplychain.connect('/json/france/orchard');
 
@@ -69,7 +42,7 @@ describe('reception', function(){
 
 		var linkfolder = digger.create('folder', {
 			name:'French Fruit'
-		}).branchto(france)
+		}).addBranch(france)
 
 		ukfruit.add(linkfolder);
 
@@ -93,10 +66,12 @@ describe('reception', function(){
 			},
 			
 			function(next){
+				
 				uk('folder fruit.green').debug().ship(function(fruit){
 					fruit.count().should.equal(4);
 					next();
 				})
+				
 			}
 
 		], function(){
@@ -104,9 +79,7 @@ describe('reception', function(){
 			//wrench.rmdirSyncRecursive(folder, true);
 			done();
 		})
-		
-
-*/
+	
 		
 	})
 

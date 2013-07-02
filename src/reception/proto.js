@@ -12,55 +12,53 @@
 
  */
 
-/*
-  Module dependencies.
-*/
+/**
+ * Module dependencies.
+ */
 
-var _ = require('lodash'),
-    async = require('async');
 
-module.exports = function select(){
+var utils = require('../utils');
+var _ = require('lodash');
+var async = require('async');
+var EventEmitter = require('events').EventEmitter;
+var Promise = require('../network/promise');
+var Request = require('../network/request').factory;
+var Response = require('../network/response').factory;
+var Container = require('../container/proto').factory;
+var Warehouse = require('../warehouse/proto').factory;
+var ContractResolver = require('../middleware/contractresolver');
 
-  return function(select_query, promise){
+var debug = require('debug')('reception');
 
-    /*
-    
-      this is the Nested Set supplier
-      
-    */
-    var self = this;
+// prototype
+var Reception = module.exports = function(){}
 
-    var mongoquery = self.generate_mongo_query(select_query);
+Reception.factory = function(settings){
 
-    if(!mongoquery){
-      promise.resolve([]);
-      return;
-    }
+	settings = _.clone(settings || {});
 
-    self._select(select_query.req, mongoquery, function(error, results){
-      if(error){
-        promise.reject(error);
-        return;
-      }
+	settings = _.defaults(settings, {
+		
+	})
 
-      var treequery = mongoquery.get_tree_query(results);
+	var reception = Warehouse();
 
-      if(!treequery){
-        promise.resolve(results);
-        return;
-      }
-      else{
-        self._select(select_query.req, treequery, function(error, descendent_results){
-          if(error){
-            promise.reject(error);
-            return;
-          }
+	
+	/*
+	
+		prevent warehouses from messing with the path
+		
+	*/
+	reception._fixedpaths = true;
 
-          var finalresults = mongoquery.combine_tree_results(results, descendent_results);
+	/*
+	
+		we keep a container that can connect to radio to control this supplier remotely
+		
+	*/
+	reception.settings = Container(settings);
 
-          promise.resolve(finalresults);
-        })
-      }  
-    })
-  }
+	return reception;
 }
+
+

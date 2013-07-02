@@ -475,6 +475,71 @@ describe('simpledb', function(){
 		
 	})
 
+
+	it('should create proper digger.diggerpath properties', function(done){
+		
+		var folder = '/tmp/diggersimpletests';
+
+		wrench.rmdirSyncRecursive(folder, true);
+
+		var supplier = digger.suppliers.simpledb({
+			
+			url:'/json',
+			database:folder
+			
+		})
+
+		if(!fs.existsSync(folder)){
+			throw new Error('The supplier should have created the folder')
+		}		
+
+		var supplychain = digger.supplychain(supplier);
+
+		var db1 = supplychain.connect('/json/apples/grannysmith');
+
+		async.series([
+
+			function(next){
+
+				db1
+					.append(digger.create('fruit').addClass('apple'))
+					.ship(function(){
+						next();
+					})
+
+			},
+
+			function(next){
+
+				db1
+					.append(digger.create('fruit').addClass('orange'))
+					.ship(function(){
+						next();
+					})
+
+			},
+
+			function(next){
+				db1('*').ship(function(things){
+					things.eq(0).digger('rootposition').should.equal(1);
+					things.eq(0).digger('diggerpath')[0].should.equal(1);
+					things.eq(1).digger('rootposition').should.equal(2);
+					things.eq(1).digger('diggerpath')[0].should.equal(2);
+					next();
+				})
+			}
+
+		], function(){
+
+			//wrench.rmdirSyncRecursive(folder, true);
+			done();
+		})
+		
+
+
+		
+	})
+
 	it('should branch to several databases in provider mode', function(done){
 		
 		var folder = '/tmp/diggersimpletests';
@@ -503,7 +568,7 @@ describe('simpledb', function(){
 
 		var linkfolder = digger.create('folder', {
 			name:'French Fruit'
-		}).branchto(france)
+		}).addBranch(france)
 
 		ukfruit.add(linkfolder);
 

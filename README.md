@@ -1,6 +1,15 @@
 #digger
 develop databases like a boss.
 
+PLEASE NOTE - this is massively alpha and not nearly finished.
+
+If you want to help - give me a buzz : )
+
+I promise I will write some help soon...
+
+## example of running a digger from the browser
+This will need a digger express mounted server.
+
 Paste the script tag pointing to your digger host:
 ```html
 <script src="http://digger.io/binocarlos.js"></script>

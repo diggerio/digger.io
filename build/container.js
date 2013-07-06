@@ -1,4 +1,56 @@
 ;(function(e,t,n){function i(n,s){if(!t[n]){if(!e[n]){var o=typeof require=="function"&&require;if(!s&&o)return o(n,!0);if(r)return r(n,!0);throw new Error("Cannot find module '"+n+"'")}var u=t[n]={exports:{}};e[n][0].call(u.exports,function(t){var r=e[n][1][t];return i(r?r:t)},u,u.exports)}return t[n].exports}var r=typeof require=="function"&&require;for(var s=0;s<n.length;s++)i(n[s]);return i})({1:[function(require,module,exports){
+module.exports={
+  "name": "digger.io",
+  "version": "0.0.12",
+  "description": "develop databases like a boss",
+  "main": "src/index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "grunt test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/binocarlos/digger.io.git"
+  },
+  "keywords": [
+    "JQuery",
+    "database"
+  ],
+  "dependencies": {
+    "rationalnestedset":"*",
+    "async": "~0.2.7",
+    "lodash": "~1.2.0",
+    "node-uuid": "~1.4.0",
+    "escape-html": "*",
+    "xtend": "~2.0.3",
+    "xmldom": "~0.1.15",
+    "q": "~0.9.3",
+    "dispatch": "~0.2.0",
+    "wrench": "~1.5.1",
+    "debug": "~0.7.2",
+    "js-yaml": "~2.0.5"
+  },
+  "devDependencies": {
+    "grunt": "~0.4.1",
+    "grunt-exec": "*",
+    "grunt-contrib-jshint": "~0.4.1",
+    "grunt-mocha-test": "~0.2.2",
+    "grunt-contrib-concat": "~0.1.3",
+    "grunt-contrib-uglify": "~0.2.0",
+    "grunt-contrib-watch": "~0.3.1",
+    "chai": "*",
+    "mocha": "*",
+    "grunt-browserify": "~1.1.1"
+  },
+  "author": "Kai Davenport",
+  "license": "MIT",
+  "readmeFilename": "README.md",
+  "gitHead": "85d7e6c9abb88cf6c9a22f39a3f4bd366dfe0857"
+}
+
+},{}],2:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -52,7 +104,7 @@ process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 
-},{}],2:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
 (function(process){if (!process.EventEmitter) process.EventEmitter = function () {};
 
 var EventEmitter = exports.EventEmitter = process.EventEmitter;
@@ -238,7 +290,122 @@ EventEmitter.prototype.listeners = function(type) {
 };
 
 })(require("__browserify_process"))
-},{"__browserify_process":1}],3:[function(require,module,exports){
+},{"__browserify_process":2}],4:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+var Proto = require('./proto');
+var SupplyChain = require('../warehouse/supplychain');
+
+var _ = require('lodash');
+var async = require('async');
+
+/*
+
+	$digger is the default on ready handler
+	
+*/
+
+var isready = false;
+var readycallbacks = [];
+
+var version = require('../../package.json').version;
+
+function $digger(){
+	/*
+	
+		a ready handler
+		
+	*/
+	if(_.isFunction(arguments[0])){
+		if(isready){
+			arguments[0].apply($digger, [$digger]);
+		}
+		else{
+			readycallbacks.push(arguments[0]);
+		}
+	}
+}
+
+$digger.version = version;
+
+$digger._trigger_ready = function(){
+	_.each(readycallbacks, function(fn){
+		fn.apply($digger, [$digger]);
+	})
+	readycallbacks = [];
+}
+
+/*
+
+	this connects the socket
+
+	it is passed any config by the server
+	
+*/
+$digger.bootstrap = function(config){
+	config = _.defaults(config, {
+		protocol:'http://',
+		host:'digger.io',
+		channel:null
+	})
+
+	var socket = io.connect([config.protocol, config.host, '/', config.channel].join(''));
+
+	socket.on('connect', function(){
+		$digger._trigger_ready();
+	})
+
+	$digger.supplychain = SupplyChain(function(req, res){
+		socket.emit('request', req.toJSON(), function(rawres){
+			console.log('-------------------------------------------');
+			console.log('answer');
+			console.dir(rawres);
+			res.fill(rawres);
+		})
+	})
+
+}
+
+/*
+
+	get a container that has a socket supply chain hooked up to the given stackpath
+	
+*/
+$digger.connect = function(stackpath){
+	if(!this.supplychain){
+		throw new Error('there is no supplychain - this means we are not yet connected - place code inside of $digger(function(){})');
+	}
+
+	return $digger.supplychain.connect(stackpath);
+}
+
+/*
+
+	we export these vars to the window immediately - everything else is done inside the $digger handler
+	
+*/
+$digger.Proto = Proto;
+$digger.create = $digger.Proto.factory;
+
+window._ = _;
+window.async = async;
+window.$digger = $digger;
+},{"../warehouse/supplychain":5,"./proto":6,"../../package.json":1,"lodash":7,"async":8}],9:[function(require,module,exports){
 var punycode = { encode : function (s) { return s } };
 
 exports.parse = urlParse;
@@ -844,7 +1011,7 @@ function parseHost(host) {
   return out;
 }
 
-},{"querystring":4}],5:[function(require,module,exports){
+},{"querystring":10}],11:[function(require,module,exports){
 var events = require('events');
 
 exports.isArray = isArray;
@@ -1197,437 +1364,7 @@ exports.format = function(f) {
   return str;
 };
 
-},{"events":2}],6:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-var Proto = require('./proto');
-var SupplyChain = require('../warehouse/supplychain');
-
-var _ = require('lodash');
-var async = require('async');
-
-/*
-
-	$digger is the default on ready handler
-	
-*/
-
-var isready = false;
-var readycallbacks = [];
-
-function $digger(){
-	/*
-	
-		a ready handler
-		
-	*/
-	if(_.isFunction(arguments[0])){
-		if(isready){
-			arguments[0].apply($digger, [$digger]);
-		}
-		else{
-			readycallbacks.push(arguments[0]);
-		}
-	}
-}
-
-$digger._trigger_ready = function(){
-	_.each(readycallbacks, function(fn){
-		fn.apply($digger, [$digger]);
-	})
-	readycallbacks = [];
-}
-
-/*
-
-	this connects the socket
-
-	it is passed any config by the server
-	
-*/
-$digger.bootstrap = function(config){
-	config = _.defaults(config, {
-		protocol:'http://',
-		host:'digger.io',
-		channel:null
-	})
-
-	var socket = io.connect([config.protocol, config.host, '/', config.channel].join(''));
-
-	socket.on('connect', function(){
-		$digger._trigger_ready();
-	})
-
-	$digger.supplychain = SupplyChain(function(req, res){
-		socket.emit('request', req.toJSON(), function(rawres){
-			console.log('-------------------------------------------');
-			console.log('answer');
-			console.dir(rawres);
-			res.fill(rawres);
-		})
-	})
-
-}
-
-/*
-
-	get a container that has a socket supply chain hooked up to the given stackpath
-	
-*/
-$digger.connect = function(stackpath){
-	if(!this.supplychain){
-		throw new Error('there is no supplychain - this means we are not yet connected - place code inside of $digger(function(){})');
-	}
-
-	return $digger.supplychain.connect(stackpath);
-}
-
-/*
-
-	we export these vars to the window immediately - everything else is done inside the $digger handler
-	
-*/
-$digger.Proto = Proto;
-$digger.create = $digger.Proto.factory;
-
-window._ = _;
-window.async = async;
-window.$digger = $digger;
-},{"./proto":7,"../warehouse/supplychain":8,"lodash":9,"async":10}],4:[function(require,module,exports){
-
-/**
- * Object#toString() ref for stringify().
- */
-
-var toString = Object.prototype.toString;
-
-/**
- * Array#indexOf shim.
- */
-
-var indexOf = typeof Array.prototype.indexOf === 'function'
-  ? function(arr, el) { return arr.indexOf(el); }
-  : function(arr, el) {
-      for (var i = 0; i < arr.length; i++) {
-        if (arr[i] === el) return i;
-      }
-      return -1;
-    };
-
-/**
- * Array.isArray shim.
- */
-
-var isArray = Array.isArray || function(arr) {
-  return toString.call(arr) == '[object Array]';
-};
-
-/**
- * Object.keys shim.
- */
-
-var objectKeys = Object.keys || function(obj) {
-  var ret = [];
-  for (var key in obj) ret.push(key);
-  return ret;
-};
-
-/**
- * Array#forEach shim.
- */
-
-var forEach = typeof Array.prototype.forEach === 'function'
-  ? function(arr, fn) { return arr.forEach(fn); }
-  : function(arr, fn) {
-      for (var i = 0; i < arr.length; i++) fn(arr[i]);
-    };
-
-/**
- * Array#reduce shim.
- */
-
-var reduce = function(arr, fn, initial) {
-  if (typeof arr.reduce === 'function') return arr.reduce(fn, initial);
-  var res = initial;
-  for (var i = 0; i < arr.length; i++) res = fn(res, arr[i]);
-  return res;
-};
-
-/**
- * Cache non-integer test regexp.
- */
-
-var isint = /^[0-9]+$/;
-
-function promote(parent, key) {
-  if (parent[key].length == 0) return parent[key] = {};
-  var t = {};
-  for (var i in parent[key]) t[i] = parent[key][i];
-  parent[key] = t;
-  return t;
-}
-
-function parse(parts, parent, key, val) {
-  var part = parts.shift();
-  // end
-  if (!part) {
-    if (isArray(parent[key])) {
-      parent[key].push(val);
-    } else if ('object' == typeof parent[key]) {
-      parent[key] = val;
-    } else if ('undefined' == typeof parent[key]) {
-      parent[key] = val;
-    } else {
-      parent[key] = [parent[key], val];
-    }
-    // array
-  } else {
-    var obj = parent[key] = parent[key] || [];
-    if (']' == part) {
-      if (isArray(obj)) {
-        if ('' != val) obj.push(val);
-      } else if ('object' == typeof obj) {
-        obj[objectKeys(obj).length] = val;
-      } else {
-        obj = parent[key] = [parent[key], val];
-      }
-      // prop
-    } else if (~indexOf(part, ']')) {
-      part = part.substr(0, part.length - 1);
-      if (!isint.test(part) && isArray(obj)) obj = promote(parent, key);
-      parse(parts, obj, part, val);
-      // key
-    } else {
-      if (!isint.test(part) && isArray(obj)) obj = promote(parent, key);
-      parse(parts, obj, part, val);
-    }
-  }
-}
-
-/**
- * Merge parent key/val pair.
- */
-
-function merge(parent, key, val){
-  if (~indexOf(key, ']')) {
-    var parts = key.split('[')
-      , len = parts.length
-      , last = len - 1;
-    parse(parts, parent, 'base', val);
-    // optimize
-  } else {
-    if (!isint.test(key) && isArray(parent.base)) {
-      var t = {};
-      for (var k in parent.base) t[k] = parent.base[k];
-      parent.base = t;
-    }
-    set(parent.base, key, val);
-  }
-
-  return parent;
-}
-
-/**
- * Parse the given obj.
- */
-
-function parseObject(obj){
-  var ret = { base: {} };
-  forEach(objectKeys(obj), function(name){
-    merge(ret, name, obj[name]);
-  });
-  return ret.base;
-}
-
-/**
- * Parse the given str.
- */
-
-function parseString(str){
-  return reduce(String(str).split('&'), function(ret, pair){
-    var eql = indexOf(pair, '=')
-      , brace = lastBraceInKey(pair)
-      , key = pair.substr(0, brace || eql)
-      , val = pair.substr(brace || eql, pair.length)
-      , val = val.substr(indexOf(val, '=') + 1, val.length);
-
-    // ?foo
-    if ('' == key) key = pair, val = '';
-    if ('' == key) return ret;
-
-    return merge(ret, decode(key), decode(val));
-  }, { base: {} }).base;
-}
-
-/**
- * Parse the given query `str` or `obj`, returning an object.
- *
- * @param {String} str | {Object} obj
- * @return {Object}
- * @api public
- */
-
-exports.parse = function(str){
-  if (null == str || '' == str) return {};
-  return 'object' == typeof str
-    ? parseObject(str)
-    : parseString(str);
-};
-
-/**
- * Turn the given `obj` into a query string
- *
- * @param {Object} obj
- * @return {String}
- * @api public
- */
-
-var stringify = exports.stringify = function(obj, prefix) {
-  if (isArray(obj)) {
-    return stringifyArray(obj, prefix);
-  } else if ('[object Object]' == toString.call(obj)) {
-    return stringifyObject(obj, prefix);
-  } else if ('string' == typeof obj) {
-    return stringifyString(obj, prefix);
-  } else {
-    return prefix + '=' + encodeURIComponent(String(obj));
-  }
-};
-
-/**
- * Stringify the given `str`.
- *
- * @param {String} str
- * @param {String} prefix
- * @return {String}
- * @api private
- */
-
-function stringifyString(str, prefix) {
-  if (!prefix) throw new TypeError('stringify expects an object');
-  return prefix + '=' + encodeURIComponent(str);
-}
-
-/**
- * Stringify the given `arr`.
- *
- * @param {Array} arr
- * @param {String} prefix
- * @return {String}
- * @api private
- */
-
-function stringifyArray(arr, prefix) {
-  var ret = [];
-  if (!prefix) throw new TypeError('stringify expects an object');
-  for (var i = 0; i < arr.length; i++) {
-    ret.push(stringify(arr[i], prefix + '[' + i + ']'));
-  }
-  return ret.join('&');
-}
-
-/**
- * Stringify the given `obj`.
- *
- * @param {Object} obj
- * @param {String} prefix
- * @return {String}
- * @api private
- */
-
-function stringifyObject(obj, prefix) {
-  var ret = []
-    , keys = objectKeys(obj)
-    , key;
-
-  for (var i = 0, len = keys.length; i < len; ++i) {
-    key = keys[i];
-    if (null == obj[key]) {
-      ret.push(encodeURIComponent(key) + '=');
-    } else {
-      ret.push(stringify(obj[key], prefix
-        ? prefix + '[' + encodeURIComponent(key) + ']'
-        : encodeURIComponent(key)));
-    }
-  }
-
-  return ret.join('&');
-}
-
-/**
- * Set `obj`'s `key` to `val` respecting
- * the weird and wonderful syntax of a qs,
- * where "foo=bar&foo=baz" becomes an array.
- *
- * @param {Object} obj
- * @param {String} key
- * @param {String} val
- * @api private
- */
-
-function set(obj, key, val) {
-  var v = obj[key];
-  if (undefined === v) {
-    obj[key] = val;
-  } else if (isArray(v)) {
-    v.push(val);
-  } else {
-    obj[key] = [v, val];
-  }
-}
-
-/**
- * Locate last brace in `str` within the key.
- *
- * @param {String} str
- * @return {Number}
- * @api private
- */
-
-function lastBraceInKey(str) {
-  var len = str.length
-    , brace
-    , c;
-  for (var i = 0; i < len; ++i) {
-    c = str[i];
-    if (']' == c) brace = false;
-    if ('[' == c) brace = true;
-    if ('=' == c && !brace) return i;
-  }
-}
-
-/**
- * Decode `str`.
- *
- * @param {String} str
- * @return {String}
- * @api private
- */
-
-function decode(str) {
-  try {
-    return decodeURIComponent(str.replace(/\+/g, ' '));
-  } catch (err) {
-    return str;
-  }
-}
-
-},{}],9:[function(require,module,exports){
+},{"events":3}],7:[function(require,module,exports){
 (function(global){/**
  * @license
  * Lo-Dash 1.2.1 (Custom Build) <http://lodash.com/>
@@ -6894,7 +6631,7 @@ function decode(str) {
 }(this));
 
 })(window)
-},{}],10:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 (function(process){/*global setImmediate: false, setTimeout: false, console: false */
 (function () {
 
@@ -7852,7 +7589,326 @@ function decode(str) {
 }());
 
 })(require("__browserify_process"))
-},{"__browserify_process":1}],8:[function(require,module,exports){
+},{"__browserify_process":2}],10:[function(require,module,exports){
+
+/**
+ * Object#toString() ref for stringify().
+ */
+
+var toString = Object.prototype.toString;
+
+/**
+ * Array#indexOf shim.
+ */
+
+var indexOf = typeof Array.prototype.indexOf === 'function'
+  ? function(arr, el) { return arr.indexOf(el); }
+  : function(arr, el) {
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i] === el) return i;
+      }
+      return -1;
+    };
+
+/**
+ * Array.isArray shim.
+ */
+
+var isArray = Array.isArray || function(arr) {
+  return toString.call(arr) == '[object Array]';
+};
+
+/**
+ * Object.keys shim.
+ */
+
+var objectKeys = Object.keys || function(obj) {
+  var ret = [];
+  for (var key in obj) ret.push(key);
+  return ret;
+};
+
+/**
+ * Array#forEach shim.
+ */
+
+var forEach = typeof Array.prototype.forEach === 'function'
+  ? function(arr, fn) { return arr.forEach(fn); }
+  : function(arr, fn) {
+      for (var i = 0; i < arr.length; i++) fn(arr[i]);
+    };
+
+/**
+ * Array#reduce shim.
+ */
+
+var reduce = function(arr, fn, initial) {
+  if (typeof arr.reduce === 'function') return arr.reduce(fn, initial);
+  var res = initial;
+  for (var i = 0; i < arr.length; i++) res = fn(res, arr[i]);
+  return res;
+};
+
+/**
+ * Cache non-integer test regexp.
+ */
+
+var isint = /^[0-9]+$/;
+
+function promote(parent, key) {
+  if (parent[key].length == 0) return parent[key] = {};
+  var t = {};
+  for (var i in parent[key]) t[i] = parent[key][i];
+  parent[key] = t;
+  return t;
+}
+
+function parse(parts, parent, key, val) {
+  var part = parts.shift();
+  // end
+  if (!part) {
+    if (isArray(parent[key])) {
+      parent[key].push(val);
+    } else if ('object' == typeof parent[key]) {
+      parent[key] = val;
+    } else if ('undefined' == typeof parent[key]) {
+      parent[key] = val;
+    } else {
+      parent[key] = [parent[key], val];
+    }
+    // array
+  } else {
+    var obj = parent[key] = parent[key] || [];
+    if (']' == part) {
+      if (isArray(obj)) {
+        if ('' != val) obj.push(val);
+      } else if ('object' == typeof obj) {
+        obj[objectKeys(obj).length] = val;
+      } else {
+        obj = parent[key] = [parent[key], val];
+      }
+      // prop
+    } else if (~indexOf(part, ']')) {
+      part = part.substr(0, part.length - 1);
+      if (!isint.test(part) && isArray(obj)) obj = promote(parent, key);
+      parse(parts, obj, part, val);
+      // key
+    } else {
+      if (!isint.test(part) && isArray(obj)) obj = promote(parent, key);
+      parse(parts, obj, part, val);
+    }
+  }
+}
+
+/**
+ * Merge parent key/val pair.
+ */
+
+function merge(parent, key, val){
+  if (~indexOf(key, ']')) {
+    var parts = key.split('[')
+      , len = parts.length
+      , last = len - 1;
+    parse(parts, parent, 'base', val);
+    // optimize
+  } else {
+    if (!isint.test(key) && isArray(parent.base)) {
+      var t = {};
+      for (var k in parent.base) t[k] = parent.base[k];
+      parent.base = t;
+    }
+    set(parent.base, key, val);
+  }
+
+  return parent;
+}
+
+/**
+ * Parse the given obj.
+ */
+
+function parseObject(obj){
+  var ret = { base: {} };
+  forEach(objectKeys(obj), function(name){
+    merge(ret, name, obj[name]);
+  });
+  return ret.base;
+}
+
+/**
+ * Parse the given str.
+ */
+
+function parseString(str){
+  return reduce(String(str).split('&'), function(ret, pair){
+    var eql = indexOf(pair, '=')
+      , brace = lastBraceInKey(pair)
+      , key = pair.substr(0, brace || eql)
+      , val = pair.substr(brace || eql, pair.length)
+      , val = val.substr(indexOf(val, '=') + 1, val.length);
+
+    // ?foo
+    if ('' == key) key = pair, val = '';
+    if ('' == key) return ret;
+
+    return merge(ret, decode(key), decode(val));
+  }, { base: {} }).base;
+}
+
+/**
+ * Parse the given query `str` or `obj`, returning an object.
+ *
+ * @param {String} str | {Object} obj
+ * @return {Object}
+ * @api public
+ */
+
+exports.parse = function(str){
+  if (null == str || '' == str) return {};
+  return 'object' == typeof str
+    ? parseObject(str)
+    : parseString(str);
+};
+
+/**
+ * Turn the given `obj` into a query string
+ *
+ * @param {Object} obj
+ * @return {String}
+ * @api public
+ */
+
+var stringify = exports.stringify = function(obj, prefix) {
+  if (isArray(obj)) {
+    return stringifyArray(obj, prefix);
+  } else if ('[object Object]' == toString.call(obj)) {
+    return stringifyObject(obj, prefix);
+  } else if ('string' == typeof obj) {
+    return stringifyString(obj, prefix);
+  } else {
+    return prefix + '=' + encodeURIComponent(String(obj));
+  }
+};
+
+/**
+ * Stringify the given `str`.
+ *
+ * @param {String} str
+ * @param {String} prefix
+ * @return {String}
+ * @api private
+ */
+
+function stringifyString(str, prefix) {
+  if (!prefix) throw new TypeError('stringify expects an object');
+  return prefix + '=' + encodeURIComponent(str);
+}
+
+/**
+ * Stringify the given `arr`.
+ *
+ * @param {Array} arr
+ * @param {String} prefix
+ * @return {String}
+ * @api private
+ */
+
+function stringifyArray(arr, prefix) {
+  var ret = [];
+  if (!prefix) throw new TypeError('stringify expects an object');
+  for (var i = 0; i < arr.length; i++) {
+    ret.push(stringify(arr[i], prefix + '[' + i + ']'));
+  }
+  return ret.join('&');
+}
+
+/**
+ * Stringify the given `obj`.
+ *
+ * @param {Object} obj
+ * @param {String} prefix
+ * @return {String}
+ * @api private
+ */
+
+function stringifyObject(obj, prefix) {
+  var ret = []
+    , keys = objectKeys(obj)
+    , key;
+
+  for (var i = 0, len = keys.length; i < len; ++i) {
+    key = keys[i];
+    if (null == obj[key]) {
+      ret.push(encodeURIComponent(key) + '=');
+    } else {
+      ret.push(stringify(obj[key], prefix
+        ? prefix + '[' + encodeURIComponent(key) + ']'
+        : encodeURIComponent(key)));
+    }
+  }
+
+  return ret.join('&');
+}
+
+/**
+ * Set `obj`'s `key` to `val` respecting
+ * the weird and wonderful syntax of a qs,
+ * where "foo=bar&foo=baz" becomes an array.
+ *
+ * @param {Object} obj
+ * @param {String} key
+ * @param {String} val
+ * @api private
+ */
+
+function set(obj, key, val) {
+  var v = obj[key];
+  if (undefined === v) {
+    obj[key] = val;
+  } else if (isArray(v)) {
+    v.push(val);
+  } else {
+    obj[key] = [v, val];
+  }
+}
+
+/**
+ * Locate last brace in `str` within the key.
+ *
+ * @param {String} str
+ * @return {Number}
+ * @api private
+ */
+
+function lastBraceInKey(str) {
+  var len = str.length
+    , brace
+    , c;
+  for (var i = 0; i < len; ++i) {
+    c = str[i];
+    if (']' == c) brace = false;
+    if ('[' == c) brace = true;
+    if ('=' == c && !brace) return i;
+  }
+}
+
+/**
+ * Decode `str`.
+ *
+ * @param {String} str
+ * @return {String}
+ * @api private
+ */
+
+function decode(str) {
+  try {
+    return decodeURIComponent(str.replace(/\+/g, ' '));
+  } catch (err) {
+    return str;
+  }
+}
+
+},{}],5:[function(require,module,exports){
 /*
   Copyright (c) 2012 All contributors as noted in the AUTHORS file
 
@@ -8087,7 +8143,7 @@ function factory(){
 }
 
 module.exports = factory;
-},{"events":2,"../container/proto":7,"../network/contract":11,"../network/response":12,"lodash":9}],7:[function(require,module,exports){
+},{"events":3,"../container/proto":6,"../network/contract":12,"../network/response":13,"lodash":7}],6:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -8800,7 +8856,7 @@ Container.prototype.select = Contracts.select;
 Container.prototype.append = Contracts.append;
 Container.prototype.save = Contracts.save;
 Container.prototype.remove = Contracts.remove;
-},{"events":2,"./models":13,"./contracts":14,"../utils":15,"./deepdot":16,"./search":17,"async":10,"lodash":9}],15:[function(require,module,exports){
+},{"events":3,"./models":14,"./deepdot":15,"./contracts":16,"../utils":17,"./search":18,"lodash":7,"async":8}],17:[function(require,module,exports){
 (function(){/*
 
 	(The MIT License)
@@ -9005,7 +9061,345 @@ function extend(){
 }
 
 })()
-},{"url":3,"lodash":9,"node-uuid":18}],19:[function(require,module,exports){
+},{"url":9,"lodash":7,"node-uuid":19}],12:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+
+/**
+ * Module dependencies.
+ */
+
+var util = require('util');
+var Message = require('./message');
+var url = require('url');
+var _ = require('lodash');
+var utils = require('../utils');
+var Request = require('./request');
+var Response = require('./response');
+
+
+/*
+
+
+  
+*/
+
+module.exports = Contract;
+
+function Contract(data){
+  var self = this;
+  data = data || {};
+  if(_.isString(data)){
+    data = {
+      headers:{
+        'x-contract-type':data
+      }
+    }
+  }
+  Request.apply(this, [data]);
+
+  this.setHeader('content-type', 'digger/contract');
+
+  if(!this.getHeader('x-contract-type')){
+    this.setHeader('x-contract-type', 'merge');
+  }
+
+  if(!this.getHeader('x-contract-id')){
+    this.setHeader('x-contract-id', utils.diggerid());
+  }
+
+  if(!this.body){
+    this.body = [];
+  }
+}
+
+util.inherits(Contract, Request);
+
+Contract.factory = function(data){
+  return new Contract(data);
+}
+
+Contract.mergefactory = function(data){
+  var contract = Contract.factory('merge');
+  contract.url = 'reception:/';
+  contract.method = 'post';
+  contract.body = _.map(data, function(child){
+    return child.toJSON();
+  })
+  return contract;
+}
+
+Contract.sequencefactory = function(data){
+  var contract = Contract.factory('sequence');
+  contract.url = 'reception:/';
+  contract.method = 'post';
+  contract.body = _.map(data, function(child){
+    return child.toJSON();
+  })
+  return contract;
+}
+
+Contract.prototype.add = function(req){
+  var self = this;
+
+  if(_.isArray(req)){
+    _.each(req, function(item){
+      self.add(item);
+    })
+  }
+  else{
+
+    var whattoadd = req;
+
+    if(_.isFunction(req.toJSON)){
+      if(req.getHeader('x-contract-type')==this.getHeader('x-contract-type')){
+        this.body = this.body.concat(req.body);
+      }
+      else{
+        this.body.push(req.toJSON());
+      }
+    }
+  }
+  return this;
+}
+
+Contract.prototype.ship = function(callback){
+  if(!this.supplychain){
+    console.log('-------------------------------------------');
+    console.log('there is no supplychain to ship with');
+    throw new Error('contract has not been given a supply chain to ship with');
+  }
+
+  return this.supplychain.ship(this, callback);
+}
+},{"util":11,"url":9,"./message":20,"./request":21,"../utils":17,"./response":13,"lodash":7}],13:[function(require,module,exports){
+(function(){/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+
+/**
+ * Module dependencies.
+ */
+
+var util = require('util');
+var Message = require('./message');
+var _ = require('lodash');
+var Q = require('q');
+
+/*
+
+  
+*/
+
+module.exports = Response;
+
+function Response(data){
+  Message.apply(this, [data]);
+  this.statusCode = data ? data.statusCode : 200;
+}
+
+Response.factory = function(data, errorfn){
+
+  /*
+  
+    sort out the constructor so you can quickly
+    create responses with the callback hooked up
+    
+  */
+  var fn = null;
+  var autoresolve = false;
+  if(_.isFunction(data)){
+    fn = data;
+    data = null;
+  }
+  else if(_.isBoolean(data)){
+    autoresolve = data;
+    data = null;
+  }
+
+  var ret = new Response(data);
+
+  var sent = false;
+
+  /*
+  
+    AUTO RESOLVE
+
+    this is for client sided responses that will parse the body
+    for multipart messages
+
+    server side responses are more often concerned with just moving stuff
+    around to want to open the content and process - hence not 'resolving'
+    
+  */
+  if(autoresolve){
+    ret.on('send', function(){
+      ret.resolve();
+    })
+  }
+
+  if(fn){
+    ret.on('send', fn);
+  }
+
+  return ret;
+}
+
+util.inherits(Response, Message);
+
+/*
+
+  inject the raw data from an over the wire response
+  and trigger the appropriate event
+  
+*/
+Response.prototype.fill = function(answer){
+  if(!answer){
+    return this;
+  }
+  this.statusCode = answer.statusCode;
+  this.headers = answer.headers;
+  this.body = answer.body;
+  this.send(answer.body);
+}
+
+Response.prototype.statusCode = 200;
+
+Response.prototype.send = function(body){
+  if(this.headerSent===true){
+    throw new Error('cannot send response after headers have been sent');
+  }
+
+  this.body = arguments.length>0 ? body : this.body;
+  this.emit('beforesend', body);
+  this.emit('send', body);
+  this.emit('aftersend', body);
+  this.headerSent = true;
+  return this;
+}
+
+Response.prototype.resolve = function(fn){
+
+  if(!this.statusCode){
+    this.statusCode = 200;
+  }
+
+  var results = [];
+  var errors = [];
+  var branches = this.getHeader('x-json-branches') || [];
+
+  function resolvemutlipart(multires){
+    if(multires.statusCode==200){
+      if(multires.getHeader('content-type')=='digger/multipart'){
+        _.each(multires.body, function(raw){
+          if(!raw.statusCode){
+            raw.statusCode = 200;
+          }
+          resolvemutlipart(new Response(raw));
+        })
+      } 
+      else{
+        var subbranches = multires.getHeader('x-json-branches') || [];
+        branches = branches.concat(subbranches);
+        if(_.isArray(multires.body)){
+          results = results.concat(multires.body);
+        }
+        else{
+          results.push(multires.body);
+        }
+      }
+    }
+    else{
+      errors.push(multires.body);
+    }
+  }
+
+  if(this.statusCode===200){
+    if(this.getHeader('content-type')=='digger/multipart'){
+      resolvemutlipart(this);
+      if(results.length>0){
+        this.emit('success', results, this);
+      }
+
+      if(errors.length>0){
+        this.emit('failure', errors, this);    
+      }
+    }
+    else{
+      results = this.body;
+      this.emit('success', this.body, this);
+    }
+  }
+  else{
+    errors = this.body;
+    this.emit('failure', this.body, this);
+  }
+
+  this.setHeader('x-json-branches', branches);
+
+  if(fn){
+    fn(results, errors);
+  }  
+}
+
+Response.prototype.toJSON = function(){
+  var ret = Message.prototype.toJSON.apply(this);
+  ret.statusCode = this.statusCode;
+  return ret;
+}
+
+Response.prototype.hasError = function(){
+  return this.statusCode!==200;
+}
+
+Response.prototype.sendError = function(text){
+  this.statusCode = 500;
+  this.send(text);
+}
+
+Response.prototype.send404 = function(req){
+  this.statusCode = 404;
+  this.send(req ? req.toJSON() : null);
+}
+
+Response.prototype.redirect = function(location){
+  this.statusCode = 302;
+  this.send(location);
+}
+
+Response.prototype.add = function(childres){
+  this.setHeader('content-type', 'digger/multipart');
+  if(!this.body){
+    this.body = [];
+  }
+  this.body.push(_.isFunction(childres.toJSON) ? childres.toJSON() : childres);
+  return this;
+}
+})()
+},{"util":11,"./message":20,"lodash":7,"q":22}],23:[function(require,module,exports){
 require=(function(e,t,n,r){function i(r){if(!n[r]){if(!t[r]){if(e)return e(r);throw new Error("Cannot find module '"+r+"'")}var s=n[r]={exports:{}};t[r][0](function(e){var n=t[r][1][e];return i(n?n:e)},s,s.exports)}return n[r].exports}for(var s=0;s<r.length;s++)i(r[s]);return i})(typeof require!=="undefined"&&require,{1:[function(require,module,exports){
 exports.readIEEE754 = function(buffer, offset, isBE, mLen, nBytes) {
   var e, m,
@@ -12870,7 +13264,7 @@ SlowBuffer.prototype.writeDoubleBE = Buffer.prototype.writeDoubleBE;
 },{}]},{},[])
 ;;module.exports=require("buffer-browserify")
 
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 (function(Buffer){//     uuid.js
 //
 //     (c) 2010-2012 Robert Kieffer
@@ -13118,345 +13512,7 @@ SlowBuffer.prototype.writeDoubleBE = Buffer.prototype.writeDoubleBE;
 }());
 
 })(require("__browserify_buffer").Buffer)
-},{"crypto":20,"__browserify_buffer":19}],11:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-
-/**
- * Module dependencies.
- */
-
-var util = require('util');
-var Message = require('./message');
-var url = require('url');
-var _ = require('lodash');
-var utils = require('../utils');
-var Request = require('./request');
-var Response = require('./response');
-
-
-/*
-
-
-  
-*/
-
-module.exports = Contract;
-
-function Contract(data){
-  var self = this;
-  data = data || {};
-  if(_.isString(data)){
-    data = {
-      headers:{
-        'x-contract-type':data
-      }
-    }
-  }
-  Request.apply(this, [data]);
-
-  this.setHeader('content-type', 'digger/contract');
-
-  if(!this.getHeader('x-contract-type')){
-    this.setHeader('x-contract-type', 'merge');
-  }
-
-  if(!this.getHeader('x-contract-id')){
-    this.setHeader('x-contract-id', utils.diggerid());
-  }
-
-  if(!this.body){
-    this.body = [];
-  }
-}
-
-util.inherits(Contract, Request);
-
-Contract.factory = function(data){
-  return new Contract(data);
-}
-
-Contract.mergefactory = function(data){
-  var contract = Contract.factory('merge');
-  contract.url = 'reception:/';
-  contract.method = 'post';
-  contract.body = _.map(data, function(child){
-    return child.toJSON();
-  })
-  return contract;
-}
-
-Contract.sequencefactory = function(data){
-  var contract = Contract.factory('sequence');
-  contract.url = 'reception:/';
-  contract.method = 'post';
-  contract.body = _.map(data, function(child){
-    return child.toJSON();
-  })
-  return contract;
-}
-
-Contract.prototype.add = function(req){
-  var self = this;
-
-  if(_.isArray(req)){
-    _.each(req, function(item){
-      self.add(item);
-    })
-  }
-  else{
-
-    var whattoadd = req;
-
-    if(_.isFunction(req.toJSON)){
-      if(req.getHeader('x-contract-type')==this.getHeader('x-contract-type')){
-        this.body = this.body.concat(req.body);
-      }
-      else{
-        this.body.push(req.toJSON());
-      }
-    }
-  }
-  return this;
-}
-
-Contract.prototype.ship = function(callback){
-  if(!this.supplychain){
-    console.log('-------------------------------------------');
-    console.log('there is no supplychain to ship with');
-    throw new Error('contract has not been given a supply chain to ship with');
-  }
-
-  return this.supplychain.ship(this, callback);
-}
-},{"util":5,"url":3,"./request":21,"./message":22,"./response":12,"../utils":15,"lodash":9}],12:[function(require,module,exports){
-(function(){/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-
-/**
- * Module dependencies.
- */
-
-var util = require('util');
-var Message = require('./message');
-var _ = require('lodash');
-var Q = require('q');
-
-/*
-
-  
-*/
-
-module.exports = Response;
-
-function Response(data){
-  Message.apply(this, [data]);
-  this.statusCode = data ? data.statusCode : 200;
-}
-
-Response.factory = function(data, errorfn){
-
-  /*
-  
-    sort out the constructor so you can quickly
-    create responses with the callback hooked up
-    
-  */
-  var fn = null;
-  var autoresolve = false;
-  if(_.isFunction(data)){
-    fn = data;
-    data = null;
-  }
-  else if(_.isBoolean(data)){
-    autoresolve = data;
-    data = null;
-  }
-
-  var ret = new Response(data);
-
-  var sent = false;
-
-  /*
-  
-    AUTO RESOLVE
-
-    this is for client sided responses that will parse the body
-    for multipart messages
-
-    server side responses are more often concerned with just moving stuff
-    around to want to open the content and process - hence not 'resolving'
-    
-  */
-  if(autoresolve){
-    ret.on('send', function(){
-      ret.resolve();
-    })
-  }
-
-  if(fn){
-    ret.on('send', fn);
-  }
-
-  return ret;
-}
-
-util.inherits(Response, Message);
-
-/*
-
-  inject the raw data from an over the wire response
-  and trigger the appropriate event
-  
-*/
-Response.prototype.fill = function(answer){
-  if(!answer){
-    return this;
-  }
-  this.statusCode = answer.statusCode;
-  this.headers = answer.headers;
-  this.body = answer.body;
-  this.send(answer.body);
-}
-
-Response.prototype.statusCode = 200;
-
-Response.prototype.send = function(body){
-  if(this.headerSent===true){
-    throw new Error('cannot send response after headers have been sent');
-  }
-
-  this.body = arguments.length>0 ? body : this.body;
-  this.emit('beforesend', body);
-  this.emit('send', body);
-  this.emit('aftersend', body);
-  this.headerSent = true;
-  return this;
-}
-
-Response.prototype.resolve = function(fn){
-
-  if(!this.statusCode){
-    this.statusCode = 200;
-  }
-
-  var results = [];
-  var errors = [];
-  var branches = this.getHeader('x-json-branches') || [];
-
-  function resolvemutlipart(multires){
-    if(multires.statusCode==200){
-      if(multires.getHeader('content-type')=='digger/multipart'){
-        _.each(multires.body, function(raw){
-          if(!raw.statusCode){
-            raw.statusCode = 200;
-          }
-          resolvemutlipart(new Response(raw));
-        })
-      } 
-      else{
-        var subbranches = multires.getHeader('x-json-branches') || [];
-        branches = branches.concat(subbranches);
-        if(_.isArray(multires.body)){
-          results = results.concat(multires.body);
-        }
-        else{
-          results.push(multires.body);
-        }
-      }
-    }
-    else{
-      errors.push(multires.body);
-    }
-  }
-
-  if(this.statusCode===200){
-    if(this.getHeader('content-type')=='digger/multipart'){
-      resolvemutlipart(this);
-      if(results.length>0){
-        this.emit('success', results, this);
-      }
-
-      if(errors.length>0){
-        this.emit('failure', errors, this);    
-      }
-    }
-    else{
-      results = this.body;
-      this.emit('success', this.body, this);
-    }
-  }
-  else{
-    errors = this.body;
-    this.emit('failure', this.body, this);
-  }
-
-  this.setHeader('x-json-branches', branches);
-
-  if(fn){
-    fn(results, errors);
-  }  
-}
-
-Response.prototype.toJSON = function(){
-  var ret = Message.prototype.toJSON.apply(this);
-  ret.statusCode = this.statusCode;
-  return ret;
-}
-
-Response.prototype.hasError = function(){
-  return this.statusCode!==200;
-}
-
-Response.prototype.sendError = function(text){
-  this.statusCode = 500;
-  this.send(text);
-}
-
-Response.prototype.send404 = function(req){
-  this.statusCode = 404;
-  this.send(req ? req.toJSON() : null);
-}
-
-Response.prototype.redirect = function(location){
-  this.statusCode = 302;
-  this.send(location);
-}
-
-Response.prototype.add = function(childres){
-  this.setHeader('content-type', 'digger/multipart');
-  if(!this.body){
-    this.body = [];
-  }
-  this.body.push(_.isFunction(childres.toJSON) ? childres.toJSON() : childres);
-  return this;
-}
-})()
-},{"util":5,"./message":22,"q":23,"lodash":9}],13:[function(require,module,exports){
+},{"crypto":24,"__browserify_buffer":23}],14:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -13567,7 +13623,7 @@ module.exports = function modelfactory(data, attr){
 }
 
 module.exports.toXML = XML.stringify;
-},{"../utils":15,"./xml":24,"lodash":9}],14:[function(require,module,exports){
+},{"./xml":25,"../utils":17,"lodash":7}],16:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -13829,7 +13885,7 @@ function remove(){
   contract.supplychain = this.supplychain;
   return contract;
 }
-},{"../network/contract":11,"./selector":25,"../network/request":21,"lodash":9}],16:[function(require,module,exports){
+},{"./selector":26,"../network/request":21,"../network/contract":12,"lodash":7}],15:[function(require,module,exports){
 var _ = require('lodash');
 var extend = require('xtend');
 var EventEmitter = require('events').EventEmitter;
@@ -13937,7 +13993,7 @@ function factory(obj){
 
   return dot;
 }
-},{"events":2,"lodash":9,"xtend":26}],23:[function(require,module,exports){
+},{"events":3,"lodash":7,"xtend":27}],22:[function(require,module,exports){
 (function(process){// vim:ts=4:sts=4:sw=4:
 /*!
  *
@@ -15691,7 +15747,116 @@ return Q;
 });
 
 })(require("__browserify_process"))
-},{"__browserify_process":1}],20:[function(require,module,exports){
+},{"__browserify_process":2}],20:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+
+/**
+ * Module dependencies.
+ */
+
+var _ = require('lodash');
+var util = require('util');
+var EventEmitter = require('events').EventEmitter;
+
+/*
+
+  telegraft - network request
+
+  basic version of http.serverRequest
+  
+*/
+
+module.exports = Message;
+
+function Message(data){
+  data = data || {};
+  EventEmitter.call(this);
+  this.headers = data.headers || {};
+  this.body = data.body || null;
+  this.headerSent = false;
+}
+
+util.inherits(Message, EventEmitter);
+
+Message.prototype.toJSON = function(){
+  return {
+    headers:this.headers,
+    body:this.body
+  }
+}
+
+
+/*
+
+  copied mostly from node.js/lib/http.js
+  
+*/
+Message.prototype.setHeader = function(name, value) {
+  if (arguments.length < 2) {
+    throw new Error('`name` and `value` are required for setHeader().');
+  }
+
+  if (this.headerSent) {
+    throw new Error('Can\'t set headers after they are sent.');
+  }
+
+  var key = name.toLowerCase();
+  this.headers = this.headers || {};
+  this.headers[key] = value;
+  return this;
+}
+
+
+Message.prototype.getHeader = function(name) {
+  if (arguments.length < 1) {
+    throw new Error('`name` is required for getHeader().');
+  }
+
+  if (!this.headers) return;
+
+  var key = name.toLowerCase();
+  var value = this.headers[key];
+
+  if(!value){
+    return value;
+  }
+
+  if(name.indexOf('x-json')===0 && _.isString(value)){
+    value = this.headers[key] = JSON.parse(value);
+  }
+  
+  return value;
+}
+
+
+Message.prototype.removeHeader = function(name) {
+  if (arguments.length < 1) {
+    throw new Error('`name` is required for removeHeader().');
+  }
+
+  if (this.headerSent) {
+    throw new Error('Can\'t remove headers after they are sent.');
+  }
+
+  if (!this.headers) return;
+
+  var key = name.toLowerCase();
+  delete this.headers[key];
+}
+},{"util":11,"events":3,"lodash":7}],24:[function(require,module,exports){
 var sha = require('./sha')
 var rng = require('./rng')
 var md5 = require('./md5')
@@ -15767,7 +15932,7 @@ exports.randomBytes = function(size, callback) {
   }
 })
 
-},{"./sha":27,"./md5":28,"./rng":29}],17:[function(require,module,exports){
+},{"./sha":28,"./rng":29,"./md5":30}],18:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -15858,7 +16023,7 @@ module.exports = {
     return results.count()>0;
   }
 }
-},{"../selector":25,"./search":30,"./find":31,"lodash":9}],21:[function(require,module,exports){
+},{"./search":31,"./find":32,"../selector":26,"lodash":7}],21:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -15982,328 +16147,7 @@ Request.prototype.expect = function(content_type){
   this.setHeader('x-expect', content_type);
   return this;
 }
-},{"util":5,"url":3,"./message":22,"lodash":9}],22:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-
-/**
- * Module dependencies.
- */
-
-var _ = require('lodash');
-var util = require('util');
-var EventEmitter = require('events').EventEmitter;
-
-/*
-
-  telegraft - network request
-
-  basic version of http.serverRequest
-  
-*/
-
-module.exports = Message;
-
-function Message(data){
-  data = data || {};
-  EventEmitter.call(this);
-  this.headers = data.headers || {};
-  this.body = data.body || null;
-  this.headerSent = false;
-}
-
-util.inherits(Message, EventEmitter);
-
-Message.prototype.toJSON = function(){
-  return {
-    headers:this.headers,
-    body:this.body
-  }
-}
-
-
-/*
-
-  copied mostly from node.js/lib/http.js
-  
-*/
-Message.prototype.setHeader = function(name, value) {
-  if (arguments.length < 2) {
-    throw new Error('`name` and `value` are required for setHeader().');
-  }
-
-  if (this.headerSent) {
-    throw new Error('Can\'t set headers after they are sent.');
-  }
-
-  var key = name.toLowerCase();
-  this.headers = this.headers || {};
-  this.headers[key] = value;
-  return this;
-}
-
-
-Message.prototype.getHeader = function(name) {
-  if (arguments.length < 1) {
-    throw new Error('`name` is required for getHeader().');
-  }
-
-  if (!this.headers) return;
-
-  var key = name.toLowerCase();
-  var value = this.headers[key];
-
-  if(!value){
-    return value;
-  }
-
-  if(name.indexOf('x-json')===0 && _.isString(value)){
-    value = this.headers[key] = JSON.parse(value);
-  }
-  
-  return value;
-}
-
-
-Message.prototype.removeHeader = function(name) {
-  if (arguments.length < 1) {
-    throw new Error('`name` is required for removeHeader().');
-  }
-
-  if (this.headerSent) {
-    throw new Error('Can\'t remove headers after they are sent.');
-  }
-
-  if (!this.headers) return;
-
-  var key = name.toLowerCase();
-  delete this.headers[key];
-}
-},{"util":5,"events":2,"lodash":9}],27:[function(require,module,exports){
-/*
- * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
- * in FIPS PUB 180-1
- * Version 2.1a Copyright Paul Johnston 2000 - 2002.
- * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
- * Distributed under the BSD License
- * See http://pajhome.org.uk/crypt/md5 for details.
- */
-
-exports.hex_sha1 = hex_sha1;
-exports.b64_sha1 = b64_sha1;
-exports.str_sha1 = str_sha1;
-exports.hex_hmac_sha1 = hex_hmac_sha1;
-exports.b64_hmac_sha1 = b64_hmac_sha1;
-exports.str_hmac_sha1 = str_hmac_sha1;
-
-/*
- * Configurable variables. You may need to tweak these to be compatible with
- * the server-side, but the defaults work in most cases.
- */
-var hexcase = 0;  /* hex output format. 0 - lowercase; 1 - uppercase        */
-var b64pad  = ""; /* base-64 pad character. "=" for strict RFC compliance   */
-var chrsz   = 8;  /* bits per input character. 8 - ASCII; 16 - Unicode      */
-
-/*
- * These are the functions you'll usually want to call
- * They take string arguments and return either hex or base-64 encoded strings
- */
-function hex_sha1(s){return binb2hex(core_sha1(str2binb(s),s.length * chrsz));}
-function b64_sha1(s){return binb2b64(core_sha1(str2binb(s),s.length * chrsz));}
-function str_sha1(s){return binb2str(core_sha1(str2binb(s),s.length * chrsz));}
-function hex_hmac_sha1(key, data){ return binb2hex(core_hmac_sha1(key, data));}
-function b64_hmac_sha1(key, data){ return binb2b64(core_hmac_sha1(key, data));}
-function str_hmac_sha1(key, data){ return binb2str(core_hmac_sha1(key, data));}
-
-/*
- * Perform a simple self-test to see if the VM is working
- */
-function sha1_vm_test()
-{
-  return hex_sha1("abc") == "a9993e364706816aba3e25717850c26c9cd0d89d";
-}
-
-/*
- * Calculate the SHA-1 of an array of big-endian words, and a bit length
- */
-function core_sha1(x, len)
-{
-  /* append padding */
-  x[len >> 5] |= 0x80 << (24 - len % 32);
-  x[((len + 64 >> 9) << 4) + 15] = len;
-
-  var w = Array(80);
-  var a =  1732584193;
-  var b = -271733879;
-  var c = -1732584194;
-  var d =  271733878;
-  var e = -1009589776;
-
-  for(var i = 0; i < x.length; i += 16)
-  {
-    var olda = a;
-    var oldb = b;
-    var oldc = c;
-    var oldd = d;
-    var olde = e;
-
-    for(var j = 0; j < 80; j++)
-    {
-      if(j < 16) w[j] = x[i + j];
-      else w[j] = rol(w[j-3] ^ w[j-8] ^ w[j-14] ^ w[j-16], 1);
-      var t = safe_add(safe_add(rol(a, 5), sha1_ft(j, b, c, d)),
-                       safe_add(safe_add(e, w[j]), sha1_kt(j)));
-      e = d;
-      d = c;
-      c = rol(b, 30);
-      b = a;
-      a = t;
-    }
-
-    a = safe_add(a, olda);
-    b = safe_add(b, oldb);
-    c = safe_add(c, oldc);
-    d = safe_add(d, oldd);
-    e = safe_add(e, olde);
-  }
-  return Array(a, b, c, d, e);
-
-}
-
-/*
- * Perform the appropriate triplet combination function for the current
- * iteration
- */
-function sha1_ft(t, b, c, d)
-{
-  if(t < 20) return (b & c) | ((~b) & d);
-  if(t < 40) return b ^ c ^ d;
-  if(t < 60) return (b & c) | (b & d) | (c & d);
-  return b ^ c ^ d;
-}
-
-/*
- * Determine the appropriate additive constant for the current iteration
- */
-function sha1_kt(t)
-{
-  return (t < 20) ?  1518500249 : (t < 40) ?  1859775393 :
-         (t < 60) ? -1894007588 : -899497514;
-}
-
-/*
- * Calculate the HMAC-SHA1 of a key and some data
- */
-function core_hmac_sha1(key, data)
-{
-  var bkey = str2binb(key);
-  if(bkey.length > 16) bkey = core_sha1(bkey, key.length * chrsz);
-
-  var ipad = Array(16), opad = Array(16);
-  for(var i = 0; i < 16; i++)
-  {
-    ipad[i] = bkey[i] ^ 0x36363636;
-    opad[i] = bkey[i] ^ 0x5C5C5C5C;
-  }
-
-  var hash = core_sha1(ipad.concat(str2binb(data)), 512 + data.length * chrsz);
-  return core_sha1(opad.concat(hash), 512 + 160);
-}
-
-/*
- * Add integers, wrapping at 2^32. This uses 16-bit operations internally
- * to work around bugs in some JS interpreters.
- */
-function safe_add(x, y)
-{
-  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
-  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
-  return (msw << 16) | (lsw & 0xFFFF);
-}
-
-/*
- * Bitwise rotate a 32-bit number to the left.
- */
-function rol(num, cnt)
-{
-  return (num << cnt) | (num >>> (32 - cnt));
-}
-
-/*
- * Convert an 8-bit or 16-bit string to an array of big-endian words
- * In 8-bit function, characters >255 have their hi-byte silently ignored.
- */
-function str2binb(str)
-{
-  var bin = Array();
-  var mask = (1 << chrsz) - 1;
-  for(var i = 0; i < str.length * chrsz; i += chrsz)
-    bin[i>>5] |= (str.charCodeAt(i / chrsz) & mask) << (32 - chrsz - i%32);
-  return bin;
-}
-
-/*
- * Convert an array of big-endian words to a string
- */
-function binb2str(bin)
-{
-  var str = "";
-  var mask = (1 << chrsz) - 1;
-  for(var i = 0; i < bin.length * 32; i += chrsz)
-    str += String.fromCharCode((bin[i>>5] >>> (32 - chrsz - i%32)) & mask);
-  return str;
-}
-
-/*
- * Convert an array of big-endian words to a hex string.
- */
-function binb2hex(binarray)
-{
-  var hex_tab = hexcase ? "0123456789ABCDEF" : "0123456789abcdef";
-  var str = "";
-  for(var i = 0; i < binarray.length * 4; i++)
-  {
-    str += hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8+4)) & 0xF) +
-           hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8  )) & 0xF);
-  }
-  return str;
-}
-
-/*
- * Convert an array of big-endian words to a base-64 string
- */
-function binb2b64(binarray)
-{
-  var tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  var str = "";
-  for(var i = 0; i < binarray.length * 4; i += 3)
-  {
-    var triplet = (((binarray[i   >> 2] >> 8 * (3 -  i   %4)) & 0xFF) << 16)
-                | (((binarray[i+1 >> 2] >> 8 * (3 - (i+1)%4)) & 0xFF) << 8 )
-                |  ((binarray[i+2 >> 2] >> 8 * (3 - (i+2)%4)) & 0xFF);
-    for(var j = 0; j < 4; j++)
-    {
-      if(i * 8 + j * 6 > binarray.length * 32) str += b64pad;
-      else str += tab.charAt((triplet >> 6*(3-j)) & 0x3F);
-    }
-  }
-  return str;
-}
-
-
-},{}],25:[function(require,module,exports){
+},{"util":11,"url":9,"./message":20,"lodash":7}],26:[function(require,module,exports){
 /*
   Module dependencies.
 */
@@ -16610,7 +16454,443 @@ function miniparse(selector_string){
   }
   return selector;
 }
-},{"lodash":9}],28:[function(require,module,exports){
+},{"lodash":7}],25:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+
+var _ = require('lodash');
+
+var window = this;
+
+module.exports.parse = fromXML;
+module.exports.stringify = toXML;
+
+var is_node = !window.document;
+
+/*
+  digger.io - XML Format
+  ----------------------
+
+  Turns XML strings into container data and back again
+
+
+ */
+
+function null_filter(val){
+  return !_.isUndefined(val) && !_.isNull(val);
+}
+
+function data_factory(element){
+
+  if(element.nodeType!=element.ELEMENT_NODE){
+    return;
+  }
+
+  var metafields = {
+    id:true,
+    diggerid:true
+  }
+  
+  var manualfields = {
+    tag:true,
+    class:true
+  }
+
+  var data = {
+    _digger:{
+      tag:element.nodeName,
+      class:_.filter((element.getAttribute('class') || '').split(/\s+/), function(classname){
+        return classname.match(/\w/);
+      })
+    },
+    _children:[]
+  }
+  
+  _.each(metafields, function(v, metafield){
+    data._digger[metafield] = element.getAttribute(metafield) || '';
+  })
+
+  _.each(element.attributes, function(attr){
+    if(!metafields[attr.name] && !manualfields[attr.name]){
+      data[attr.name] = attr.value;
+    }
+  })
+
+  data._children = _.filter(_.map(element.childNodes, data_factory), null_filter);
+
+  return data;
+}
+
+function BrowserXMLParser(st){
+  if (typeof window.DOMParser != "undefined") {
+    return (function(xmlStr) {
+      var xmlDoc = ( new window.DOMParser() ).parseFromString(xmlStr, "text/xml");
+      return _.map(xmlDoc.childNodes, data_factory);
+    })(st)
+  } else if (window && typeof window.ActiveXObject != "undefined" && new window.ActiveXObject("Microsoft.XMLDOM")) {
+    return (function(xmlStr) {
+      var xmlDoc = new window.ActiveXObject("Microsoft.XMLDOM");
+      xmlDoc.async = "false";
+      xmlDoc.loadXML(xmlStr);
+      return _.map(xmlDoc.childNodes, data_factory);
+    })(st)
+  }
+}
+
+/*
+
+  includes xmldom
+  
+*/
+function ServerXMLParser(st){
+
+  /*
+  
+    server side XML parsing
+    
+  */
+  var xml = require('xmldom');
+  var DOMParser = xml.DOMParser;
+  var doc = new DOMParser().parseFromString(st);
+  var results = _.map(doc.childNodes, data_factory);
+  
+  return results;
+}
+
+function fromXML(string){
+
+  return is_node ? ServerXMLParser(string) : BrowserXMLParser(string);
+
+}
+
+
+function string_factory(data, depth){
+
+  var meta = data._digger || {};
+  var children = data._children || [];
+  var attr = data;
+
+  function get_indent_string(){
+    var st = "\t";
+    var ret = '';
+    for(var i=0; i<depth; i++){
+      ret += st;
+    }
+    return ret;
+  }
+
+  var pairs = {
+    id:meta.id,
+    class:_.isArray(meta.class) ? meta.class.join(' ') : ''
+  }
+
+  var pair_strings = [];
+
+  _.each(attr, function(val, key){
+    if(key=='_digger'){
+      return;
+    }
+    pairs[key] = _.isString(val) ? val : '' + val;
+  })
+
+  _.each(pairs, function(value, field){
+    if(!_.isEmpty(value)){
+      pair_strings.push(field + '="' + value + '"');  
+    }
+  })
+
+  if(children && children.length>0){
+    var ret = get_indent_string() + '<' + meta.tag + ' ' + pair_strings.join(' ') + '>' + "\n";
+
+    _.each(children, function(child){      
+      ret += string_factory(child, depth+1);
+    })
+
+    ret += get_indent_string() + '</' + meta.tag + '>' + "\n";
+
+    return ret;    
+  }
+  else{
+    return get_indent_string() + '<' + meta.tag + ' ' + pair_strings.join(' ') + ' />' + "\n";
+  }
+}
+
+/*
+  This is the sync version of a warehouse search used by in-memory container 'find' commands
+
+  The packet will be either a straight select or a contract
+ */
+function toXML(data_array){
+  return _.map(data_array, function(data){
+    return string_factory(data, 0);
+  }).join("\n");
+}
+},{"xmldom":33,"lodash":7}],28:[function(require,module,exports){
+/*
+ * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
+ * in FIPS PUB 180-1
+ * Version 2.1a Copyright Paul Johnston 2000 - 2002.
+ * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
+ * Distributed under the BSD License
+ * See http://pajhome.org.uk/crypt/md5 for details.
+ */
+
+exports.hex_sha1 = hex_sha1;
+exports.b64_sha1 = b64_sha1;
+exports.str_sha1 = str_sha1;
+exports.hex_hmac_sha1 = hex_hmac_sha1;
+exports.b64_hmac_sha1 = b64_hmac_sha1;
+exports.str_hmac_sha1 = str_hmac_sha1;
+
+/*
+ * Configurable variables. You may need to tweak these to be compatible with
+ * the server-side, but the defaults work in most cases.
+ */
+var hexcase = 0;  /* hex output format. 0 - lowercase; 1 - uppercase        */
+var b64pad  = ""; /* base-64 pad character. "=" for strict RFC compliance   */
+var chrsz   = 8;  /* bits per input character. 8 - ASCII; 16 - Unicode      */
+
+/*
+ * These are the functions you'll usually want to call
+ * They take string arguments and return either hex or base-64 encoded strings
+ */
+function hex_sha1(s){return binb2hex(core_sha1(str2binb(s),s.length * chrsz));}
+function b64_sha1(s){return binb2b64(core_sha1(str2binb(s),s.length * chrsz));}
+function str_sha1(s){return binb2str(core_sha1(str2binb(s),s.length * chrsz));}
+function hex_hmac_sha1(key, data){ return binb2hex(core_hmac_sha1(key, data));}
+function b64_hmac_sha1(key, data){ return binb2b64(core_hmac_sha1(key, data));}
+function str_hmac_sha1(key, data){ return binb2str(core_hmac_sha1(key, data));}
+
+/*
+ * Perform a simple self-test to see if the VM is working
+ */
+function sha1_vm_test()
+{
+  return hex_sha1("abc") == "a9993e364706816aba3e25717850c26c9cd0d89d";
+}
+
+/*
+ * Calculate the SHA-1 of an array of big-endian words, and a bit length
+ */
+function core_sha1(x, len)
+{
+  /* append padding */
+  x[len >> 5] |= 0x80 << (24 - len % 32);
+  x[((len + 64 >> 9) << 4) + 15] = len;
+
+  var w = Array(80);
+  var a =  1732584193;
+  var b = -271733879;
+  var c = -1732584194;
+  var d =  271733878;
+  var e = -1009589776;
+
+  for(var i = 0; i < x.length; i += 16)
+  {
+    var olda = a;
+    var oldb = b;
+    var oldc = c;
+    var oldd = d;
+    var olde = e;
+
+    for(var j = 0; j < 80; j++)
+    {
+      if(j < 16) w[j] = x[i + j];
+      else w[j] = rol(w[j-3] ^ w[j-8] ^ w[j-14] ^ w[j-16], 1);
+      var t = safe_add(safe_add(rol(a, 5), sha1_ft(j, b, c, d)),
+                       safe_add(safe_add(e, w[j]), sha1_kt(j)));
+      e = d;
+      d = c;
+      c = rol(b, 30);
+      b = a;
+      a = t;
+    }
+
+    a = safe_add(a, olda);
+    b = safe_add(b, oldb);
+    c = safe_add(c, oldc);
+    d = safe_add(d, oldd);
+    e = safe_add(e, olde);
+  }
+  return Array(a, b, c, d, e);
+
+}
+
+/*
+ * Perform the appropriate triplet combination function for the current
+ * iteration
+ */
+function sha1_ft(t, b, c, d)
+{
+  if(t < 20) return (b & c) | ((~b) & d);
+  if(t < 40) return b ^ c ^ d;
+  if(t < 60) return (b & c) | (b & d) | (c & d);
+  return b ^ c ^ d;
+}
+
+/*
+ * Determine the appropriate additive constant for the current iteration
+ */
+function sha1_kt(t)
+{
+  return (t < 20) ?  1518500249 : (t < 40) ?  1859775393 :
+         (t < 60) ? -1894007588 : -899497514;
+}
+
+/*
+ * Calculate the HMAC-SHA1 of a key and some data
+ */
+function core_hmac_sha1(key, data)
+{
+  var bkey = str2binb(key);
+  if(bkey.length > 16) bkey = core_sha1(bkey, key.length * chrsz);
+
+  var ipad = Array(16), opad = Array(16);
+  for(var i = 0; i < 16; i++)
+  {
+    ipad[i] = bkey[i] ^ 0x36363636;
+    opad[i] = bkey[i] ^ 0x5C5C5C5C;
+  }
+
+  var hash = core_sha1(ipad.concat(str2binb(data)), 512 + data.length * chrsz);
+  return core_sha1(opad.concat(hash), 512 + 160);
+}
+
+/*
+ * Add integers, wrapping at 2^32. This uses 16-bit operations internally
+ * to work around bugs in some JS interpreters.
+ */
+function safe_add(x, y)
+{
+  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
+  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+  return (msw << 16) | (lsw & 0xFFFF);
+}
+
+/*
+ * Bitwise rotate a 32-bit number to the left.
+ */
+function rol(num, cnt)
+{
+  return (num << cnt) | (num >>> (32 - cnt));
+}
+
+/*
+ * Convert an 8-bit or 16-bit string to an array of big-endian words
+ * In 8-bit function, characters >255 have their hi-byte silently ignored.
+ */
+function str2binb(str)
+{
+  var bin = Array();
+  var mask = (1 << chrsz) - 1;
+  for(var i = 0; i < str.length * chrsz; i += chrsz)
+    bin[i>>5] |= (str.charCodeAt(i / chrsz) & mask) << (32 - chrsz - i%32);
+  return bin;
+}
+
+/*
+ * Convert an array of big-endian words to a string
+ */
+function binb2str(bin)
+{
+  var str = "";
+  var mask = (1 << chrsz) - 1;
+  for(var i = 0; i < bin.length * 32; i += chrsz)
+    str += String.fromCharCode((bin[i>>5] >>> (32 - chrsz - i%32)) & mask);
+  return str;
+}
+
+/*
+ * Convert an array of big-endian words to a hex string.
+ */
+function binb2hex(binarray)
+{
+  var hex_tab = hexcase ? "0123456789ABCDEF" : "0123456789abcdef";
+  var str = "";
+  for(var i = 0; i < binarray.length * 4; i++)
+  {
+    str += hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8+4)) & 0xF) +
+           hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8  )) & 0xF);
+  }
+  return str;
+}
+
+/*
+ * Convert an array of big-endian words to a base-64 string
+ */
+function binb2b64(binarray)
+{
+  var tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  var str = "";
+  for(var i = 0; i < binarray.length * 4; i += 3)
+  {
+    var triplet = (((binarray[i   >> 2] >> 8 * (3 -  i   %4)) & 0xFF) << 16)
+                | (((binarray[i+1 >> 2] >> 8 * (3 - (i+1)%4)) & 0xFF) << 8 )
+                |  ((binarray[i+2 >> 2] >> 8 * (3 - (i+2)%4)) & 0xFF);
+    for(var j = 0; j < 4; j++)
+    {
+      if(i * 8 + j * 6 > binarray.length * 32) str += b64pad;
+      else str += tab.charAt((triplet >> 6*(3-j)) & 0x3F);
+    }
+  }
+  return str;
+}
+
+
+},{}],29:[function(require,module,exports){
+// Original code adapted from Robert Kieffer.
+// details at https://github.com/broofa/node-uuid
+(function() {
+  var _global = this;
+
+  var mathRNG, whatwgRNG;
+
+  // NOTE: Math.random() does not guarantee "cryptographic quality"
+  mathRNG = function(size) {
+    var bytes = new Array(size);
+    var r;
+
+    for (var i = 0, r; i < size; i++) {
+      if ((i & 0x03) == 0) r = Math.random() * 0x100000000;
+      bytes[i] = r >>> ((i & 0x03) << 3) & 0xff;
+    }
+
+    return bytes;
+  }
+
+  // currently only available in webkit-based browsers.
+  if (_global.crypto && crypto.getRandomValues) {
+    var _rnds = new Uint32Array(4);
+    whatwgRNG = function(size) {
+      var bytes = new Array(size);
+      crypto.getRandomValues(_rnds);
+
+      for (var c = 0 ; c < size; c++) {
+        bytes[c] = _rnds[c >> 2] >>> ((c & 0x03) * 8) & 0xff;
+      }
+      return bytes;
+    }
+  }
+
+  module.exports = whatwgRNG || mathRNG;
+
+}())
+},{}],30:[function(require,module,exports){
 /*
  * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
  * Digest Algorithm, as defined in RFC 1321.
@@ -16996,231 +17276,7 @@ exports.hex_md5 = hex_md5;
 exports.b64_md5 = b64_md5;
 exports.any_md5 = any_md5;
 
-},{}],29:[function(require,module,exports){
-// Original code adapted from Robert Kieffer.
-// details at https://github.com/broofa/node-uuid
-(function() {
-  var _global = this;
-
-  var mathRNG, whatwgRNG;
-
-  // NOTE: Math.random() does not guarantee "cryptographic quality"
-  mathRNG = function(size) {
-    var bytes = new Array(size);
-    var r;
-
-    for (var i = 0, r; i < size; i++) {
-      if ((i & 0x03) == 0) r = Math.random() * 0x100000000;
-      bytes[i] = r >>> ((i & 0x03) << 3) & 0xff;
-    }
-
-    return bytes;
-  }
-
-  // currently only available in webkit-based browsers.
-  if (_global.crypto && crypto.getRandomValues) {
-    var _rnds = new Uint32Array(4);
-    whatwgRNG = function(size) {
-      var bytes = new Array(size);
-      crypto.getRandomValues(_rnds);
-
-      for (var c = 0 ; c < size; c++) {
-        bytes[c] = _rnds[c >> 2] >>> ((c & 0x03) * 8) & 0xff;
-      }
-      return bytes;
-    }
-  }
-
-  module.exports = whatwgRNG || mathRNG;
-
-}())
-},{}],24:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-
-var _ = require('lodash');
-
-var window = this;
-
-module.exports.parse = fromXML;
-module.exports.stringify = toXML;
-
-var is_node = !window.document;
-
-/*
-  digger.io - XML Format
-  ----------------------
-
-  Turns XML strings into container data and back again
-
-
- */
-
-function null_filter(val){
-  return !_.isUndefined(val) && !_.isNull(val);
-}
-
-function data_factory(element){
-
-  if(element.nodeType!=element.ELEMENT_NODE){
-    return;
-  }
-
-  var metafields = {
-    id:true,
-    diggerid:true
-  }
-  
-  var manualfields = {
-    tag:true,
-    class:true
-  }
-
-  var data = {
-    _digger:{
-      tag:element.nodeName,
-      class:_.filter((element.getAttribute('class') || '').split(/\s+/), function(classname){
-        return classname.match(/\w/);
-      })
-    },
-    _children:[]
-  }
-  
-  _.each(metafields, function(v, metafield){
-    data._digger[metafield] = element.getAttribute(metafield) || '';
-  })
-
-  _.each(element.attributes, function(attr){
-    if(!metafields[attr.name] && !manualfields[attr.name]){
-      data[attr.name] = attr.value;
-    }
-  })
-
-  data._children = _.filter(_.map(element.childNodes, data_factory), null_filter);
-
-  return data;
-}
-
-function BrowserXMLParser(st){
-  if (typeof window.DOMParser != "undefined") {
-    return (function(xmlStr) {
-      var xmlDoc = ( new window.DOMParser() ).parseFromString(xmlStr, "text/xml");
-      return _.map(xmlDoc.childNodes, data_factory);
-    })(st)
-  } else if (window && typeof window.ActiveXObject != "undefined" && new window.ActiveXObject("Microsoft.XMLDOM")) {
-    return (function(xmlStr) {
-      var xmlDoc = new window.ActiveXObject("Microsoft.XMLDOM");
-      xmlDoc.async = "false";
-      xmlDoc.loadXML(xmlStr);
-      return _.map(xmlDoc.childNodes, data_factory);
-    })(st)
-  }
-}
-
-/*
-
-  includes xmldom
-  
-*/
-function ServerXMLParser(st){
-
-  /*
-  
-    server side XML parsing
-    
-  */
-  var xml = require('xmldom');
-  var DOMParser = xml.DOMParser;
-  var doc = new DOMParser().parseFromString(st);
-  var results = _.map(doc.childNodes, data_factory);
-  
-  return results;
-}
-
-function fromXML(string){
-
-  return is_node ? ServerXMLParser(string) : BrowserXMLParser(string);
-
-}
-
-
-function string_factory(data, depth){
-
-  var meta = data._digger || {};
-  var children = data._children || [];
-  var attr = data;
-
-  function get_indent_string(){
-    var st = "\t";
-    var ret = '';
-    for(var i=0; i<depth; i++){
-      ret += st;
-    }
-    return ret;
-  }
-
-  var pairs = {
-    id:meta.id,
-    class:_.isArray(meta.class) ? meta.class.join(' ') : ''
-  }
-
-  var pair_strings = [];
-
-  _.each(attr, function(val, key){
-    if(key=='_digger'){
-      return;
-    }
-    pairs[key] = _.isString(val) ? val : '' + val;
-  })
-
-  _.each(pairs, function(value, field){
-    if(!_.isEmpty(value)){
-      pair_strings.push(field + '="' + value + '"');  
-    }
-  })
-
-  if(children && children.length>0){
-    var ret = get_indent_string() + '<' + meta.tag + ' ' + pair_strings.join(' ') + '>' + "\n";
-
-    _.each(children, function(child){      
-      ret += string_factory(child, depth+1);
-    })
-
-    ret += get_indent_string() + '</' + meta.tag + '>' + "\n";
-
-    return ret;    
-  }
-  else{
-    return get_indent_string() + '<' + meta.tag + ' ' + pair_strings.join(' ') + ' />' + "\n";
-  }
-}
-
-/*
-  This is the sync version of a warehouse search used by in-memory container 'find' commands
-
-  The packet will be either a straight select or a contract
- */
-function toXML(data_array){
-  return _.map(data_array, function(data){
-    return string_factory(data, 0);
-  }).join("\n");
-}
-},{"lodash":9,"xmldom":32}],33:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 module.exports = hasKeys
 
 function hasKeys(source) {
@@ -17229,7 +17285,7 @@ function hasKeys(source) {
         typeof source === "function")
 }
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 var Keys = require("object-keys")
 var hasKeys = require("./has-keys")
 
@@ -17256,372 +17312,7 @@ function extend() {
     return target
 }
 
-},{"./has-keys":33,"object-keys":34}],31:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-
-var _ = require('lodash');
-
-/*
-  Quarry.io - Find
-  ----------------
-
-  A sync version of the selector resolver for use with already loaded containers
-
-  This is used for container.find() to return the results right away jQuery style
-
-
-
-
- */
-
-module.exports = factory;
-
-function State(arr){
-  this.count = arr.length;
-  this.index = 0;
-  this.finished = false;
-}
-
-State.prototype.next = function(){
-  this.index++;
-  if(this.index>=this.count){
-    this.finished = true;
-  }
-}
-
-/*
-
-  search is the function that accepts a single container and the single selector to resolve
-  
-*/
-function factory(searchfn){
-
-  /*
-  
-    context is the container to search from
-
-    selectors is the top level array container indivudally processed selector strings
-    
-  */
-
-  return function(selectors, context){
-
-    var final_state = new State(selectors);
-    var final_results = context.spawn();
-
-    /*
-    
-      loop over each of the seperate selector strings
-
-      container("selectorA", "selectorB")
-
-      B -> A
-      
-    */
-    _.each(selectors.reverse(), function(stage){
-
-      final_state.next();
-
-      /*
-      
-        this is a merge of the phase results
-
-        the last iteration of this becomes the final results
-        
-      */
-      var stage_results = context.spawn();
-
-      /*
-      
-        now we have the phases - these can be done in parallel
-        
-      */
-      _.each(stage.phases, function(phase){
-
-        
-        var phase_context = context;
-
-        var selector_state = new State(phase);
-
-        _.each(phase, function(selector){
-
-          selector_state.next();
-
-          var results = searchfn(selector, phase_context);
-
-          /*
-          
-            quit the stage loop with no results
-            
-          */
-          if(results.count()<=0){
-            return false;
-          }
-
-          /*
-          
-            if there is still more to get for this string
-            then we update the pipe skeleton
-            
-          */
-          if(!selector_state.finished){
-            phase_context = results;
-          }
-          /*
-          
-            this
-            
-          */
-          else{
-            stage_results.add(results);
-          }
-
-          return true;
-
-        })
-
-      
-
-      })
-
-      /*
-      
-        quit the stages with no results
-        
-      */
-      if(stage_results.count()<=0){
-        return false;
-      }
-
-
-      /*
-      
-        this is the result of a stage - we pipe the results to the next stage
-        or call them the final results
-        
-      */
-
-      if(!final_state.finished){
-        context = stage_results;
-      }
-      else{
-        final_results = stage_results;
-      }
-    })
-
-    return final_results;
-
-  }
-}
-},{"lodash":9}],30:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-
-var _ = require('lodash');
-var utils = require('../../utils');
-var async = require('async');
-
-/*
-  Quarry.io - Container Search
-  ----------------------------
-
-  Takes a search_from container and an array of strings
-
-  It reverses the strings and does a simulated pipe
-
-
- */
-
-module.exports.searcher = search;
-module.exports.compiler = compile;
-
-/*
-  These functions are used to run attribute selectors over in-memory containers
- */
-var attr_compare_functions = {
-  "=":function(check, target){
-    return !_.isUndefined(check) && check==target;
-  },
-  "!=":function(check, target){
-    return !_.isUndefined(check) && check!=target;
-  },
-  ">":function(check, target){
-    target = parseFloat(target);
-    return !_.isUndefined(check) && !isNaN(target) ? check > target : false;
-  },
-  ">=":function(check, target){
-    target = parseFloat(target);
-    return !_.isUndefined(check) && !isNaN(target) ? check >= target : false;
-  },
-  "<":function(check, target){
-    target = parseFloat(target);
-    return !_.isUndefined(check) && !isNaN(target) ? check < target : false;
-  },
-  "<=":function(check, target){
-    target = parseFloat(target);
-    return !_.isUndefined(check) && !isNaN(target) ? check <= target : false;
-  },
-  "^=":function(check, target){
-    return !_.isUndefined(check) && check.match(new RegExp('^' + utils.escapeRegexp(target), 'i')) !== null;
-  },
-  "$=":function(check, target){
-    return !_.isUndefined(check) && check.match(new RegExp(utils.escapeRegexp(target) + '$', 'i')) !== null;
-  },
-  "~=":function(check, target){
-    return !_.isUndefined(check) && check.match(new RegExp('\\W' + utils.escapeRegexp(target) + '\\W', 'i')) !== null;
-  },
-  "|=":function(check, target){
-    return !_.isUndefined(check) && check.match(new RegExp('^' + utils.escapeRegexp(target) + '-', 'i')) !== null;
-  },
-  "*=":function(check, target){
-    return !_.isUndefined(check) && check.match(new RegExp(utils.escapeRegexp(target), 'i')) !== null;
-  }
-}
-
-/*
-
-  Turn a selector object into a compiled function to have containers run through
-  
- */
-
-function compile(selector){
-
-  // return a function that will return boolean for a container matching this selector
-  return function(container){
-
-    // we step through one at a time - as soon as something fails we do not match
-
-    // if we have a wildcard then we pass
-    if(selector.tag=='*'){
-      return true;
-    }
-
-    // #id
-    if(selector.id && container.id()!=selector.id){      
-      return false;
-    }
-
-    // =diggerid
-    if(selector.diggerid && container.diggerid()!=selector.diggerid){
-      return false;
-    }
-
-    // tagname
-    if(selector.tag && container.tag()!=selector.tag){
-      return false;
-    }
-  
-    // classnames
-    if(selector.class){
-      // make sure ALL of the classnames in the selector are in the container
-      return _.all(_.keys(selector.class), function(classname){
-        return container.hasClass(classname);
-      })
-    }
-    
-    if(selector.attr){
-
-      var all_attributes_passed = _.all(selector.attr, function(attr_filter){
-
-        var check_value = container.attr(attr_filter.field);
-        var operator_function = attr_compare_functions[attr_filter.operator];
-
-        // [size]
-        if(!attr_filter.value){
-          return check_value !== null;
-        }
-        // [size>100]
-        else if(operator_function){
-          return operator_function.apply(null, [check_value, attr_filter.value]);
-        }
-        // no operator function found
-        else{
-          return false;
-        }
-      })
-
-      if(!all_attributes_passed){
-        return false;
-      }
-
-    }
-
-    return true;
-      
-  }
-}
-
-function search(selector, context){
-
-  var selector_filter = compile(selector);
-
-  var search_in = context;
-
-  // we must now turn the search_from container into a flat array of the things to actually search
-
-  // direct child mode
-  if(selector.splitter=='>'){
-    search_in = context.children();
-  }
-  // direct parent mode
-  else if(selector.splitter=='<'){
-    throw new Error('we do not support the parent splitter at the moment');
-  }
-  // all descendents mode
-  else{
-    search_in = context.descendents();
-  }
-
-  // now we loop each child container piping it via the selector filter
-  var ret = search_in.filter(selector_filter);
-
-  var modifier = selector.modifier || {};
-
-  if(modifier.limit){
-    ret.models = ret.models.slice(0, modifier.limit);
-  }
-
-  if(modifier.first && ret.models.length>0){
-    ret.models = [ret.models[0]];
-  }
-  else if(modifier.last && ret.models.length>0){
-    ret.models = [ret.models[ret.models.length-1]];
-  }
-
-  return ret;
-}
-},{"../../utils":15,"lodash":9,"async":10}],32:[function(require,module,exports){
+},{"./has-keys":34,"object-keys":35}],33:[function(require,module,exports){
 function DOMParser(options){
 	this.options = 
 			options != true && //To the version (0.1.12) compatible
@@ -17876,7 +17567,746 @@ if(typeof require == 'function'){
 	exports.DOMParser = DOMParser;
 }
 
-},{"./dom":35,"./sax":36}],35:[function(require,module,exports){
+},{"./dom":36,"./sax":37}],32:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+
+var _ = require('lodash');
+
+/*
+  Quarry.io - Find
+  ----------------
+
+  A sync version of the selector resolver for use with already loaded containers
+
+  This is used for container.find() to return the results right away jQuery style
+
+
+
+
+ */
+
+module.exports = factory;
+
+function State(arr){
+  this.count = arr.length;
+  this.index = 0;
+  this.finished = false;
+}
+
+State.prototype.next = function(){
+  this.index++;
+  if(this.index>=this.count){
+    this.finished = true;
+  }
+}
+
+/*
+
+  search is the function that accepts a single container and the single selector to resolve
+  
+*/
+function factory(searchfn){
+
+  /*
+  
+    context is the container to search from
+
+    selectors is the top level array container indivudally processed selector strings
+    
+  */
+
+  return function(selectors, context){
+
+    var final_state = new State(selectors);
+    var final_results = context.spawn();
+
+    /*
+    
+      loop over each of the seperate selector strings
+
+      container("selectorA", "selectorB")
+
+      B -> A
+      
+    */
+    _.each(selectors.reverse(), function(stage){
+
+      final_state.next();
+
+      /*
+      
+        this is a merge of the phase results
+
+        the last iteration of this becomes the final results
+        
+      */
+      var stage_results = context.spawn();
+
+      /*
+      
+        now we have the phases - these can be done in parallel
+        
+      */
+      _.each(stage.phases, function(phase){
+
+        
+        var phase_context = context;
+
+        var selector_state = new State(phase);
+
+        _.each(phase, function(selector){
+
+          selector_state.next();
+
+          var results = searchfn(selector, phase_context);
+
+          /*
+          
+            quit the stage loop with no results
+            
+          */
+          if(results.count()<=0){
+            return false;
+          }
+
+          /*
+          
+            if there is still more to get for this string
+            then we update the pipe skeleton
+            
+          */
+          if(!selector_state.finished){
+            phase_context = results;
+          }
+          /*
+          
+            this
+            
+          */
+          else{
+            stage_results.add(results);
+          }
+
+          return true;
+
+        })
+
+      
+
+      })
+
+      /*
+      
+        quit the stages with no results
+        
+      */
+      if(stage_results.count()<=0){
+        return false;
+      }
+
+
+      /*
+      
+        this is the result of a stage - we pipe the results to the next stage
+        or call them the final results
+        
+      */
+
+      if(!final_state.finished){
+        context = stage_results;
+      }
+      else{
+        final_results = stage_results;
+      }
+    })
+
+    return final_results;
+
+  }
+}
+},{"lodash":7}],37:[function(require,module,exports){
+//[4]   	NameStartChar	   ::=   	":" | [A-Z] | "_" | [a-z] | [#xC0-#xD6] | [#xD8-#xF6] | [#xF8-#x2FF] | [#x370-#x37D] | [#x37F-#x1FFF] | [#x200C-#x200D] | [#x2070-#x218F] | [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | [#xFDF0-#xFFFD] | [#x10000-#xEFFFF]
+//[4a]   	NameChar	   ::=   	NameStartChar | "-" | "." | [0-9] | #xB7 | [#x0300-#x036F] | [#x203F-#x2040]
+//[5]   	Name	   ::=   	NameStartChar (NameChar)*
+var nameStartChar = /[A-Z_a-z\xC0-\xD6\xD8-\xF6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]///\u10000-\uEFFFF
+var nameChar = new RegExp("[\\-\\.0-9"+nameStartChar.source.slice(1,-1)+"\u00B7\u0300-\u036F\\ux203F-\u2040]");
+var tagNamePattern = new RegExp('^'+nameStartChar.source+nameChar.source+'*(?:\:'+nameStartChar.source+nameChar.source+'*)?$');
+//var tagNamePattern = /^[a-zA-Z_][\w\-\.]*(?:\:[a-zA-Z_][\w\-\.]*)?$/
+//var handlers = 'resolveEntity,getExternalSubset,characters,endDocument,endElement,endPrefixMapping,ignorableWhitespace,processingInstruction,setDocumentLocator,skippedEntity,startDocument,startElement,startPrefixMapping,notationDecl,unparsedEntityDecl,error,fatalError,warning,attributeDecl,elementDecl,externalEntityDecl,internalEntityDecl,comment,endCDATA,endDTD,endEntity,startCDATA,startDTD,startEntity'.split(',')
+
+//S_TAG,	S_ATTR,	S_EQ,	S_V
+//S_ATTR_S,	S_E,	S_S,	S_C
+var S_TAG = 0;//tag name offerring
+var S_ATTR = 1;//attr name offerring 
+var S_ATTR_S=2;//attr name end and space offer
+var S_EQ = 3;//=space?
+var S_V = 4;//attr value(no quot value only)
+var S_E = 5;//attr value end and no space(quot end)
+var S_S = 6;//(attr value end || tag end ) && (space offer)
+var S_C = 7;//closed el<el />
+
+function XMLReader(){
+}
+
+XMLReader.prototype = {
+	parse:function(source,defaultNSMap,entityMap){
+		var domBuilder = this.domBuilder;
+		domBuilder.startDocument();
+		_copy(defaultNSMap ,defaultNSMap = {})
+		parse(source,defaultNSMap,entityMap,
+				domBuilder,this.errorHandler);
+		domBuilder.endDocument();
+	}
+}
+function parse(source,defaultNSMapCopy,entityMap,domBuilder,errorHandler){
+  function fixedFromCharCode(code) {
+		// String.prototype.fromCharCode does not supports
+		// > 2 bytes unicode chars directly
+		if (code > 0xffff) {
+			code -= 0x10000;
+			var surrogate1 = 0xd800 + (code >> 10)
+				, surrogate2 = 0xdc00 + (code & 0x3ff);
+
+			return String.fromCharCode(surrogate1, surrogate2);
+		} else {
+			return String.fromCharCode(code);
+		}
+	}
+	function entityReplacer(a){
+		var k = a.slice(1,-1);
+		if(k in entityMap){
+			return entityMap[k]; 
+		}else if(k.charAt(0) === '#'){
+			return fixedFromCharCode(parseInt(k.substr(1).replace('x','0x')))
+		}else{
+			errorHandler.error('entity not found:'+a);
+			return a;
+		}
+	}
+	function appendText(end){//has some bugs
+		var xt = source.substring(start,end).replace(/&#?\w+;/g,entityReplacer);
+		locator&&position(start);
+		domBuilder.characters(xt,0,end-start);
+		start = end
+	}
+	function position(start,m){
+		while(start>=endPos && (m = linePattern.exec(source))){
+			startPos = m.index;
+			endPos = startPos + m[0].length;
+			locator.lineNumber++;
+			//console.log('line++:',locator,startPos,endPos)
+		}
+		locator.columnNumber = start-startPos+1;
+	}
+	var startPos = 0;
+	var endPos = 0;
+	var linePattern = /.+(?:\r\n?|\n)|.*$/g
+	var locator = domBuilder.locator;
+	
+	var parseStack = [{currentNSMap:defaultNSMapCopy}]
+	var closeMap = {};
+	var start = 0;
+	while(true){
+		var i = source.indexOf('<',start);
+		if(i>start){
+			appendText(i);
+		}
+		switch(source.charAt(i+1)){
+		case '/':
+			var end = source.indexOf('>',i+3);
+			var tagName = source.substring(i+2,end);
+			var config = parseStack.pop();
+			var localNSMap = config.localNSMap;
+			
+	        if(config.tagName != tagName){
+	            errorHandler.fatalError("end tag name: "+tagName+' is not match the current start tagName:'+config.tagName );
+	        }
+			domBuilder.endElement(config.uri,config.localName,tagName);
+			if(localNSMap){
+				for(var prefix in localNSMap){
+					domBuilder.endPrefixMapping(prefix) ;
+				}
+			}
+			end++;
+			break;
+			// end elment
+		case '?':// <?...?>
+			locator&&position(i);
+			end = parseInstruction(source,i,domBuilder);
+			break;
+		case '!':// <!doctype,<![CDATA,<!--
+			locator&&position(i);
+			end = parseDCC(source,i,domBuilder);
+			break;
+		default:
+			if(i<0){
+				if(!source.substr(start).match(/^\s*$/)){
+					errorHandler.error('source code out of document root');
+				}
+				return;
+			}else{
+				try{
+					locator&&position(i);
+					var el = new ElementAttributes();
+					//elStartEnd
+					var end = parseElementStartPart(source,i,el,entityReplacer,errorHandler);
+					var len = el.length;
+					//position fixed
+					if(len && locator){
+						var backup = copyLocator(locator,{});
+						for(var i = 0;i<len;i++){
+							var a = el[i];
+							position(a.offset);
+							a.offset = copyLocator(locator,{});
+						}
+						copyLocator(backup,locator);
+					}
+					el.closed = el.closed||fixSelfClosed(source,end,el.tagName,closeMap);
+					appendElement(el,domBuilder,parseStack);
+					
+					
+					if(el.uri === 'http://www.w3.org/1999/xhtml' && !el.closed){
+						end = parseHtmlSpecialContent(source,end,el.tagName,entityReplacer,domBuilder)
+					}else{
+						end++;
+					}
+				}catch(e){
+					errorHandler.error('element parse error: '+e);
+					end = -1;
+				}
+			}
+
+		}
+		if(end<0){
+			//TODO: 这里有可能sax回退，有位置错误风险
+			appendText(i+1);
+		}else{
+			start = end;
+		}
+	}
+}
+function copyLocator(f,t){
+	t.lineNumber = f.lineNumber;
+	t.columnNumber = f.columnNumber;
+	return t;
+	
+}
+
+/**
+ * @see #appendElement(source,elStartEnd,el,selfClosed,entityReplacer,domBuilder,parseStack);
+ * @return end of the elementStartPart(end of elementEndPart for selfClosed el)
+ */
+function parseElementStartPart(source,start,el,entityReplacer,errorHandler){
+	var attrName;
+	var value;
+	var p = ++start;
+	var s = S_TAG;//status
+	while(true){
+		var c = source.charAt(p);
+		switch(c){
+		case '=':
+			if(s === S_ATTR){//attrName
+				attrName = source.slice(start,p);
+				s = S_EQ;
+			}else if(s === S_ATTR_S){
+				s = S_EQ;
+			}else{
+				//fatalError: equal must after attrName or space after attrName
+				throw new Error('attribute equal must after attrName');
+			}
+			break;
+		case '\'':
+		case '"':
+			if(s === S_EQ){//equal
+				start = p+1;
+				p = source.indexOf(c,start)
+				if(p>0){
+					value = source.slice(start,p).replace(/&#?\w+;/g,entityReplacer);
+					el.add(attrName,value,start-1);
+					s = S_E;
+				}else{
+					//fatalError: no end quot match
+					throw new Error('attribute value no end \''+c+'\' match');
+				}
+			}else if(s == S_V){
+				value = source.slice(start,p).replace(/&#?\w+;/g,entityReplacer);
+				//console.log(attrName,value,start,p)
+				el.add(attrName,value,start);
+				//console.dir(el)
+				errorHandler.warning('attribute "'+attrName+'" missed start quot('+c+')!!');
+				start = p+1;
+				s = S_E
+			}else{
+				//fatalError: no equal before
+				throw new Error('attribute value must after "="');
+			}
+			break;
+		case '/':
+			switch(s){
+			case S_TAG:
+				el.setTagName(source.slice(start,p));
+			case S_E:
+			case S_S:
+			case S_C:
+				s = S_C;
+				el.closed = true;
+			case S_V:
+			case S_ATTR:
+			case S_ATTR_S:
+				break;
+			//case S_EQ:
+			default:
+				throw new Error("attribute invalid close char('/')")
+			}
+			break;
+		case '>':
+			switch(s){
+			case S_TAG:
+				el.setTagName(source.slice(start,p));
+			case S_E:
+			case S_S:
+			case S_C:
+				break;//normal
+			case S_V://Compatible state
+			case S_ATTR:
+				value = source.slice(start,p);
+				if(value.slice(-1) === '/'){
+					el.closed  = true;
+					value = value.slice(0,-1)
+				}
+			case S_ATTR_S:
+				if(s === S_ATTR_S){
+					value = attrName;
+				}
+				if(s == S_V){
+					errorHandler.warning('attribute "'+value+'" missed quot(")!!');
+					el.add(attrName,value.replace(/&#?\w+;/g,entityReplacer),start)
+				}else{
+					errorHandler.warning('attribute "'+value+'" missed value!! "'+value+'" instead!!')
+					el.add(value,value,start)
+				}
+				break;
+			case S_EQ:
+				throw new Error('attribute value missed!!');
+			}
+//			console.log(tagName,tagNamePattern,tagNamePattern.test(tagName))
+			return p;
+		/*xml space '\x20' | #x9 | #xD | #xA; */
+		case '\u0080':
+			c = ' ';
+		default:
+			if(c<= ' '){//space
+				switch(s){
+				case S_TAG:
+					el.setTagName(source.slice(start,p));//tagName
+					s = S_S;
+					break;
+				case S_ATTR:
+					attrName = source.slice(start,p)
+					s = S_ATTR_S;
+					break;
+				case S_V:
+					var value = source.slice(start,p).replace(/&#?\w+;/g,entityReplacer);
+					errorHandler.warning('attribute "'+value+'" missed quot(")!!');
+					el.add(attrName,value,start)
+				case S_E:
+					s = S_S;
+					break;
+				//case S_S:
+				//case S_EQ:
+				//case S_ATTR_S:
+				//	void();break;
+				//case S_C:
+					//ignore warning
+				}
+			}else{//not space
+//S_TAG,	S_ATTR,	S_EQ,	S_V
+//S_ATTR_S,	S_E,	S_S,	S_C
+				switch(s){
+				//case S_TAG:void();break;
+				//case S_ATTR:void();break;
+				//case S_V:void();break;
+				case S_ATTR_S:
+					errorHandler.warning('attribute "'+attrName+'" missed value!! "'+attrName+'" instead!!')
+					el.add(attrName,attrName,start);
+					start = p;
+					s = S_ATTR;
+					break;
+				case S_E:
+					errorHandler.warning('attribute space is required"'+attrName+'"!!')
+				case S_S:
+					s = S_ATTR;
+					start = p;
+					break;
+				case S_EQ:
+					s = S_V;
+					start = p;
+					break;
+				case S_C:
+					throw new Error("elements closed character '/' and '>' must be connected to");
+				}
+			}
+		}
+		p++;
+	}
+}
+/**
+ * @return end of the elementStartPart(end of elementEndPart for selfClosed el)
+ */
+function appendElement(el,domBuilder,parseStack){
+	var tagName = el.tagName;
+	var localNSMap = null;
+	var currentNSMap = parseStack[parseStack.length-1].currentNSMap;
+	var i = el.length;
+	while(i--){
+		var a = el[i];
+		var qName = a.qName;
+		var value = a.value;
+		var nsp = qName.indexOf(':');
+		if(nsp>0){
+			var prefix = a.prefix = qName.slice(0,nsp);
+			var localName = qName.slice(nsp+1);
+			var nsPrefix = prefix === 'xmlns' && localName
+		}else{
+			localName = qName;
+			prefix = null
+			nsPrefix = qName === 'xmlns' && ''
+		}
+		//can not set prefix,because prefix !== ''
+		a.localName = localName ;
+		//prefix == null for no ns prefix attribute 
+		if(nsPrefix !== false){//hack!!
+			if(localNSMap == null){
+				localNSMap = {}
+				_copy(currentNSMap,currentNSMap={})
+			}
+			currentNSMap[nsPrefix] = localNSMap[nsPrefix] = value;
+			a.uri = 'http://www.w3.org/2000/xmlns/'
+			domBuilder.startPrefixMapping(nsPrefix, value) 
+		}
+	}
+	var i = el.length;
+	while(i--){
+		a = el[i];
+		var prefix = a.prefix;
+		if(prefix){//no prefix attribute has no namespace
+			if(prefix === 'xml'){
+				a.uri = 'http://www.w3.org/XML/1998/namespace';
+			}if(prefix !== 'xmlns'){
+				a.uri = currentNSMap[prefix]
+			}
+		}
+	}
+	var nsp = tagName.indexOf(':');
+	if(nsp>0){
+		prefix = el.prefix = tagName.slice(0,nsp);
+		localName = el.localName = tagName.slice(nsp+1);
+	}else{
+		prefix = null;//important!!
+		localName = el.localName = tagName;
+	}
+	//no prefix element has default namespace
+	var ns = el.uri = currentNSMap[prefix || ''];
+	domBuilder.startElement(ns,localName,tagName,el);
+	//endPrefixMapping and startPrefixMapping have not any help for dom builder
+	//localNSMap = null
+	if(el.closed){
+		domBuilder.endElement(ns,localName,tagName);
+		if(localNSMap){
+			for(prefix in localNSMap){
+				domBuilder.endPrefixMapping(prefix) 
+			}
+		}
+	}else{
+		el.currentNSMap = currentNSMap;
+		el.localNSMap = localNSMap;
+		parseStack.push(el);
+	}
+}
+function parseHtmlSpecialContent(source,elStartEnd,tagName,entityReplacer,domBuilder){
+	if(/^(?:script|textarea)$/i.test(tagName)){
+		var elEndStart =  source.indexOf('</'+tagName+'>',elStartEnd);
+		var text = source.substring(elStartEnd+1,elEndStart);
+		if(/[&<]/.test(text)){
+			if(/^script$/i.test(tagName)){
+				//if(!/\]\]>/.test(text)){
+					//lexHandler.startCDATA();
+					domBuilder.characters(text,0,text.length);
+					//lexHandler.endCDATA();
+					return elEndStart;
+				//}
+			}//}else{//text area
+				text = text.replace(/&#?\w+;/g,entityReplacer);
+				domBuilder.characters(text,0,text.length);
+				return elEndStart;
+			//}
+			
+		}
+	}
+	return elStartEnd+1;
+}
+function fixSelfClosed(source,elStartEnd,tagName,closeMap){
+	//if(tagName in closeMap){
+	var pos = closeMap[tagName];
+	if(pos == null){
+		//console.log(tagName)
+		pos = closeMap[tagName] = source.lastIndexOf('</'+tagName+'>')
+	}
+	return pos<elStartEnd;
+	//} 
+}
+function _copy(source,target){
+	for(var n in source){target[n] = source[n]}
+}
+function parseDCC(source,start,domBuilder){//sure start with '<!'
+	var next= source.charAt(start+2)
+	switch(next){
+	case '-':
+		if(source.charAt(start + 3) === '-'){
+			var end = source.indexOf('-->',start+4);
+			//append comment source.substring(4,end)//<!--
+			domBuilder.comment(source,start+4,end-start-4);
+			return end+3;
+		}else{
+			//error
+			return -1;
+		}
+	default:
+		if(source.substr(start+3,6) == 'CDATA['){
+			var end = source.indexOf(']]>',start+9);
+			domBuilder.startCDATA();
+			domBuilder.characters(source,start+9,end-start-9);
+			domBuilder.endCDATA() 
+			return end+3;
+		}
+		//<!DOCTYPE
+		//startDTD(java.lang.String name, java.lang.String publicId, java.lang.String systemId) 
+		var matchs = split(source,start);
+		var len = matchs.length;
+		if(len>1 && /!doctype/i.test(matchs[0][0])){
+			var name = matchs[1][0];
+			var pubid = len>3 && /^public$/i.test(matchs[2][0]) && matchs[3][0]
+			var sysid = len>4 && matchs[4][0];
+			var lastMatch = matchs[len-1]
+			domBuilder.startDTD(name,pubid,sysid);
+			domBuilder.endDTD();
+			
+			return lastMatch.index+lastMatch[0].length
+		}
+	}
+	return -1;
+}
+
+
+
+function parseInstruction(source,start,domBuilder){
+	var end = source.indexOf('?>',start);
+	if(end){
+		var match = source.substring(start,end).match(/^<\?(\S*)\s*([\s\S]*?)\s*$/);
+		if(match){
+			var len = match[0].length;
+			domBuilder.processingInstruction(match[1], match[2]) ;
+			return end+2;
+		}else{//error
+			return -1;
+		}
+	}
+	return -1;
+}
+
+/**
+ * @param source
+ */
+function ElementAttributes(source){
+	
+}
+ElementAttributes.prototype = {
+	setTagName:function(tagName){
+		if(!tagNamePattern.test(tagName)){
+			throw new Error('invalid tagName:'+tagName)
+		}
+		this.tagName = tagName
+	},
+	add:function(qName,value,offset){
+		if(!tagNamePattern.test(qName)){
+			throw new Error('invalid attribute:'+qName)
+		}
+		this[this.length++] = {qName:qName,value:value,offset:offset}
+	},
+	length:0,
+	getLocalName:function(i){return this[i].localName},
+	getOffset:function(i){return this[i].offset},
+	getQName:function(i){return this[i].qName},
+	getURI:function(i){return this[i].uri},
+	getValue:function(i){return this[i].value}
+//	,getIndex:function(uri, localName)){
+//		if(localName){
+//			
+//		}else{
+//			var qName = uri
+//		}
+//	},
+//	getValue:function(){return this.getValue(this.getIndex.apply(this,arguments))},
+//	getType:function(uri,localName){}
+//	getType:function(i){},
+}
+
+
+
+
+function _set_proto_(thiz,parent){
+	thiz.__proto__ = parent;
+	return thiz;
+}
+if(!(_set_proto_({},_set_proto_.prototype) instanceof _set_proto_)){
+	_set_proto_ = function(thiz,parent){
+		function p(){};
+		p.prototype = parent;
+		p = new p();
+		for(parent in thiz){
+			p[parent] = thiz[parent];
+		}
+		return p;
+	}
+}
+
+function split(source,start){
+	var match;
+	var buf = [];
+	var reg = /'[^']+'|"[^"]+"|[^\s<>\/=]+=?|(\/?\s*>|<)/g;
+	reg.lastIndex = start;
+	reg.exec(source);//skip <
+	while(match = reg.exec(source)){
+		buf.push(match);
+		if(match[1])return buf;
+	}
+}
+
+if(typeof require == 'function'){
+	exports.XMLReader = XMLReader;
+}
+
+if(typeof require == 'function'){
+exports.XMLReader=XMLReader;
+}
+
+},{}],36:[function(require,module,exports){
 /*
  * DOM Level 2
  * Object DOMException
@@ -19016,577 +19446,203 @@ if(typeof require == 'function'){
 	exports.XMLSerializer = XMLSerializer;
 }
 
-},{}],36:[function(require,module,exports){
-//[4]   	NameStartChar	   ::=   	":" | [A-Z] | "_" | [a-z] | [#xC0-#xD6] | [#xD8-#xF6] | [#xF8-#x2FF] | [#x370-#x37D] | [#x37F-#x1FFF] | [#x200C-#x200D] | [#x2070-#x218F] | [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | [#xFDF0-#xFFFD] | [#x10000-#xEFFFF]
-//[4a]   	NameChar	   ::=   	NameStartChar | "-" | "." | [0-9] | #xB7 | [#x0300-#x036F] | [#x203F-#x2040]
-//[5]   	Name	   ::=   	NameStartChar (NameChar)*
-var nameStartChar = /[A-Z_a-z\xC0-\xD6\xD8-\xF6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]///\u10000-\uEFFFF
-var nameChar = new RegExp("[\\-\\.0-9"+nameStartChar.source.slice(1,-1)+"\u00B7\u0300-\u036F\\ux203F-\u2040]");
-var tagNamePattern = new RegExp('^'+nameStartChar.source+nameChar.source+'*(?:\:'+nameStartChar.source+nameChar.source+'*)?$');
-//var tagNamePattern = /^[a-zA-Z_][\w\-\.]*(?:\:[a-zA-Z_][\w\-\.]*)?$/
-//var handlers = 'resolveEntity,getExternalSubset,characters,endDocument,endElement,endPrefixMapping,ignorableWhitespace,processingInstruction,setDocumentLocator,skippedEntity,startDocument,startElement,startPrefixMapping,notationDecl,unparsedEntityDecl,error,fatalError,warning,attributeDecl,elementDecl,externalEntityDecl,internalEntityDecl,comment,endCDATA,endDTD,endEntity,startCDATA,startDTD,startEntity'.split(',')
+},{}],31:[function(require,module,exports){
+/*
 
-//S_TAG,	S_ATTR,	S_EQ,	S_V
-//S_ATTR_S,	S_E,	S_S,	S_C
-var S_TAG = 0;//tag name offerring
-var S_ATTR = 1;//attr name offerring 
-var S_ATTR_S=2;//attr name end and space offer
-var S_EQ = 3;//=space?
-var S_V = 4;//attr value(no quot value only)
-var S_E = 5;//attr value end and no space(quot end)
-var S_S = 6;//(attr value end || tag end ) && (space offer)
-var S_C = 7;//closed el<el />
+	(The MIT License)
 
-function XMLReader(){
-}
+	Copyright (C) 2005-2013 Kai Davenport
 
-XMLReader.prototype = {
-	parse:function(source,defaultNSMap,entityMap){
-		var domBuilder = this.domBuilder;
-		domBuilder.startDocument();
-		_copy(defaultNSMap ,defaultNSMap = {})
-		parse(source,defaultNSMap,entityMap,
-				domBuilder,this.errorHandler);
-		domBuilder.endDocument();
-	}
-}
-function parse(source,defaultNSMapCopy,entityMap,domBuilder,errorHandler){
-  function fixedFromCharCode(code) {
-		// String.prototype.fromCharCode does not supports
-		// > 2 bytes unicode chars directly
-		if (code > 0xffff) {
-			code -= 0x10000;
-			var surrogate1 = 0xd800 + (code >> 10)
-				, surrogate2 = 0xdc00 + (code & 0x3ff);
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-			return String.fromCharCode(surrogate1, surrogate2);
-		} else {
-			return String.fromCharCode(code);
-		}
-	}
-	function entityReplacer(a){
-		var k = a.slice(1,-1);
-		if(k in entityMap){
-			return entityMap[k]; 
-		}else if(k.charAt(0) === '#'){
-			return fixedFromCharCode(parseInt(k.substr(1).replace('x','0x')))
-		}else{
-			errorHandler.error('entity not found:'+a);
-			return a;
-		}
-	}
-	function appendText(end){//has some bugs
-		var xt = source.substring(start,end).replace(/&#?\w+;/g,entityReplacer);
-		locator&&position(start);
-		domBuilder.characters(xt,0,end-start);
-		start = end
-	}
-	function position(start,m){
-		while(start>=endPos && (m = linePattern.exec(source))){
-			startPos = m.index;
-			endPos = startPos + m[0].length;
-			locator.lineNumber++;
-			//console.log('line++:',locator,startPos,endPos)
-		}
-		locator.columnNumber = start-startPos+1;
-	}
-	var startPos = 0;
-	var endPos = 0;
-	var linePattern = /.+(?:\r\n?|\n)|.*$/g
-	var locator = domBuilder.locator;
-	
-	var parseStack = [{currentNSMap:defaultNSMapCopy}]
-	var closeMap = {};
-	var start = 0;
-	while(true){
-		var i = source.indexOf('<',start);
-		if(i>start){
-			appendText(i);
-		}
-		switch(source.charAt(i+1)){
-		case '/':
-			var end = source.indexOf('>',i+3);
-			var tagName = source.substring(i+2,end);
-			var config = parseStack.pop();
-			var localNSMap = config.localNSMap;
-			
-	        if(config.tagName != tagName){
-	            errorHandler.fatalError("end tag name: "+tagName+' is not match the current start tagName:'+config.tagName );
-	        }
-			domBuilder.endElement(config.uri,config.localName,tagName);
-			if(localNSMap){
-				for(var prefix in localNSMap){
-					domBuilder.endPrefixMapping(prefix) ;
-				}
-			}
-			end++;
-			break;
-			// end elment
-		case '?':// <?...?>
-			locator&&position(i);
-			end = parseInstruction(source,i,domBuilder);
-			break;
-		case '!':// <!doctype,<![CDATA,<!--
-			locator&&position(i);
-			end = parseDCC(source,i,domBuilder);
-			break;
-		default:
-			if(i<0){
-				if(!source.substr(start).match(/^\s*$/)){
-					errorHandler.error('source code out of document root');
-				}
-				return;
-			}else{
-				try{
-					locator&&position(i);
-					var el = new ElementAttributes();
-					//elStartEnd
-					var end = parseElementStartPart(source,i,el,entityReplacer,errorHandler);
-					var len = el.length;
-					//position fixed
-					if(len && locator){
-						var backup = copyLocator(locator,{});
-						for(var i = 0;i<len;i++){
-							var a = el[i];
-							position(a.offset);
-							a.offset = copyLocator(locator,{});
-						}
-						copyLocator(backup,locator);
-					}
-					el.closed = el.closed||fixSelfClosed(source,end,el.tagName,closeMap);
-					appendElement(el,domBuilder,parseStack);
-					
-					
-					if(el.uri === 'http://www.w3.org/1999/xhtml' && !el.closed){
-						end = parseHtmlSpecialContent(source,end,el.tagName,entityReplacer,domBuilder)
-					}else{
-						end++;
-					}
-				}catch(e){
-					errorHandler.error('element parse error: '+e);
-					end = -1;
-				}
-			}
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-		}
-		if(end<0){
-			//TODO: 这里有可能sax回退，有位置错误风险
-			appendText(i+1);
-		}else{
-			start = end;
-		}
-	}
-}
-function copyLocator(f,t){
-	t.lineNumber = f.lineNumber;
-	t.columnNumber = f.columnNumber;
-	return t;
-	
-}
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-/**
- * @see #appendElement(source,elStartEnd,el,selfClosed,entityReplacer,domBuilder,parseStack);
- * @return end of the elementStartPart(end of elementEndPart for selfClosed el)
  */
-function parseElementStartPart(source,start,el,entityReplacer,errorHandler){
-	var attrName;
-	var value;
-	var p = ++start;
-	var s = S_TAG;//status
-	while(true){
-		var c = source.charAt(p);
-		switch(c){
-		case '=':
-			if(s === S_ATTR){//attrName
-				attrName = source.slice(start,p);
-				s = S_EQ;
-			}else if(s === S_ATTR_S){
-				s = S_EQ;
-			}else{
-				//fatalError: equal must after attrName or space after attrName
-				throw new Error('attribute equal must after attrName');
-			}
-			break;
-		case '\'':
-		case '"':
-			if(s === S_EQ){//equal
-				start = p+1;
-				p = source.indexOf(c,start)
-				if(p>0){
-					value = source.slice(start,p).replace(/&#?\w+;/g,entityReplacer);
-					el.add(attrName,value,start-1);
-					s = S_E;
-				}else{
-					//fatalError: no end quot match
-					throw new Error('attribute value no end \''+c+'\' match');
-				}
-			}else if(s == S_V){
-				value = source.slice(start,p).replace(/&#?\w+;/g,entityReplacer);
-				//console.log(attrName,value,start,p)
-				el.add(attrName,value,start);
-				//console.dir(el)
-				errorHandler.warning('attribute "'+attrName+'" missed start quot('+c+')!!');
-				start = p+1;
-				s = S_E
-			}else{
-				//fatalError: no equal before
-				throw new Error('attribute value must after "="');
-			}
-			break;
-		case '/':
-			switch(s){
-			case S_TAG:
-				el.setTagName(source.slice(start,p));
-			case S_E:
-			case S_S:
-			case S_C:
-				s = S_C;
-				el.closed = true;
-			case S_V:
-			case S_ATTR:
-			case S_ATTR_S:
-				break;
-			//case S_EQ:
-			default:
-				throw new Error("attribute invalid close char('/')")
-			}
-			break;
-		case '>':
-			switch(s){
-			case S_TAG:
-				el.setTagName(source.slice(start,p));
-			case S_E:
-			case S_S:
-			case S_C:
-				break;//normal
-			case S_V://Compatible state
-			case S_ATTR:
-				value = source.slice(start,p);
-				if(value.slice(-1) === '/'){
-					el.closed  = true;
-					value = value.slice(0,-1)
-				}
-			case S_ATTR_S:
-				if(s === S_ATTR_S){
-					value = attrName;
-				}
-				if(s == S_V){
-					errorHandler.warning('attribute "'+value+'" missed quot(")!!');
-					el.add(attrName,value.replace(/&#?\w+;/g,entityReplacer),start)
-				}else{
-					errorHandler.warning('attribute "'+value+'" missed value!! "'+value+'" instead!!')
-					el.add(value,value,start)
-				}
-				break;
-			case S_EQ:
-				throw new Error('attribute value missed!!');
-			}
-//			console.log(tagName,tagNamePattern,tagNamePattern.test(tagName))
-			return p;
-		/*xml space '\x20' | #x9 | #xD | #xA; */
-		case '\u0080':
-			c = ' ';
-		default:
-			if(c<= ' '){//space
-				switch(s){
-				case S_TAG:
-					el.setTagName(source.slice(start,p));//tagName
-					s = S_S;
-					break;
-				case S_ATTR:
-					attrName = source.slice(start,p)
-					s = S_ATTR_S;
-					break;
-				case S_V:
-					var value = source.slice(start,p).replace(/&#?\w+;/g,entityReplacer);
-					errorHandler.warning('attribute "'+value+'" missed quot(")!!');
-					el.add(attrName,value,start)
-				case S_E:
-					s = S_S;
-					break;
-				//case S_S:
-				//case S_EQ:
-				//case S_ATTR_S:
-				//	void();break;
-				//case S_C:
-					//ignore warning
-				}
-			}else{//not space
-//S_TAG,	S_ATTR,	S_EQ,	S_V
-//S_ATTR_S,	S_E,	S_S,	S_C
-				switch(s){
-				//case S_TAG:void();break;
-				//case S_ATTR:void();break;
-				//case S_V:void();break;
-				case S_ATTR_S:
-					errorHandler.warning('attribute "'+attrName+'" missed value!! "'+attrName+'" instead!!')
-					el.add(attrName,attrName,start);
-					start = p;
-					s = S_ATTR;
-					break;
-				case S_E:
-					errorHandler.warning('attribute space is required"'+attrName+'"!!')
-				case S_S:
-					s = S_ATTR;
-					start = p;
-					break;
-				case S_EQ:
-					s = S_V;
-					start = p;
-					break;
-				case S_C:
-					throw new Error("elements closed character '/' and '>' must be connected to");
-				}
-			}
-		}
-		p++;
-	}
-}
-/**
- * @return end of the elementStartPart(end of elementEndPart for selfClosed el)
+
+/*
+  Module dependencies.
+*/
+
+var _ = require('lodash');
+var utils = require('../../utils');
+var async = require('async');
+
+/*
+  Quarry.io - Container Search
+  ----------------------------
+
+  Takes a search_from container and an array of strings
+
+  It reverses the strings and does a simulated pipe
+
+
  */
-function appendElement(el,domBuilder,parseStack){
-	var tagName = el.tagName;
-	var localNSMap = null;
-	var currentNSMap = parseStack[parseStack.length-1].currentNSMap;
-	var i = el.length;
-	while(i--){
-		var a = el[i];
-		var qName = a.qName;
-		var value = a.value;
-		var nsp = qName.indexOf(':');
-		if(nsp>0){
-			var prefix = a.prefix = qName.slice(0,nsp);
-			var localName = qName.slice(nsp+1);
-			var nsPrefix = prefix === 'xmlns' && localName
-		}else{
-			localName = qName;
-			prefix = null
-			nsPrefix = qName === 'xmlns' && ''
-		}
-		//can not set prefix,because prefix !== ''
-		a.localName = localName ;
-		//prefix == null for no ns prefix attribute 
-		if(nsPrefix !== false){//hack!!
-			if(localNSMap == null){
-				localNSMap = {}
-				_copy(currentNSMap,currentNSMap={})
-			}
-			currentNSMap[nsPrefix] = localNSMap[nsPrefix] = value;
-			a.uri = 'http://www.w3.org/2000/xmlns/'
-			domBuilder.startPrefixMapping(nsPrefix, value) 
-		}
-	}
-	var i = el.length;
-	while(i--){
-		a = el[i];
-		var prefix = a.prefix;
-		if(prefix){//no prefix attribute has no namespace
-			if(prefix === 'xml'){
-				a.uri = 'http://www.w3.org/XML/1998/namespace';
-			}if(prefix !== 'xmlns'){
-				a.uri = currentNSMap[prefix]
-			}
-		}
-	}
-	var nsp = tagName.indexOf(':');
-	if(nsp>0){
-		prefix = el.prefix = tagName.slice(0,nsp);
-		localName = el.localName = tagName.slice(nsp+1);
-	}else{
-		prefix = null;//important!!
-		localName = el.localName = tagName;
-	}
-	//no prefix element has default namespace
-	var ns = el.uri = currentNSMap[prefix || ''];
-	domBuilder.startElement(ns,localName,tagName,el);
-	//endPrefixMapping and startPrefixMapping have not any help for dom builder
-	//localNSMap = null
-	if(el.closed){
-		domBuilder.endElement(ns,localName,tagName);
-		if(localNSMap){
-			for(prefix in localNSMap){
-				domBuilder.endPrefixMapping(prefix) 
-			}
-		}
-	}else{
-		el.currentNSMap = currentNSMap;
-		el.localNSMap = localNSMap;
-		parseStack.push(el);
-	}
-}
-function parseHtmlSpecialContent(source,elStartEnd,tagName,entityReplacer,domBuilder){
-	if(/^(?:script|textarea)$/i.test(tagName)){
-		var elEndStart =  source.indexOf('</'+tagName+'>',elStartEnd);
-		var text = source.substring(elStartEnd+1,elEndStart);
-		if(/[&<]/.test(text)){
-			if(/^script$/i.test(tagName)){
-				//if(!/\]\]>/.test(text)){
-					//lexHandler.startCDATA();
-					domBuilder.characters(text,0,text.length);
-					//lexHandler.endCDATA();
-					return elEndStart;
-				//}
-			}//}else{//text area
-				text = text.replace(/&#?\w+;/g,entityReplacer);
-				domBuilder.characters(text,0,text.length);
-				return elEndStart;
-			//}
-			
-		}
-	}
-	return elStartEnd+1;
-}
-function fixSelfClosed(source,elStartEnd,tagName,closeMap){
-	//if(tagName in closeMap){
-	var pos = closeMap[tagName];
-	if(pos == null){
-		//console.log(tagName)
-		pos = closeMap[tagName] = source.lastIndexOf('</'+tagName+'>')
-	}
-	return pos<elStartEnd;
-	//} 
-}
-function _copy(source,target){
-	for(var n in source){target[n] = source[n]}
-}
-function parseDCC(source,start,domBuilder){//sure start with '<!'
-	var next= source.charAt(start+2)
-	switch(next){
-	case '-':
-		if(source.charAt(start + 3) === '-'){
-			var end = source.indexOf('-->',start+4);
-			//append comment source.substring(4,end)//<!--
-			domBuilder.comment(source,start+4,end-start-4);
-			return end+3;
-		}else{
-			//error
-			return -1;
-		}
-	default:
-		if(source.substr(start+3,6) == 'CDATA['){
-			var end = source.indexOf(']]>',start+9);
-			domBuilder.startCDATA();
-			domBuilder.characters(source,start+9,end-start-9);
-			domBuilder.endCDATA() 
-			return end+3;
-		}
-		//<!DOCTYPE
-		//startDTD(java.lang.String name, java.lang.String publicId, java.lang.String systemId) 
-		var matchs = split(source,start);
-		var len = matchs.length;
-		if(len>1 && /!doctype/i.test(matchs[0][0])){
-			var name = matchs[1][0];
-			var pubid = len>3 && /^public$/i.test(matchs[2][0]) && matchs[3][0]
-			var sysid = len>4 && matchs[4][0];
-			var lastMatch = matchs[len-1]
-			domBuilder.startDTD(name,pubid,sysid);
-			domBuilder.endDTD();
-			
-			return lastMatch.index+lastMatch[0].length
-		}
-	}
-	return -1;
-}
 
+module.exports.searcher = search;
+module.exports.compiler = compile;
 
-
-function parseInstruction(source,start,domBuilder){
-	var end = source.indexOf('?>',start);
-	if(end){
-		var match = source.substring(start,end).match(/^<\?(\S*)\s*([\s\S]*?)\s*$/);
-		if(match){
-			var len = match[0].length;
-			domBuilder.processingInstruction(match[1], match[2]) ;
-			return end+2;
-		}else{//error
-			return -1;
-		}
-	}
-	return -1;
-}
-
-/**
- * @param source
+/*
+  These functions are used to run attribute selectors over in-memory containers
  */
-function ElementAttributes(source){
-	
-}
-ElementAttributes.prototype = {
-	setTagName:function(tagName){
-		if(!tagNamePattern.test(tagName)){
-			throw new Error('invalid tagName:'+tagName)
-		}
-		this.tagName = tagName
-	},
-	add:function(qName,value,offset){
-		if(!tagNamePattern.test(qName)){
-			throw new Error('invalid attribute:'+qName)
-		}
-		this[this.length++] = {qName:qName,value:value,offset:offset}
-	},
-	length:0,
-	getLocalName:function(i){return this[i].localName},
-	getOffset:function(i){return this[i].offset},
-	getQName:function(i){return this[i].qName},
-	getURI:function(i){return this[i].uri},
-	getValue:function(i){return this[i].value}
-//	,getIndex:function(uri, localName)){
-//		if(localName){
-//			
-//		}else{
-//			var qName = uri
-//		}
-//	},
-//	getValue:function(){return this.getValue(this.getIndex.apply(this,arguments))},
-//	getType:function(uri,localName){}
-//	getType:function(i){},
-}
-
-
-
-
-function _set_proto_(thiz,parent){
-	thiz.__proto__ = parent;
-	return thiz;
-}
-if(!(_set_proto_({},_set_proto_.prototype) instanceof _set_proto_)){
-	_set_proto_ = function(thiz,parent){
-		function p(){};
-		p.prototype = parent;
-		p = new p();
-		for(parent in thiz){
-			p[parent] = thiz[parent];
-		}
-		return p;
-	}
+var attr_compare_functions = {
+  "=":function(check, target){
+    return !_.isUndefined(check) && check==target;
+  },
+  "!=":function(check, target){
+    return !_.isUndefined(check) && check!=target;
+  },
+  ">":function(check, target){
+    target = parseFloat(target);
+    return !_.isUndefined(check) && !isNaN(target) ? check > target : false;
+  },
+  ">=":function(check, target){
+    target = parseFloat(target);
+    return !_.isUndefined(check) && !isNaN(target) ? check >= target : false;
+  },
+  "<":function(check, target){
+    target = parseFloat(target);
+    return !_.isUndefined(check) && !isNaN(target) ? check < target : false;
+  },
+  "<=":function(check, target){
+    target = parseFloat(target);
+    return !_.isUndefined(check) && !isNaN(target) ? check <= target : false;
+  },
+  "^=":function(check, target){
+    return !_.isUndefined(check) && check.match(new RegExp('^' + utils.escapeRegexp(target), 'i')) !== null;
+  },
+  "$=":function(check, target){
+    return !_.isUndefined(check) && check.match(new RegExp(utils.escapeRegexp(target) + '$', 'i')) !== null;
+  },
+  "~=":function(check, target){
+    return !_.isUndefined(check) && check.match(new RegExp('\\W' + utils.escapeRegexp(target) + '\\W', 'i')) !== null;
+  },
+  "|=":function(check, target){
+    return !_.isUndefined(check) && check.match(new RegExp('^' + utils.escapeRegexp(target) + '-', 'i')) !== null;
+  },
+  "*=":function(check, target){
+    return !_.isUndefined(check) && check.match(new RegExp(utils.escapeRegexp(target), 'i')) !== null;
+  }
 }
 
-function split(source,start){
-	var match;
-	var buf = [];
-	var reg = /'[^']+'|"[^"]+"|[^\s<>\/=]+=?|(\/?\s*>|<)/g;
-	reg.lastIndex = start;
-	reg.exec(source);//skip <
-	while(match = reg.exec(source)){
-		buf.push(match);
-		if(match[1])return buf;
-	}
+/*
+
+  Turn a selector object into a compiled function to have containers run through
+  
+ */
+
+function compile(selector){
+
+  // return a function that will return boolean for a container matching this selector
+  return function(container){
+
+    // we step through one at a time - as soon as something fails we do not match
+
+    // if we have a wildcard then we pass
+    if(selector.tag=='*'){
+      return true;
+    }
+
+    // #id
+    if(selector.id && container.id()!=selector.id){      
+      return false;
+    }
+
+    // =diggerid
+    if(selector.diggerid && container.diggerid()!=selector.diggerid){
+      return false;
+    }
+
+    // tagname
+    if(selector.tag && container.tag()!=selector.tag){
+      return false;
+    }
+  
+    // classnames
+    if(selector.class){
+      // make sure ALL of the classnames in the selector are in the container
+      return _.all(_.keys(selector.class), function(classname){
+        return container.hasClass(classname);
+      })
+    }
+    
+    if(selector.attr){
+
+      var all_attributes_passed = _.all(selector.attr, function(attr_filter){
+
+        var check_value = container.attr(attr_filter.field);
+        var operator_function = attr_compare_functions[attr_filter.operator];
+
+        // [size]
+        if(!attr_filter.value){
+          return check_value !== null;
+        }
+        // [size>100]
+        else if(operator_function){
+          return operator_function.apply(null, [check_value, attr_filter.value]);
+        }
+        // no operator function found
+        else{
+          return false;
+        }
+      })
+
+      if(!all_attributes_passed){
+        return false;
+      }
+
+    }
+
+    return true;
+      
+  }
 }
 
-if(typeof require == 'function'){
-	exports.XMLReader = XMLReader;
-}
+function search(selector, context){
 
-if(typeof require == 'function'){
-exports.XMLReader=XMLReader;
-}
+  var selector_filter = compile(selector);
 
-},{}],34:[function(require,module,exports){
+  var search_in = context;
+
+  // we must now turn the search_from container into a flat array of the things to actually search
+
+  // direct child mode
+  if(selector.splitter=='>'){
+    search_in = context.children();
+  }
+  // direct parent mode
+  else if(selector.splitter=='<'){
+    throw new Error('we do not support the parent splitter at the moment');
+  }
+  // all descendents mode
+  else{
+    search_in = context.descendents();
+  }
+
+  // now we loop each child container piping it via the selector filter
+  var ret = search_in.filter(selector_filter);
+
+  var modifier = selector.modifier || {};
+
+  if(modifier.limit){
+    ret.models = ret.models.slice(0, modifier.limit);
+  }
+
+  if(modifier.first && ret.models.length>0){
+    ret.models = [ret.models[0]];
+  }
+  else if(modifier.last && ret.models.length>0){
+    ret.models = [ret.models[ret.models.length-1]];
+  }
+
+  return ret;
+}
+},{"../../utils":17,"lodash":7,"async":8}],35:[function(require,module,exports){
 module.exports = Object.keys || require('./shim');
 
 
-},{"./shim":37}],37:[function(require,module,exports){
+},{"./shim":38}],38:[function(require,module,exports){
 (function () {
 	"use strict";
 
@@ -19632,7 +19688,7 @@ module.exports = Object.keys || require('./shim');
 }());
 
 
-},{"foreach":38,"is":39}],38:[function(require,module,exports){
+},{"foreach":39,"is":40}],39:[function(require,module,exports){
 
 var hasOwn = Object.prototype.hasOwnProperty;
 
@@ -19655,7 +19711,7 @@ module.exports = function forEach (obj, fn, ctx) {
 };
 
 
-},{}],39:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 
 /**!
  * is
@@ -20359,5 +20415,5 @@ is.string = function (value) {
 };
 
 
-},{}]},{},[6])
+},{}]},{},[4])
 ;

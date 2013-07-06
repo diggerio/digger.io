@@ -12,7 +12,7 @@
 
  */
 
-process.env.DIGGERSERVER = '0.0.8';
+process.env.DIGGERSERVER = require(__dirname + '/../package.json').version;
 
 function getErrorObject(){
     try { throw Error('') } catch(err) { return err; }

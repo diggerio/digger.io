@@ -30,8 +30,11 @@
   
 */
 var bootstrap = require('./bootstrap');
+var path = require('path');
 
 var exports = module.exports = {
+
+  version:require(__dirname + '../packagejson'),
 
   /*
   
@@ -48,6 +51,7 @@ var exports = module.exports = {
     
   */
 	container:require('./container/proto').factory,
+  proto:require('./container/proto'),
   create:require('./container/proto').factory,
   selector:require('./container/selector'),
 
@@ -64,6 +68,10 @@ var exports = module.exports = {
   contract:require('./network/contract').factory,
   pipe:require('./network/async').pipe,
   merge:require('./network/async').merge,
+
+  browserapi_path:function(){
+    return path.normalize(__dirname + '/../build/container.js');
+  },
 
   /*
   

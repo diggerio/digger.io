@@ -30,6 +30,8 @@ var async = require('async');
 var isready = false;
 var readycallbacks = [];
 
+var version = require('../../package.json').version;
+
 function $digger(){
 	/*
 	
@@ -45,6 +47,8 @@ function $digger(){
 		}
 	}
 }
+
+$digger.version = version;
 
 $digger._trigger_ready = function(){
 	_.each(readycallbacks, function(fn){

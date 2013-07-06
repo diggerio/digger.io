@@ -108,6 +108,8 @@ $digger.connect = function(stackpath){
 */
 $digger.Proto = Proto;
 $digger.create = $digger.Proto.factory;
+$digger.config = {};
+$digger.user = null;
 
 window._ = _;
 window.async = async;

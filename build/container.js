@@ -291,6 +291,495 @@ EventEmitter.prototype.listeners = function(type) {
 
 })(require("__browserify_process"))
 },{"__browserify_process":2}],4:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+var Proto = require('./proto');
+var SupplyChain = require('../warehouse/supplychain');
+
+var _ = require('lodash');
+var async = require('async');
+
+/*
+
+	$digger is the default on ready handler
+	
+*/
+
+var isready = false;
+var readycallbacks = [];
+
+var version = require('../../package.json').version;
+
+function $digger(){
+	/*
+	
+		a ready handler
+		
+	*/
+	if(_.isFunction(arguments[0])){
+		if(isready){
+			arguments[0].apply($digger, [$digger]);
+		}
+		else{
+			readycallbacks.push(arguments[0]);
+		}
+	}
+}
+
+$digger.version = version;
+
+$digger._trigger_ready = function(){
+	_.each(readycallbacks, function(fn){
+		fn.apply($digger, [$digger]);
+	})
+	readycallbacks = [];
+	isready = true;
+}
+
+/*
+
+	this connects the socket
+
+	it is passed any config by the server
+	
+*/
+$digger.bootstrap = function(config){
+
+	config = _.extend({}, config.windowconfig, config.userconfig);
+	readycallbacks = readycallbacks.concat(config.readycallbacks || []);
+	
+	config = _.defaults(config, {
+		protocol:'http://',
+		host:'digger.io',
+		channel:null
+	})
+
+	console.log('-------------------------------------------');
+	console.log('digger.io browserapi version: ' + $digger.version);
+
+	var socket_address = [config.protocol, config.host, '/', config.channel].join('');
+	console.log('connecting to socket: ' + socket_address);
+
+	var socket = io.connect(socket_address);
+
+	socket.on('connect', function(){
+		console.log('socket connected');
+		if(config.user){
+			$digger.user = Proto.factory(config.user); 
+			console.log('digger user: ' + $digger.user.attr('name'));
+		}
+		$digger._trigger_ready();
+	})
+
+	/*
+	
+		this is the client side container plugged into the socket.io transport
+		
+	*/
+	$digger.supplychain = SupplyChain(function(req, res){
+		socket.emit('request', req.toJSON(), function(rawres){
+			res.fill(rawres);
+		})
+	})
+
+	$digger.config = _.extend({}, config, window.$diggerconfig);	
+}
+
+/*
+
+	get a container that has a socket supply chain hooked up to the given stackpath
+	
+*/
+$digger.connect = function(stackpath){
+	if(!this.supplychain){
+		throw new Error('there is no supplychain - this means we are not yet connected - place code inside of $digger(function(){})');
+	}
+
+	return $digger.supplychain.connect(stackpath);
+}
+
+/*
+
+	we export these vars to the window immediately - everything else is done inside the $digger handler
+	
+*/
+$digger.Proto = Proto;
+$digger.create = Proto.factory;
+$digger.config = {};
+$digger.user = null;
+
+window._ = _;
+window.async = async;
+window.$digger = $digger;
+},{"../warehouse/supplychain":5,"../../package.json":1,"./proto":6,"async":7,"lodash":8}],9:[function(require,module,exports){
+var events = require('events');
+
+exports.isArray = isArray;
+exports.isDate = function(obj){return Object.prototype.toString.call(obj) === '[object Date]'};
+exports.isRegExp = function(obj){return Object.prototype.toString.call(obj) === '[object RegExp]'};
+
+
+exports.print = function () {};
+exports.puts = function () {};
+exports.debug = function() {};
+
+exports.inspect = function(obj, showHidden, depth, colors) {
+  var seen = [];
+
+  var stylize = function(str, styleType) {
+    // http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
+    var styles =
+        { 'bold' : [1, 22],
+          'italic' : [3, 23],
+          'underline' : [4, 24],
+          'inverse' : [7, 27],
+          'white' : [37, 39],
+          'grey' : [90, 39],
+          'black' : [30, 39],
+          'blue' : [34, 39],
+          'cyan' : [36, 39],
+          'green' : [32, 39],
+          'magenta' : [35, 39],
+          'red' : [31, 39],
+          'yellow' : [33, 39] };
+
+    var style =
+        { 'special': 'cyan',
+          'number': 'blue',
+          'boolean': 'yellow',
+          'undefined': 'grey',
+          'null': 'bold',
+          'string': 'green',
+          'date': 'magenta',
+          // "name": intentionally not styling
+          'regexp': 'red' }[styleType];
+
+    if (style) {
+      return '\033[' + styles[style][0] + 'm' + str +
+             '\033[' + styles[style][1] + 'm';
+    } else {
+      return str;
+    }
+  };
+  if (! colors) {
+    stylize = function(str, styleType) { return str; };
+  }
+
+  function format(value, recurseTimes) {
+    // Provide a hook for user-specified inspect functions.
+    // Check that value is an object with an inspect function on it
+    if (value && typeof value.inspect === 'function' &&
+        // Filter out the util module, it's inspect function is special
+        value !== exports &&
+        // Also filter out any prototype objects using the circular check.
+        !(value.constructor && value.constructor.prototype === value)) {
+      return value.inspect(recurseTimes);
+    }
+
+    // Primitive types cannot have properties
+    switch (typeof value) {
+      case 'undefined':
+        return stylize('undefined', 'undefined');
+
+      case 'string':
+        var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
+                                                 .replace(/'/g, "\\'")
+                                                 .replace(/\\"/g, '"') + '\'';
+        return stylize(simple, 'string');
+
+      case 'number':
+        return stylize('' + value, 'number');
+
+      case 'boolean':
+        return stylize('' + value, 'boolean');
+    }
+    // For some reason typeof null is "object", so special case here.
+    if (value === null) {
+      return stylize('null', 'null');
+    }
+
+    // Look up the keys of the object.
+    var visible_keys = Object_keys(value);
+    var keys = showHidden ? Object_getOwnPropertyNames(value) : visible_keys;
+
+    // Functions without properties can be shortcutted.
+    if (typeof value === 'function' && keys.length === 0) {
+      if (isRegExp(value)) {
+        return stylize('' + value, 'regexp');
+      } else {
+        var name = value.name ? ': ' + value.name : '';
+        return stylize('[Function' + name + ']', 'special');
+      }
+    }
+
+    // Dates without properties can be shortcutted
+    if (isDate(value) && keys.length === 0) {
+      return stylize(value.toUTCString(), 'date');
+    }
+
+    var base, type, braces;
+    // Determine the object type
+    if (isArray(value)) {
+      type = 'Array';
+      braces = ['[', ']'];
+    } else {
+      type = 'Object';
+      braces = ['{', '}'];
+    }
+
+    // Make functions say that they are functions
+    if (typeof value === 'function') {
+      var n = value.name ? ': ' + value.name : '';
+      base = (isRegExp(value)) ? ' ' + value : ' [Function' + n + ']';
+    } else {
+      base = '';
+    }
+
+    // Make dates with properties first say the date
+    if (isDate(value)) {
+      base = ' ' + value.toUTCString();
+    }
+
+    if (keys.length === 0) {
+      return braces[0] + base + braces[1];
+    }
+
+    if (recurseTimes < 0) {
+      if (isRegExp(value)) {
+        return stylize('' + value, 'regexp');
+      } else {
+        return stylize('[Object]', 'special');
+      }
+    }
+
+    seen.push(value);
+
+    var output = keys.map(function(key) {
+      var name, str;
+      if (value.__lookupGetter__) {
+        if (value.__lookupGetter__(key)) {
+          if (value.__lookupSetter__(key)) {
+            str = stylize('[Getter/Setter]', 'special');
+          } else {
+            str = stylize('[Getter]', 'special');
+          }
+        } else {
+          if (value.__lookupSetter__(key)) {
+            str = stylize('[Setter]', 'special');
+          }
+        }
+      }
+      if (visible_keys.indexOf(key) < 0) {
+        name = '[' + key + ']';
+      }
+      if (!str) {
+        if (seen.indexOf(value[key]) < 0) {
+          if (recurseTimes === null) {
+            str = format(value[key]);
+          } else {
+            str = format(value[key], recurseTimes - 1);
+          }
+          if (str.indexOf('\n') > -1) {
+            if (isArray(value)) {
+              str = str.split('\n').map(function(line) {
+                return '  ' + line;
+              }).join('\n').substr(2);
+            } else {
+              str = '\n' + str.split('\n').map(function(line) {
+                return '   ' + line;
+              }).join('\n');
+            }
+          }
+        } else {
+          str = stylize('[Circular]', 'special');
+        }
+      }
+      if (typeof name === 'undefined') {
+        if (type === 'Array' && key.match(/^\d+$/)) {
+          return str;
+        }
+        name = JSON.stringify('' + key);
+        if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
+          name = name.substr(1, name.length - 2);
+          name = stylize(name, 'name');
+        } else {
+          name = name.replace(/'/g, "\\'")
+                     .replace(/\\"/g, '"')
+                     .replace(/(^"|"$)/g, "'");
+          name = stylize(name, 'string');
+        }
+      }
+
+      return name + ': ' + str;
+    });
+
+    seen.pop();
+
+    var numLinesEst = 0;
+    var length = output.reduce(function(prev, cur) {
+      numLinesEst++;
+      if (cur.indexOf('\n') >= 0) numLinesEst++;
+      return prev + cur.length + 1;
+    }, 0);
+
+    if (length > 50) {
+      output = braces[0] +
+               (base === '' ? '' : base + '\n ') +
+               ' ' +
+               output.join(',\n  ') +
+               ' ' +
+               braces[1];
+
+    } else {
+      output = braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
+    }
+
+    return output;
+  }
+  return format(obj, (typeof depth === 'undefined' ? 2 : depth));
+};
+
+
+function isArray(ar) {
+  return ar instanceof Array ||
+         Array.isArray(ar) ||
+         (ar && ar !== Object.prototype && isArray(ar.__proto__));
+}
+
+
+function isRegExp(re) {
+  return re instanceof RegExp ||
+    (typeof re === 'object' && Object.prototype.toString.call(re) === '[object RegExp]');
+}
+
+
+function isDate(d) {
+  if (d instanceof Date) return true;
+  if (typeof d !== 'object') return false;
+  var properties = Date.prototype && Object_getOwnPropertyNames(Date.prototype);
+  var proto = d.__proto__ && Object_getOwnPropertyNames(d.__proto__);
+  return JSON.stringify(proto) === JSON.stringify(properties);
+}
+
+function pad(n) {
+  return n < 10 ? '0' + n.toString(10) : n.toString(10);
+}
+
+var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
+              'Oct', 'Nov', 'Dec'];
+
+// 26 Feb 16:19:34
+function timestamp() {
+  var d = new Date();
+  var time = [pad(d.getHours()),
+              pad(d.getMinutes()),
+              pad(d.getSeconds())].join(':');
+  return [d.getDate(), months[d.getMonth()], time].join(' ');
+}
+
+exports.log = function (msg) {};
+
+exports.pump = null;
+
+var Object_keys = Object.keys || function (obj) {
+    var res = [];
+    for (var key in obj) res.push(key);
+    return res;
+};
+
+var Object_getOwnPropertyNames = Object.getOwnPropertyNames || function (obj) {
+    var res = [];
+    for (var key in obj) {
+        if (Object.hasOwnProperty.call(obj, key)) res.push(key);
+    }
+    return res;
+};
+
+var Object_create = Object.create || function (prototype, properties) {
+    // from es5-shim
+    var object;
+    if (prototype === null) {
+        object = { '__proto__' : null };
+    }
+    else {
+        if (typeof prototype !== 'object') {
+            throw new TypeError(
+                'typeof prototype[' + (typeof prototype) + '] != \'object\''
+            );
+        }
+        var Type = function () {};
+        Type.prototype = prototype;
+        object = new Type();
+        object.__proto__ = prototype;
+    }
+    if (typeof properties !== 'undefined' && Object.defineProperties) {
+        Object.defineProperties(object, properties);
+    }
+    return object;
+};
+
+exports.inherits = function(ctor, superCtor) {
+  ctor.super_ = superCtor;
+  ctor.prototype = Object_create(superCtor.prototype, {
+    constructor: {
+      value: ctor,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    }
+  });
+};
+
+var formatRegExp = /%[sdj%]/g;
+exports.format = function(f) {
+  if (typeof f !== 'string') {
+    var objects = [];
+    for (var i = 0; i < arguments.length; i++) {
+      objects.push(exports.inspect(arguments[i]));
+    }
+    return objects.join(' ');
+  }
+
+  var i = 1;
+  var args = arguments;
+  var len = args.length;
+  var str = String(f).replace(formatRegExp, function(x) {
+    if (x === '%%') return '%';
+    if (i >= len) return x;
+    switch (x) {
+      case '%s': return String(args[i++]);
+      case '%d': return Number(args[i++]);
+      case '%j': return JSON.stringify(args[i++]);
+      default:
+        return x;
+    }
+  });
+  for(var x = args[i]; i < len; x = args[++i]){
+    if (x === null || typeof x !== 'object') {
+      str += ' ' + x;
+    } else {
+      str += ' ' + exports.inspect(x);
+    }
+  }
+  return str;
+};
+
+},{"events":3}],10:[function(require,module,exports){
 var punycode = { encode : function (s) { return s } };
 
 exports.parse = urlParse;
@@ -896,492 +1385,7 @@ function parseHost(host) {
   return out;
 }
 
-},{"querystring":5}],6:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-var Proto = require('./proto');
-var SupplyChain = require('../warehouse/supplychain');
-
-var _ = require('lodash');
-var async = require('async');
-
-/*
-
-	$digger is the default on ready handler
-	
-*/
-
-var isready = false;
-var readycallbacks = [];
-
-var version = require('../../package.json').version;
-
-function $digger(){
-	/*
-	
-		a ready handler
-		
-	*/
-	if(_.isFunction(arguments[0])){
-		if(isready){
-			arguments[0].apply($digger, [$digger]);
-		}
-		else{
-			readycallbacks.push(arguments[0]);
-		}
-	}
-}
-
-$digger.version = version;
-
-$digger._trigger_ready = function(){
-	_.each(readycallbacks, function(fn){
-		fn.apply($digger, [$digger]);
-	})
-	readycallbacks = [];
-}
-
-/*
-
-	this connects the socket
-
-	it is passed any config by the server
-	
-*/
-$digger.bootstrap = function(config){
-
-	config = _.extend({}, config.windowconfig, config.userconfig);
-	readycallbacks = readycallbacks.concat(config.readycallbacks || []);
-	
-	config = _.defaults(config, {
-		protocol:'http://',
-		host:'digger.io',
-		channel:null
-	})
-
-	var socket_address = [config.protocol, config.host, '/', config.channel].join('');
-	console.log('connecting to socket: ' + socket_address);
-
-	var socket = io.connect(socket_address);
-
-	socket.on('connect', function(){
-		$digger._trigger_ready();
-	})
-
-	/*
-	
-		this is the client side container plugged into the socket.io transport
-		
-	*/
-	$digger.supplychain = SupplyChain(function(req, res){
-		socket.emit('request', req.toJSON(), function(rawres){
-			res.fill(rawres);
-		})
-	})
-
-	$digger.config = _.extend({}, config, window.$diggerconfig);
-
-	if(config.user){
-		$digger.user = Proto.factory(config.user); 
-		console.log('digger user: ' + $digger.user.attr('name'));
-	}
-}
-
-/*
-
-	get a container that has a socket supply chain hooked up to the given stackpath
-	
-*/
-$digger.connect = function(stackpath){
-	if(!this.supplychain){
-		throw new Error('there is no supplychain - this means we are not yet connected - place code inside of $digger(function(){})');
-	}
-
-	return $digger.supplychain.connect(stackpath);
-}
-
-/*
-
-	we export these vars to the window immediately - everything else is done inside the $digger handler
-	
-*/
-$digger.Proto = Proto;
-$digger.create = Proto.factory;
-$digger.config = {};
-$digger.user = null;
-
-window._ = _;
-window.async = async;
-window.$digger = $digger;
-},{"../../package.json":1,"./proto":7,"../warehouse/supplychain":8,"async":9,"lodash":10}],11:[function(require,module,exports){
-var events = require('events');
-
-exports.isArray = isArray;
-exports.isDate = function(obj){return Object.prototype.toString.call(obj) === '[object Date]'};
-exports.isRegExp = function(obj){return Object.prototype.toString.call(obj) === '[object RegExp]'};
-
-
-exports.print = function () {};
-exports.puts = function () {};
-exports.debug = function() {};
-
-exports.inspect = function(obj, showHidden, depth, colors) {
-  var seen = [];
-
-  var stylize = function(str, styleType) {
-    // http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
-    var styles =
-        { 'bold' : [1, 22],
-          'italic' : [3, 23],
-          'underline' : [4, 24],
-          'inverse' : [7, 27],
-          'white' : [37, 39],
-          'grey' : [90, 39],
-          'black' : [30, 39],
-          'blue' : [34, 39],
-          'cyan' : [36, 39],
-          'green' : [32, 39],
-          'magenta' : [35, 39],
-          'red' : [31, 39],
-          'yellow' : [33, 39] };
-
-    var style =
-        { 'special': 'cyan',
-          'number': 'blue',
-          'boolean': 'yellow',
-          'undefined': 'grey',
-          'null': 'bold',
-          'string': 'green',
-          'date': 'magenta',
-          // "name": intentionally not styling
-          'regexp': 'red' }[styleType];
-
-    if (style) {
-      return '\033[' + styles[style][0] + 'm' + str +
-             '\033[' + styles[style][1] + 'm';
-    } else {
-      return str;
-    }
-  };
-  if (! colors) {
-    stylize = function(str, styleType) { return str; };
-  }
-
-  function format(value, recurseTimes) {
-    // Provide a hook for user-specified inspect functions.
-    // Check that value is an object with an inspect function on it
-    if (value && typeof value.inspect === 'function' &&
-        // Filter out the util module, it's inspect function is special
-        value !== exports &&
-        // Also filter out any prototype objects using the circular check.
-        !(value.constructor && value.constructor.prototype === value)) {
-      return value.inspect(recurseTimes);
-    }
-
-    // Primitive types cannot have properties
-    switch (typeof value) {
-      case 'undefined':
-        return stylize('undefined', 'undefined');
-
-      case 'string':
-        var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
-                                                 .replace(/'/g, "\\'")
-                                                 .replace(/\\"/g, '"') + '\'';
-        return stylize(simple, 'string');
-
-      case 'number':
-        return stylize('' + value, 'number');
-
-      case 'boolean':
-        return stylize('' + value, 'boolean');
-    }
-    // For some reason typeof null is "object", so special case here.
-    if (value === null) {
-      return stylize('null', 'null');
-    }
-
-    // Look up the keys of the object.
-    var visible_keys = Object_keys(value);
-    var keys = showHidden ? Object_getOwnPropertyNames(value) : visible_keys;
-
-    // Functions without properties can be shortcutted.
-    if (typeof value === 'function' && keys.length === 0) {
-      if (isRegExp(value)) {
-        return stylize('' + value, 'regexp');
-      } else {
-        var name = value.name ? ': ' + value.name : '';
-        return stylize('[Function' + name + ']', 'special');
-      }
-    }
-
-    // Dates without properties can be shortcutted
-    if (isDate(value) && keys.length === 0) {
-      return stylize(value.toUTCString(), 'date');
-    }
-
-    var base, type, braces;
-    // Determine the object type
-    if (isArray(value)) {
-      type = 'Array';
-      braces = ['[', ']'];
-    } else {
-      type = 'Object';
-      braces = ['{', '}'];
-    }
-
-    // Make functions say that they are functions
-    if (typeof value === 'function') {
-      var n = value.name ? ': ' + value.name : '';
-      base = (isRegExp(value)) ? ' ' + value : ' [Function' + n + ']';
-    } else {
-      base = '';
-    }
-
-    // Make dates with properties first say the date
-    if (isDate(value)) {
-      base = ' ' + value.toUTCString();
-    }
-
-    if (keys.length === 0) {
-      return braces[0] + base + braces[1];
-    }
-
-    if (recurseTimes < 0) {
-      if (isRegExp(value)) {
-        return stylize('' + value, 'regexp');
-      } else {
-        return stylize('[Object]', 'special');
-      }
-    }
-
-    seen.push(value);
-
-    var output = keys.map(function(key) {
-      var name, str;
-      if (value.__lookupGetter__) {
-        if (value.__lookupGetter__(key)) {
-          if (value.__lookupSetter__(key)) {
-            str = stylize('[Getter/Setter]', 'special');
-          } else {
-            str = stylize('[Getter]', 'special');
-          }
-        } else {
-          if (value.__lookupSetter__(key)) {
-            str = stylize('[Setter]', 'special');
-          }
-        }
-      }
-      if (visible_keys.indexOf(key) < 0) {
-        name = '[' + key + ']';
-      }
-      if (!str) {
-        if (seen.indexOf(value[key]) < 0) {
-          if (recurseTimes === null) {
-            str = format(value[key]);
-          } else {
-            str = format(value[key], recurseTimes - 1);
-          }
-          if (str.indexOf('\n') > -1) {
-            if (isArray(value)) {
-              str = str.split('\n').map(function(line) {
-                return '  ' + line;
-              }).join('\n').substr(2);
-            } else {
-              str = '\n' + str.split('\n').map(function(line) {
-                return '   ' + line;
-              }).join('\n');
-            }
-          }
-        } else {
-          str = stylize('[Circular]', 'special');
-        }
-      }
-      if (typeof name === 'undefined') {
-        if (type === 'Array' && key.match(/^\d+$/)) {
-          return str;
-        }
-        name = JSON.stringify('' + key);
-        if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
-          name = name.substr(1, name.length - 2);
-          name = stylize(name, 'name');
-        } else {
-          name = name.replace(/'/g, "\\'")
-                     .replace(/\\"/g, '"')
-                     .replace(/(^"|"$)/g, "'");
-          name = stylize(name, 'string');
-        }
-      }
-
-      return name + ': ' + str;
-    });
-
-    seen.pop();
-
-    var numLinesEst = 0;
-    var length = output.reduce(function(prev, cur) {
-      numLinesEst++;
-      if (cur.indexOf('\n') >= 0) numLinesEst++;
-      return prev + cur.length + 1;
-    }, 0);
-
-    if (length > 50) {
-      output = braces[0] +
-               (base === '' ? '' : base + '\n ') +
-               ' ' +
-               output.join(',\n  ') +
-               ' ' +
-               braces[1];
-
-    } else {
-      output = braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
-    }
-
-    return output;
-  }
-  return format(obj, (typeof depth === 'undefined' ? 2 : depth));
-};
-
-
-function isArray(ar) {
-  return ar instanceof Array ||
-         Array.isArray(ar) ||
-         (ar && ar !== Object.prototype && isArray(ar.__proto__));
-}
-
-
-function isRegExp(re) {
-  return re instanceof RegExp ||
-    (typeof re === 'object' && Object.prototype.toString.call(re) === '[object RegExp]');
-}
-
-
-function isDate(d) {
-  if (d instanceof Date) return true;
-  if (typeof d !== 'object') return false;
-  var properties = Date.prototype && Object_getOwnPropertyNames(Date.prototype);
-  var proto = d.__proto__ && Object_getOwnPropertyNames(d.__proto__);
-  return JSON.stringify(proto) === JSON.stringify(properties);
-}
-
-function pad(n) {
-  return n < 10 ? '0' + n.toString(10) : n.toString(10);
-}
-
-var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
-              'Oct', 'Nov', 'Dec'];
-
-// 26 Feb 16:19:34
-function timestamp() {
-  var d = new Date();
-  var time = [pad(d.getHours()),
-              pad(d.getMinutes()),
-              pad(d.getSeconds())].join(':');
-  return [d.getDate(), months[d.getMonth()], time].join(' ');
-}
-
-exports.log = function (msg) {};
-
-exports.pump = null;
-
-var Object_keys = Object.keys || function (obj) {
-    var res = [];
-    for (var key in obj) res.push(key);
-    return res;
-};
-
-var Object_getOwnPropertyNames = Object.getOwnPropertyNames || function (obj) {
-    var res = [];
-    for (var key in obj) {
-        if (Object.hasOwnProperty.call(obj, key)) res.push(key);
-    }
-    return res;
-};
-
-var Object_create = Object.create || function (prototype, properties) {
-    // from es5-shim
-    var object;
-    if (prototype === null) {
-        object = { '__proto__' : null };
-    }
-    else {
-        if (typeof prototype !== 'object') {
-            throw new TypeError(
-                'typeof prototype[' + (typeof prototype) + '] != \'object\''
-            );
-        }
-        var Type = function () {};
-        Type.prototype = prototype;
-        object = new Type();
-        object.__proto__ = prototype;
-    }
-    if (typeof properties !== 'undefined' && Object.defineProperties) {
-        Object.defineProperties(object, properties);
-    }
-    return object;
-};
-
-exports.inherits = function(ctor, superCtor) {
-  ctor.super_ = superCtor;
-  ctor.prototype = Object_create(superCtor.prototype, {
-    constructor: {
-      value: ctor,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
-};
-
-var formatRegExp = /%[sdj%]/g;
-exports.format = function(f) {
-  if (typeof f !== 'string') {
-    var objects = [];
-    for (var i = 0; i < arguments.length; i++) {
-      objects.push(exports.inspect(arguments[i]));
-    }
-    return objects.join(' ');
-  }
-
-  var i = 1;
-  var args = arguments;
-  var len = args.length;
-  var str = String(f).replace(formatRegExp, function(x) {
-    if (x === '%%') return '%';
-    if (i >= len) return x;
-    switch (x) {
-      case '%s': return String(args[i++]);
-      case '%d': return Number(args[i++]);
-      case '%j': return JSON.stringify(args[i++]);
-      default:
-        return x;
-    }
-  });
-  for(var x = args[i]; i < len; x = args[++i]){
-    if (x === null || typeof x !== 'object') {
-      str += ' ' + x;
-    } else {
-      str += ' ' + exports.inspect(x);
-    }
-  }
-  return str;
-};
-
-},{"events":3}],9:[function(require,module,exports){
+},{"querystring":11}],7:[function(require,module,exports){
 (function(process){/*global setImmediate: false, setTimeout: false, console: false */
 (function () {
 
@@ -2339,326 +2343,7 @@ exports.format = function(f) {
 }());
 
 })(require("__browserify_process"))
-},{"__browserify_process":2}],5:[function(require,module,exports){
-
-/**
- * Object#toString() ref for stringify().
- */
-
-var toString = Object.prototype.toString;
-
-/**
- * Array#indexOf shim.
- */
-
-var indexOf = typeof Array.prototype.indexOf === 'function'
-  ? function(arr, el) { return arr.indexOf(el); }
-  : function(arr, el) {
-      for (var i = 0; i < arr.length; i++) {
-        if (arr[i] === el) return i;
-      }
-      return -1;
-    };
-
-/**
- * Array.isArray shim.
- */
-
-var isArray = Array.isArray || function(arr) {
-  return toString.call(arr) == '[object Array]';
-};
-
-/**
- * Object.keys shim.
- */
-
-var objectKeys = Object.keys || function(obj) {
-  var ret = [];
-  for (var key in obj) ret.push(key);
-  return ret;
-};
-
-/**
- * Array#forEach shim.
- */
-
-var forEach = typeof Array.prototype.forEach === 'function'
-  ? function(arr, fn) { return arr.forEach(fn); }
-  : function(arr, fn) {
-      for (var i = 0; i < arr.length; i++) fn(arr[i]);
-    };
-
-/**
- * Array#reduce shim.
- */
-
-var reduce = function(arr, fn, initial) {
-  if (typeof arr.reduce === 'function') return arr.reduce(fn, initial);
-  var res = initial;
-  for (var i = 0; i < arr.length; i++) res = fn(res, arr[i]);
-  return res;
-};
-
-/**
- * Cache non-integer test regexp.
- */
-
-var isint = /^[0-9]+$/;
-
-function promote(parent, key) {
-  if (parent[key].length == 0) return parent[key] = {};
-  var t = {};
-  for (var i in parent[key]) t[i] = parent[key][i];
-  parent[key] = t;
-  return t;
-}
-
-function parse(parts, parent, key, val) {
-  var part = parts.shift();
-  // end
-  if (!part) {
-    if (isArray(parent[key])) {
-      parent[key].push(val);
-    } else if ('object' == typeof parent[key]) {
-      parent[key] = val;
-    } else if ('undefined' == typeof parent[key]) {
-      parent[key] = val;
-    } else {
-      parent[key] = [parent[key], val];
-    }
-    // array
-  } else {
-    var obj = parent[key] = parent[key] || [];
-    if (']' == part) {
-      if (isArray(obj)) {
-        if ('' != val) obj.push(val);
-      } else if ('object' == typeof obj) {
-        obj[objectKeys(obj).length] = val;
-      } else {
-        obj = parent[key] = [parent[key], val];
-      }
-      // prop
-    } else if (~indexOf(part, ']')) {
-      part = part.substr(0, part.length - 1);
-      if (!isint.test(part) && isArray(obj)) obj = promote(parent, key);
-      parse(parts, obj, part, val);
-      // key
-    } else {
-      if (!isint.test(part) && isArray(obj)) obj = promote(parent, key);
-      parse(parts, obj, part, val);
-    }
-  }
-}
-
-/**
- * Merge parent key/val pair.
- */
-
-function merge(parent, key, val){
-  if (~indexOf(key, ']')) {
-    var parts = key.split('[')
-      , len = parts.length
-      , last = len - 1;
-    parse(parts, parent, 'base', val);
-    // optimize
-  } else {
-    if (!isint.test(key) && isArray(parent.base)) {
-      var t = {};
-      for (var k in parent.base) t[k] = parent.base[k];
-      parent.base = t;
-    }
-    set(parent.base, key, val);
-  }
-
-  return parent;
-}
-
-/**
- * Parse the given obj.
- */
-
-function parseObject(obj){
-  var ret = { base: {} };
-  forEach(objectKeys(obj), function(name){
-    merge(ret, name, obj[name]);
-  });
-  return ret.base;
-}
-
-/**
- * Parse the given str.
- */
-
-function parseString(str){
-  return reduce(String(str).split('&'), function(ret, pair){
-    var eql = indexOf(pair, '=')
-      , brace = lastBraceInKey(pair)
-      , key = pair.substr(0, brace || eql)
-      , val = pair.substr(brace || eql, pair.length)
-      , val = val.substr(indexOf(val, '=') + 1, val.length);
-
-    // ?foo
-    if ('' == key) key = pair, val = '';
-    if ('' == key) return ret;
-
-    return merge(ret, decode(key), decode(val));
-  }, { base: {} }).base;
-}
-
-/**
- * Parse the given query `str` or `obj`, returning an object.
- *
- * @param {String} str | {Object} obj
- * @return {Object}
- * @api public
- */
-
-exports.parse = function(str){
-  if (null == str || '' == str) return {};
-  return 'object' == typeof str
-    ? parseObject(str)
-    : parseString(str);
-};
-
-/**
- * Turn the given `obj` into a query string
- *
- * @param {Object} obj
- * @return {String}
- * @api public
- */
-
-var stringify = exports.stringify = function(obj, prefix) {
-  if (isArray(obj)) {
-    return stringifyArray(obj, prefix);
-  } else if ('[object Object]' == toString.call(obj)) {
-    return stringifyObject(obj, prefix);
-  } else if ('string' == typeof obj) {
-    return stringifyString(obj, prefix);
-  } else {
-    return prefix + '=' + encodeURIComponent(String(obj));
-  }
-};
-
-/**
- * Stringify the given `str`.
- *
- * @param {String} str
- * @param {String} prefix
- * @return {String}
- * @api private
- */
-
-function stringifyString(str, prefix) {
-  if (!prefix) throw new TypeError('stringify expects an object');
-  return prefix + '=' + encodeURIComponent(str);
-}
-
-/**
- * Stringify the given `arr`.
- *
- * @param {Array} arr
- * @param {String} prefix
- * @return {String}
- * @api private
- */
-
-function stringifyArray(arr, prefix) {
-  var ret = [];
-  if (!prefix) throw new TypeError('stringify expects an object');
-  for (var i = 0; i < arr.length; i++) {
-    ret.push(stringify(arr[i], prefix + '[' + i + ']'));
-  }
-  return ret.join('&');
-}
-
-/**
- * Stringify the given `obj`.
- *
- * @param {Object} obj
- * @param {String} prefix
- * @return {String}
- * @api private
- */
-
-function stringifyObject(obj, prefix) {
-  var ret = []
-    , keys = objectKeys(obj)
-    , key;
-
-  for (var i = 0, len = keys.length; i < len; ++i) {
-    key = keys[i];
-    if (null == obj[key]) {
-      ret.push(encodeURIComponent(key) + '=');
-    } else {
-      ret.push(stringify(obj[key], prefix
-        ? prefix + '[' + encodeURIComponent(key) + ']'
-        : encodeURIComponent(key)));
-    }
-  }
-
-  return ret.join('&');
-}
-
-/**
- * Set `obj`'s `key` to `val` respecting
- * the weird and wonderful syntax of a qs,
- * where "foo=bar&foo=baz" becomes an array.
- *
- * @param {Object} obj
- * @param {String} key
- * @param {String} val
- * @api private
- */
-
-function set(obj, key, val) {
-  var v = obj[key];
-  if (undefined === v) {
-    obj[key] = val;
-  } else if (isArray(v)) {
-    v.push(val);
-  } else {
-    obj[key] = [v, val];
-  }
-}
-
-/**
- * Locate last brace in `str` within the key.
- *
- * @param {String} str
- * @return {Number}
- * @api private
- */
-
-function lastBraceInKey(str) {
-  var len = str.length
-    , brace
-    , c;
-  for (var i = 0; i < len; ++i) {
-    c = str[i];
-    if (']' == c) brace = false;
-    if ('[' == c) brace = true;
-    if ('=' == c && !brace) return i;
-  }
-}
-
-/**
- * Decode `str`.
- *
- * @param {String} str
- * @return {String}
- * @api private
- */
-
-function decode(str) {
-  try {
-    return decodeURIComponent(str.replace(/\+/g, ' '));
-  } catch (err) {
-    return str;
-  }
-}
-
-},{}],10:[function(require,module,exports){
+},{"__browserify_process":2}],8:[function(require,module,exports){
 (function(global){/**
  * @license
  * Lo-Dash 1.2.1 (Custom Build) <http://lodash.com/>
@@ -7925,7 +7610,326 @@ function decode(str) {
 }(this));
 
 })(window)
-},{}],8:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
+
+/**
+ * Object#toString() ref for stringify().
+ */
+
+var toString = Object.prototype.toString;
+
+/**
+ * Array#indexOf shim.
+ */
+
+var indexOf = typeof Array.prototype.indexOf === 'function'
+  ? function(arr, el) { return arr.indexOf(el); }
+  : function(arr, el) {
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i] === el) return i;
+      }
+      return -1;
+    };
+
+/**
+ * Array.isArray shim.
+ */
+
+var isArray = Array.isArray || function(arr) {
+  return toString.call(arr) == '[object Array]';
+};
+
+/**
+ * Object.keys shim.
+ */
+
+var objectKeys = Object.keys || function(obj) {
+  var ret = [];
+  for (var key in obj) ret.push(key);
+  return ret;
+};
+
+/**
+ * Array#forEach shim.
+ */
+
+var forEach = typeof Array.prototype.forEach === 'function'
+  ? function(arr, fn) { return arr.forEach(fn); }
+  : function(arr, fn) {
+      for (var i = 0; i < arr.length; i++) fn(arr[i]);
+    };
+
+/**
+ * Array#reduce shim.
+ */
+
+var reduce = function(arr, fn, initial) {
+  if (typeof arr.reduce === 'function') return arr.reduce(fn, initial);
+  var res = initial;
+  for (var i = 0; i < arr.length; i++) res = fn(res, arr[i]);
+  return res;
+};
+
+/**
+ * Cache non-integer test regexp.
+ */
+
+var isint = /^[0-9]+$/;
+
+function promote(parent, key) {
+  if (parent[key].length == 0) return parent[key] = {};
+  var t = {};
+  for (var i in parent[key]) t[i] = parent[key][i];
+  parent[key] = t;
+  return t;
+}
+
+function parse(parts, parent, key, val) {
+  var part = parts.shift();
+  // end
+  if (!part) {
+    if (isArray(parent[key])) {
+      parent[key].push(val);
+    } else if ('object' == typeof parent[key]) {
+      parent[key] = val;
+    } else if ('undefined' == typeof parent[key]) {
+      parent[key] = val;
+    } else {
+      parent[key] = [parent[key], val];
+    }
+    // array
+  } else {
+    var obj = parent[key] = parent[key] || [];
+    if (']' == part) {
+      if (isArray(obj)) {
+        if ('' != val) obj.push(val);
+      } else if ('object' == typeof obj) {
+        obj[objectKeys(obj).length] = val;
+      } else {
+        obj = parent[key] = [parent[key], val];
+      }
+      // prop
+    } else if (~indexOf(part, ']')) {
+      part = part.substr(0, part.length - 1);
+      if (!isint.test(part) && isArray(obj)) obj = promote(parent, key);
+      parse(parts, obj, part, val);
+      // key
+    } else {
+      if (!isint.test(part) && isArray(obj)) obj = promote(parent, key);
+      parse(parts, obj, part, val);
+    }
+  }
+}
+
+/**
+ * Merge parent key/val pair.
+ */
+
+function merge(parent, key, val){
+  if (~indexOf(key, ']')) {
+    var parts = key.split('[')
+      , len = parts.length
+      , last = len - 1;
+    parse(parts, parent, 'base', val);
+    // optimize
+  } else {
+    if (!isint.test(key) && isArray(parent.base)) {
+      var t = {};
+      for (var k in parent.base) t[k] = parent.base[k];
+      parent.base = t;
+    }
+    set(parent.base, key, val);
+  }
+
+  return parent;
+}
+
+/**
+ * Parse the given obj.
+ */
+
+function parseObject(obj){
+  var ret = { base: {} };
+  forEach(objectKeys(obj), function(name){
+    merge(ret, name, obj[name]);
+  });
+  return ret.base;
+}
+
+/**
+ * Parse the given str.
+ */
+
+function parseString(str){
+  return reduce(String(str).split('&'), function(ret, pair){
+    var eql = indexOf(pair, '=')
+      , brace = lastBraceInKey(pair)
+      , key = pair.substr(0, brace || eql)
+      , val = pair.substr(brace || eql, pair.length)
+      , val = val.substr(indexOf(val, '=') + 1, val.length);
+
+    // ?foo
+    if ('' == key) key = pair, val = '';
+    if ('' == key) return ret;
+
+    return merge(ret, decode(key), decode(val));
+  }, { base: {} }).base;
+}
+
+/**
+ * Parse the given query `str` or `obj`, returning an object.
+ *
+ * @param {String} str | {Object} obj
+ * @return {Object}
+ * @api public
+ */
+
+exports.parse = function(str){
+  if (null == str || '' == str) return {};
+  return 'object' == typeof str
+    ? parseObject(str)
+    : parseString(str);
+};
+
+/**
+ * Turn the given `obj` into a query string
+ *
+ * @param {Object} obj
+ * @return {String}
+ * @api public
+ */
+
+var stringify = exports.stringify = function(obj, prefix) {
+  if (isArray(obj)) {
+    return stringifyArray(obj, prefix);
+  } else if ('[object Object]' == toString.call(obj)) {
+    return stringifyObject(obj, prefix);
+  } else if ('string' == typeof obj) {
+    return stringifyString(obj, prefix);
+  } else {
+    return prefix + '=' + encodeURIComponent(String(obj));
+  }
+};
+
+/**
+ * Stringify the given `str`.
+ *
+ * @param {String} str
+ * @param {String} prefix
+ * @return {String}
+ * @api private
+ */
+
+function stringifyString(str, prefix) {
+  if (!prefix) throw new TypeError('stringify expects an object');
+  return prefix + '=' + encodeURIComponent(str);
+}
+
+/**
+ * Stringify the given `arr`.
+ *
+ * @param {Array} arr
+ * @param {String} prefix
+ * @return {String}
+ * @api private
+ */
+
+function stringifyArray(arr, prefix) {
+  var ret = [];
+  if (!prefix) throw new TypeError('stringify expects an object');
+  for (var i = 0; i < arr.length; i++) {
+    ret.push(stringify(arr[i], prefix + '[' + i + ']'));
+  }
+  return ret.join('&');
+}
+
+/**
+ * Stringify the given `obj`.
+ *
+ * @param {Object} obj
+ * @param {String} prefix
+ * @return {String}
+ * @api private
+ */
+
+function stringifyObject(obj, prefix) {
+  var ret = []
+    , keys = objectKeys(obj)
+    , key;
+
+  for (var i = 0, len = keys.length; i < len; ++i) {
+    key = keys[i];
+    if (null == obj[key]) {
+      ret.push(encodeURIComponent(key) + '=');
+    } else {
+      ret.push(stringify(obj[key], prefix
+        ? prefix + '[' + encodeURIComponent(key) + ']'
+        : encodeURIComponent(key)));
+    }
+  }
+
+  return ret.join('&');
+}
+
+/**
+ * Set `obj`'s `key` to `val` respecting
+ * the weird and wonderful syntax of a qs,
+ * where "foo=bar&foo=baz" becomes an array.
+ *
+ * @param {Object} obj
+ * @param {String} key
+ * @param {String} val
+ * @api private
+ */
+
+function set(obj, key, val) {
+  var v = obj[key];
+  if (undefined === v) {
+    obj[key] = val;
+  } else if (isArray(v)) {
+    v.push(val);
+  } else {
+    obj[key] = [v, val];
+  }
+}
+
+/**
+ * Locate last brace in `str` within the key.
+ *
+ * @param {String} str
+ * @return {Number}
+ * @api private
+ */
+
+function lastBraceInKey(str) {
+  var len = str.length
+    , brace
+    , c;
+  for (var i = 0; i < len; ++i) {
+    c = str[i];
+    if (']' == c) brace = false;
+    if ('[' == c) brace = true;
+    if ('=' == c && !brace) return i;
+  }
+}
+
+/**
+ * Decode `str`.
+ *
+ * @param {String} str
+ * @return {String}
+ * @api private
+ */
+
+function decode(str) {
+  try {
+    return decodeURIComponent(str.replace(/\+/g, ' '));
+  } catch (err) {
+    return str;
+  }
+}
+
+},{}],5:[function(require,module,exports){
 /*
   Copyright (c) 2012 All contributors as noted in the AUTHORS file
 
@@ -8160,7 +8164,7 @@ function factory(){
 }
 
 module.exports = factory;
-},{"events":3,"../container/proto":7,"../network/response":12,"../network/contract":13,"lodash":10}],7:[function(require,module,exports){
+},{"events":3,"../container/proto":6,"../network/contract":12,"../network/response":13,"lodash":8}],6:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -8873,7 +8877,7 @@ Container.prototype.select = Contracts.select;
 Container.prototype.append = Contracts.append;
 Container.prototype.save = Contracts.save;
 Container.prototype.remove = Contracts.remove;
-},{"events":3,"./models":14,"../utils":15,"./deepdot":16,"./contracts":17,"./search":18,"lodash":10,"async":9}],15:[function(require,module,exports){
+},{"events":3,"./deepdot":14,"./models":15,"../utils":16,"./contracts":17,"./search":18,"lodash":8,"async":7}],16:[function(require,module,exports){
 (function(){/*
 
 	(The MIT License)
@@ -9078,7 +9082,7 @@ function extend(){
 }
 
 })()
-},{"url":4,"lodash":10,"node-uuid":19}],20:[function(require,module,exports){
+},{"url":10,"node-uuid":19,"lodash":8}],20:[function(require,module,exports){
 require=(function(e,t,n,r){function i(r){if(!n[r]){if(!t[r]){if(e)return e(r);throw new Error("Cannot find module '"+r+"'")}var s=n[r]={exports:{}};t[r][0](function(e){var n=t[r][1][e];return i(n?n:e)},s,s.exports)}return n[r].exports}for(var s=0;s<r.length;s++)i(r[s]);return i})(typeof require!=="undefined"&&require,{1:[function(require,module,exports){
 exports.readIEEE754 = function(buffer, offset, isBE, mLen, nBytes) {
   var e, m,
@@ -13191,7 +13195,456 @@ SlowBuffer.prototype.writeDoubleBE = Buffer.prototype.writeDoubleBE;
 }());
 
 })(require("__browserify_buffer").Buffer)
-},{"crypto":21,"__browserify_buffer":20}],17:[function(require,module,exports){
+},{"crypto":21,"__browserify_buffer":20}],12:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+
+/**
+ * Module dependencies.
+ */
+
+var util = require('util');
+var Message = require('./message');
+var url = require('url');
+var _ = require('lodash');
+var utils = require('../utils');
+var Request = require('./request');
+var Response = require('./response');
+
+
+/*
+
+
+  
+*/
+
+module.exports = Contract;
+
+function Contract(data){
+  var self = this;
+  data = data || {};
+  if(_.isString(data)){
+    data = {
+      headers:{
+        'x-contract-type':data
+      }
+    }
+  }
+  Request.apply(this, [data]);
+
+  this.setHeader('content-type', 'digger/contract');
+
+  if(!this.getHeader('x-contract-type')){
+    this.setHeader('x-contract-type', 'merge');
+  }
+
+  if(!this.getHeader('x-contract-id')){
+    this.setHeader('x-contract-id', utils.diggerid());
+  }
+
+  if(!this.body){
+    this.body = [];
+  }
+}
+
+util.inherits(Contract, Request);
+
+Contract.factory = function(data){
+  return new Contract(data);
+}
+
+Contract.mergefactory = function(data){
+  var contract = Contract.factory('merge');
+  contract.url = 'reception:/';
+  contract.method = 'post';
+  contract.body = _.map(data, function(child){
+    return child.toJSON();
+  })
+  return contract;
+}
+
+Contract.sequencefactory = function(data){
+  var contract = Contract.factory('sequence');
+  contract.url = 'reception:/';
+  contract.method = 'post';
+  contract.body = _.map(data, function(child){
+    return child.toJSON();
+  })
+  return contract;
+}
+
+Contract.prototype.add = function(req){
+  var self = this;
+
+  if(_.isArray(req)){
+    _.each(req, function(item){
+      self.add(item);
+    })
+  }
+  else{
+
+    var whattoadd = req;
+
+    if(_.isFunction(req.toJSON)){
+      if(req.getHeader('x-contract-type')==this.getHeader('x-contract-type')){
+        this.body = this.body.concat(req.body);
+      }
+      else{
+        this.body.push(req.toJSON());
+      }
+    }
+  }
+  return this;
+}
+
+Contract.prototype.ship = function(callback){
+  if(!this.supplychain){
+    console.log('-------------------------------------------');
+    console.log('there is no supplychain to ship with');
+    throw new Error('contract has not been given a supply chain to ship with');
+  }
+
+  return this.supplychain.ship(this, callback);
+}
+},{"util":9,"url":10,"./message":22,"./request":23,"./response":13,"../utils":16,"lodash":8}],15:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+
+var _ = require('lodash');
+var XML = require('./xml');
+var utils = require('../utils');
+
+/*
+
+  model factory
+
+  turns input data into a container data array
+  
+*/
+
+
+/*
+
+  takes data in as string (XML, JSON) or array of objects or single object
+
+  returns container data
+  
+*/
+function extractdata(data, attr){
+
+  if(_.isString(data)){
+    // we assume XML
+    if(data.charAt(0)=='<'){
+      data = XML.parse(data);
+    }
+    // or JSON string
+    else if(data.charAt(0)=='['){
+      data = JSON.parse(data);
+    }
+    // we could do YAML here
+    else{
+      attr = attr || {};
+      attr._digger = attr._digger || {};
+      attr._digger.tag = data;
+      attr._children = attr._children || [];
+      attr._data = attr._data || {};
+      data = [attr];
+    }
+  }
+  else if(!_.isArray(data)){
+    if(!data){
+      data = {};
+    }
+    data = [data];
+  }
+
+  return data;
+}
+
+/*
+
+  extract the raw data array and then map it for defaults
+  
+*/
+module.exports = function modelfactory(data, attr){
+
+  if(!data){
+    return [];
+  }
+  
+  var models = extractdata(data, attr);
+
+  function nonulls(model){
+    return model!==null;
+  }
+  /*
+  
+    prepare the data
+    
+  */
+  models = _.filter(_.map(models || [], function(model){
+
+    if(!model){
+      return null;
+    }
+
+    var digger = model._digger = model._digger || {};
+    digger.class = digger.class || [];
+    digger.diggerpath = digger.diggerpath || [];
+    digger.diggerid = digger.diggerid || utils.diggerid();
+
+    model._children = model._children || [];
+
+    return model;
+  }), nonulls)
+
+  return models;
+}
+
+module.exports.toXML = XML.stringify;
+},{"../utils":16,"./xml":24,"lodash":8}],13:[function(require,module,exports){
+(function(){/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+
+/**
+ * Module dependencies.
+ */
+
+var util = require('util');
+var Message = require('./message');
+var _ = require('lodash');
+var Q = require('q');
+
+/*
+
+  
+*/
+
+module.exports = Response;
+
+function Response(data){
+  Message.apply(this, [data]);
+  this.statusCode = data ? data.statusCode : 200;
+}
+
+Response.factory = function(data, errorfn){
+
+  /*
+  
+    sort out the constructor so you can quickly
+    create responses with the callback hooked up
+    
+  */
+  var fn = null;
+  var autoresolve = false;
+  if(_.isFunction(data)){
+    fn = data;
+    data = null;
+  }
+  else if(_.isBoolean(data)){
+    autoresolve = data;
+    data = null;
+  }
+
+  var ret = new Response(data);
+
+  var sent = false;
+
+  /*
+  
+    AUTO RESOLVE
+
+    this is for client sided responses that will parse the body
+    for multipart messages
+
+    server side responses are more often concerned with just moving stuff
+    around to want to open the content and process - hence not 'resolving'
+    
+  */
+  if(autoresolve){
+    ret.on('send', function(){
+      ret.resolve();
+    })
+  }
+
+  if(fn){
+    ret.on('send', fn);
+  }
+
+  return ret;
+}
+
+util.inherits(Response, Message);
+
+/*
+
+  inject the raw data from an over the wire response
+  and trigger the appropriate event
+  
+*/
+Response.prototype.fill = function(answer){
+  if(!answer){
+    return this;
+  }
+  this.statusCode = answer.statusCode;
+  this.headers = answer.headers;
+  this.body = answer.body;
+  this.send(answer.body);
+}
+
+Response.prototype.statusCode = 200;
+
+Response.prototype.send = function(body){
+  if(this.headerSent===true){
+    throw new Error('cannot send response after headers have been sent');
+  }
+
+  this.body = arguments.length>0 ? body : this.body;
+  this.emit('beforesend', body);
+  this.emit('send', body);
+  this.emit('aftersend', body);
+  this.headerSent = true;
+  return this;
+}
+
+Response.prototype.resolve = function(fn){
+
+  if(!this.statusCode){
+    this.statusCode = 200;
+  }
+
+  var results = [];
+  var errors = [];
+  var branches = this.getHeader('x-json-branches') || [];
+
+  function resolvemutlipart(multires){
+    if(multires.statusCode==200){
+      if(multires.getHeader('content-type')=='digger/multipart'){
+        _.each(multires.body, function(raw){
+          if(!raw.statusCode){
+            raw.statusCode = 200;
+          }
+          resolvemutlipart(new Response(raw));
+        })
+      } 
+      else{
+        var subbranches = multires.getHeader('x-json-branches') || [];
+        branches = branches.concat(subbranches);
+        if(_.isArray(multires.body)){
+          results = results.concat(multires.body);
+        }
+        else{
+          results.push(multires.body);
+        }
+      }
+    }
+    else{
+      errors.push(multires.body);
+    }
+  }
+
+  if(this.statusCode===200){
+    if(this.getHeader('content-type')=='digger/multipart'){
+      resolvemutlipart(this);
+      if(results.length>0){
+        this.emit('success', results, this);
+      }
+
+      if(errors.length>0){
+        this.emit('failure', errors, this);    
+      }
+    }
+    else{
+      results = this.body;
+      this.emit('success', this.body, this);
+    }
+  }
+  else{
+    errors = this.body;
+    this.emit('failure', this.body, this);
+  }
+
+  this.setHeader('x-json-branches', branches);
+
+  if(fn){
+    fn(results, errors);
+  }  
+}
+
+Response.prototype.toJSON = function(){
+  var ret = Message.prototype.toJSON.apply(this);
+  ret.statusCode = this.statusCode;
+  return ret;
+}
+
+Response.prototype.hasError = function(){
+  return this.statusCode!==200;
+}
+
+Response.prototype.sendError = function(text){
+  this.statusCode = 500;
+  this.send(text);
+}
+
+Response.prototype.send404 = function(req){
+  this.statusCode = 404;
+  this.send(req ? req.toJSON() : null);
+}
+
+Response.prototype.redirect = function(location){
+  this.statusCode = 302;
+  this.send(location);
+}
+
+Response.prototype.add = function(childres){
+  this.setHeader('content-type', 'digger/multipart');
+  if(!this.body){
+    this.body = [];
+  }
+  this.body.push(_.isFunction(childres.toJSON) ? childres.toJSON() : childres);
+  return this;
+}
+})()
+},{"util":9,"./message":22,"lodash":8,"q":25}],17:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -13453,118 +13906,7 @@ function remove(){
   contract.supplychain = this.supplychain;
   return contract;
 }
-},{"../network/request":22,"../network/contract":13,"./selector":23,"lodash":10}],14:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-
-var _ = require('lodash');
-var XML = require('./xml');
-var utils = require('../utils');
-
-/*
-
-  model factory
-
-  turns input data into a container data array
-  
-*/
-
-
-/*
-
-  takes data in as string (XML, JSON) or array of objects or single object
-
-  returns container data
-  
-*/
-function extractdata(data, attr){
-
-  if(_.isString(data)){
-    // we assume XML
-    if(data.charAt(0)=='<'){
-      data = XML.parse(data);
-    }
-    // or JSON string
-    else if(data.charAt(0)=='['){
-      data = JSON.parse(data);
-    }
-    // we could do YAML here
-    else{
-      attr = attr || {};
-      attr._digger = attr._digger || {};
-      attr._digger.tag = data;
-      attr._children = attr._children || [];
-      attr._data = attr._data || {};
-      data = [attr];
-    }
-  }
-  else if(!_.isArray(data)){
-    if(!data){
-      data = {};
-    }
-    data = [data];
-  }
-
-  return data;
-}
-
-/*
-
-  extract the raw data array and then map it for defaults
-  
-*/
-module.exports = function modelfactory(data, attr){
-
-  if(!data){
-    return [];
-  }
-  
-  var models = extractdata(data, attr);
-
-  function nonulls(model){
-    return model!==null;
-  }
-  /*
-  
-    prepare the data
-    
-  */
-  models = _.filter(_.map(models || [], function(model){
-
-    if(!model){
-      return null;
-    }
-
-    var digger = model._digger = model._digger || {};
-    digger.class = digger.class || [];
-    digger.diggerpath = digger.diggerpath || [];
-    digger.diggerid = digger.diggerid || utils.diggerid();
-
-    model._children = model._children || [];
-
-    return model;
-  }), nonulls)
-
-  return models;
-}
-
-module.exports.toXML = XML.stringify;
-},{"./xml":24,"../utils":15,"lodash":10}],16:[function(require,module,exports){
+},{"../network/contract":12,"../network/request":23,"./selector":26,"lodash":8}],14:[function(require,module,exports){
 var _ = require('lodash');
 var extend = require('xtend');
 var EventEmitter = require('events').EventEmitter;
@@ -13672,345 +14014,7 @@ function factory(obj){
 
   return dot;
 }
-},{"events":3,"lodash":10,"xtend":25}],13:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-
-/**
- * Module dependencies.
- */
-
-var util = require('util');
-var Message = require('./message');
-var url = require('url');
-var _ = require('lodash');
-var utils = require('../utils');
-var Request = require('./request');
-var Response = require('./response');
-
-
-/*
-
-
-  
-*/
-
-module.exports = Contract;
-
-function Contract(data){
-  var self = this;
-  data = data || {};
-  if(_.isString(data)){
-    data = {
-      headers:{
-        'x-contract-type':data
-      }
-    }
-  }
-  Request.apply(this, [data]);
-
-  this.setHeader('content-type', 'digger/contract');
-
-  if(!this.getHeader('x-contract-type')){
-    this.setHeader('x-contract-type', 'merge');
-  }
-
-  if(!this.getHeader('x-contract-id')){
-    this.setHeader('x-contract-id', utils.diggerid());
-  }
-
-  if(!this.body){
-    this.body = [];
-  }
-}
-
-util.inherits(Contract, Request);
-
-Contract.factory = function(data){
-  return new Contract(data);
-}
-
-Contract.mergefactory = function(data){
-  var contract = Contract.factory('merge');
-  contract.url = 'reception:/';
-  contract.method = 'post';
-  contract.body = _.map(data, function(child){
-    return child.toJSON();
-  })
-  return contract;
-}
-
-Contract.sequencefactory = function(data){
-  var contract = Contract.factory('sequence');
-  contract.url = 'reception:/';
-  contract.method = 'post';
-  contract.body = _.map(data, function(child){
-    return child.toJSON();
-  })
-  return contract;
-}
-
-Contract.prototype.add = function(req){
-  var self = this;
-
-  if(_.isArray(req)){
-    _.each(req, function(item){
-      self.add(item);
-    })
-  }
-  else{
-
-    var whattoadd = req;
-
-    if(_.isFunction(req.toJSON)){
-      if(req.getHeader('x-contract-type')==this.getHeader('x-contract-type')){
-        this.body = this.body.concat(req.body);
-      }
-      else{
-        this.body.push(req.toJSON());
-      }
-    }
-  }
-  return this;
-}
-
-Contract.prototype.ship = function(callback){
-  if(!this.supplychain){
-    console.log('-------------------------------------------');
-    console.log('there is no supplychain to ship with');
-    throw new Error('contract has not been given a supply chain to ship with');
-  }
-
-  return this.supplychain.ship(this, callback);
-}
-},{"util":11,"url":4,"../utils":15,"./message":26,"./request":22,"./response":12,"lodash":10}],12:[function(require,module,exports){
-(function(){/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-
-/**
- * Module dependencies.
- */
-
-var util = require('util');
-var Message = require('./message');
-var _ = require('lodash');
-var Q = require('q');
-
-/*
-
-  
-*/
-
-module.exports = Response;
-
-function Response(data){
-  Message.apply(this, [data]);
-  this.statusCode = data ? data.statusCode : 200;
-}
-
-Response.factory = function(data, errorfn){
-
-  /*
-  
-    sort out the constructor so you can quickly
-    create responses with the callback hooked up
-    
-  */
-  var fn = null;
-  var autoresolve = false;
-  if(_.isFunction(data)){
-    fn = data;
-    data = null;
-  }
-  else if(_.isBoolean(data)){
-    autoresolve = data;
-    data = null;
-  }
-
-  var ret = new Response(data);
-
-  var sent = false;
-
-  /*
-  
-    AUTO RESOLVE
-
-    this is for client sided responses that will parse the body
-    for multipart messages
-
-    server side responses are more often concerned with just moving stuff
-    around to want to open the content and process - hence not 'resolving'
-    
-  */
-  if(autoresolve){
-    ret.on('send', function(){
-      ret.resolve();
-    })
-  }
-
-  if(fn){
-    ret.on('send', fn);
-  }
-
-  return ret;
-}
-
-util.inherits(Response, Message);
-
-/*
-
-  inject the raw data from an over the wire response
-  and trigger the appropriate event
-  
-*/
-Response.prototype.fill = function(answer){
-  if(!answer){
-    return this;
-  }
-  this.statusCode = answer.statusCode;
-  this.headers = answer.headers;
-  this.body = answer.body;
-  this.send(answer.body);
-}
-
-Response.prototype.statusCode = 200;
-
-Response.prototype.send = function(body){
-  if(this.headerSent===true){
-    throw new Error('cannot send response after headers have been sent');
-  }
-
-  this.body = arguments.length>0 ? body : this.body;
-  this.emit('beforesend', body);
-  this.emit('send', body);
-  this.emit('aftersend', body);
-  this.headerSent = true;
-  return this;
-}
-
-Response.prototype.resolve = function(fn){
-
-  if(!this.statusCode){
-    this.statusCode = 200;
-  }
-
-  var results = [];
-  var errors = [];
-  var branches = this.getHeader('x-json-branches') || [];
-
-  function resolvemutlipart(multires){
-    if(multires.statusCode==200){
-      if(multires.getHeader('content-type')=='digger/multipart'){
-        _.each(multires.body, function(raw){
-          if(!raw.statusCode){
-            raw.statusCode = 200;
-          }
-          resolvemutlipart(new Response(raw));
-        })
-      } 
-      else{
-        var subbranches = multires.getHeader('x-json-branches') || [];
-        branches = branches.concat(subbranches);
-        if(_.isArray(multires.body)){
-          results = results.concat(multires.body);
-        }
-        else{
-          results.push(multires.body);
-        }
-      }
-    }
-    else{
-      errors.push(multires.body);
-    }
-  }
-
-  if(this.statusCode===200){
-    if(this.getHeader('content-type')=='digger/multipart'){
-      resolvemutlipart(this);
-      if(results.length>0){
-        this.emit('success', results, this);
-      }
-
-      if(errors.length>0){
-        this.emit('failure', errors, this);    
-      }
-    }
-    else{
-      results = this.body;
-      this.emit('success', this.body, this);
-    }
-  }
-  else{
-    errors = this.body;
-    this.emit('failure', this.body, this);
-  }
-
-  this.setHeader('x-json-branches', branches);
-
-  if(fn){
-    fn(results, errors);
-  }  
-}
-
-Response.prototype.toJSON = function(){
-  var ret = Message.prototype.toJSON.apply(this);
-  ret.statusCode = this.statusCode;
-  return ret;
-}
-
-Response.prototype.hasError = function(){
-  return this.statusCode!==200;
-}
-
-Response.prototype.sendError = function(text){
-  this.statusCode = 500;
-  this.send(text);
-}
-
-Response.prototype.send404 = function(req){
-  this.statusCode = 404;
-  this.send(req ? req.toJSON() : null);
-}
-
-Response.prototype.redirect = function(location){
-  this.statusCode = 302;
-  this.send(location);
-}
-
-Response.prototype.add = function(childres){
-  this.setHeader('content-type', 'digger/multipart');
-  if(!this.body){
-    this.body = [];
-  }
-  this.body.push(_.isFunction(childres.toJSON) ? childres.toJSON() : childres);
-  return this;
-}
-})()
-},{"util":11,"./message":26,"lodash":10,"q":27}],27:[function(require,module,exports){
+},{"events":3,"lodash":8,"xtend":27}],25:[function(require,module,exports){
 (function(process){// vim:ts=4:sts=4:sw=4:
 /*!
  *
@@ -15840,7 +15844,426 @@ exports.randomBytes = function(size, callback) {
   }
 })
 
-},{"./sha":28,"./md5":29,"./rng":30}],28:[function(require,module,exports){
+},{"./sha":28,"./md5":29,"./rng":30}],23:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+
+/**
+ * Module dependencies.
+ */
+
+var util = require('util');
+var Message = require('./message');
+var url = require('url');
+var _ = require('lodash');
+
+/*
+
+
+  
+*/
+
+module.exports = Request;
+
+var url_fields = [
+  'protocol',
+  'hostname',
+  'port',
+  'pathname',
+  'hash'
+]
+
+var default_fields = {
+  'protocol':'http:',
+  'hostname':'localhost',
+  'port':null,
+  'pathname':'/',
+  'hash':null
+}
+
+function Request(data){
+  var self = this;
+  data = data || {};
+  Message.apply(this, [data]);
+
+  this.url = data.url || '/';
+  this.method = data.method || 'get';
+  this.query = data.query || {};
+
+  var parsed = url.parse(this.url);
+
+  if(parsed.query){
+    _.each(parsed.query.split('&'), function(part){
+      var parts = part.split('=');
+      self.query[parts[0]] = parts[1];
+    })
+  }
+
+  _.each(url_fields, function(field){
+    self[field] = parsed[field] || default_fields[field];
+  })
+}
+
+
+Request.factory = function(data){
+  return new Request(data);
+}
+
+
+util.inherits(Request, Message);
+
+Request.prototype.clone = function(){
+  return Request.factory(JSON.parse(JSON.stringify(this.toJSON())));
+}
+
+Request.prototype.debug = function(){
+  this.setHeader('x-digger-debug', true);
+  return this;
+}
+
+Request.prototype.inject = function(child){
+  var self = this;
+  _.each([
+    'x-digger-debug',
+    'x-json-resource',
+    'x-json-meta',
+    'x-contract-id'
+  ], function(field){
+    var val = self.getHeader(field);
+    if(val){
+      child.setHeader(field, val);  
+    }
+  })
+  return this;
+}
+
+Request.prototype.toJSON = function(){
+  var self = this;
+  var ret = Message.prototype.toJSON.apply(this);
+
+  ret.url = this.url;
+  ret.method = this.method;
+  ret.query = this.query;
+
+  _.each(url_fields, function(field){
+    ret[field] = self[field];
+  })
+
+  return ret;
+}
+
+Request.prototype.expect = function(content_type){
+  this.setHeader('x-expect', content_type);
+  return this;
+}
+},{"util":9,"url":10,"./message":22,"lodash":8}],22:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+
+/**
+ * Module dependencies.
+ */
+
+var _ = require('lodash');
+var util = require('util');
+var EventEmitter = require('events').EventEmitter;
+
+/*
+
+  telegraft - network request
+
+  basic version of http.serverRequest
+  
+*/
+
+module.exports = Message;
+
+function Message(data){
+  data = data || {};
+  EventEmitter.call(this);
+  this.headers = data.headers || {};
+  this.body = data.body || null;
+  this.headerSent = false;
+}
+
+util.inherits(Message, EventEmitter);
+
+Message.prototype.toJSON = function(){
+  return {
+    headers:this.headers,
+    body:this.body
+  }
+}
+
+
+/*
+
+  copied mostly from node.js/lib/http.js
+  
+*/
+Message.prototype.setHeader = function(name, value) {
+  if (arguments.length < 2) {
+    throw new Error('`name` and `value` are required for setHeader().');
+  }
+
+  if (this.headerSent) {
+    throw new Error('Can\'t set headers after they are sent.');
+  }
+
+  var key = name.toLowerCase();
+  this.headers = this.headers || {};
+  this.headers[key] = value;
+  return this;
+}
+
+
+Message.prototype.getHeader = function(name) {
+  if (arguments.length < 1) {
+    throw new Error('`name` is required for getHeader().');
+  }
+
+  if (!this.headers) return;
+
+  var key = name.toLowerCase();
+  var value = this.headers[key];
+
+  if(!value){
+    return value;
+  }
+
+  if(name.indexOf('x-json')===0 && _.isString(value)){
+    value = this.headers[key] = JSON.parse(value);
+  }
+  
+  return value;
+}
+
+
+Message.prototype.removeHeader = function(name) {
+  if (arguments.length < 1) {
+    throw new Error('`name` is required for removeHeader().');
+  }
+
+  if (this.headerSent) {
+    throw new Error('Can\'t remove headers after they are sent.');
+  }
+
+  if (!this.headers) return;
+
+  var key = name.toLowerCase();
+  delete this.headers[key];
+}
+},{"util":9,"events":3,"lodash":8}],24:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+
+var _ = require('lodash');
+
+var window = this;
+
+module.exports.parse = fromXML;
+module.exports.stringify = toXML;
+
+var is_node = !window.document;
+
+/*
+  digger.io - XML Format
+  ----------------------
+
+  Turns XML strings into container data and back again
+
+
+ */
+
+function null_filter(val){
+  return !_.isUndefined(val) && !_.isNull(val);
+}
+
+function data_factory(element){
+
+  if(element.nodeType!=element.ELEMENT_NODE){
+    return;
+  }
+
+  var metafields = {
+    id:true,
+    diggerid:true
+  }
+  
+  var manualfields = {
+    tag:true,
+    class:true
+  }
+
+  var data = {
+    _digger:{
+      tag:element.nodeName,
+      class:_.filter((element.getAttribute('class') || '').split(/\s+/), function(classname){
+        return classname.match(/\w/);
+      })
+    },
+    _children:[]
+  }
+  
+  _.each(metafields, function(v, metafield){
+    data._digger[metafield] = element.getAttribute(metafield) || '';
+  })
+
+  _.each(element.attributes, function(attr){
+    if(!metafields[attr.name] && !manualfields[attr.name]){
+      data[attr.name] = attr.value;
+    }
+  })
+
+  data._children = _.filter(_.map(element.childNodes, data_factory), null_filter);
+
+  return data;
+}
+
+function BrowserXMLParser(st){
+  if (typeof window.DOMParser != "undefined") {
+    return (function(xmlStr) {
+      var xmlDoc = ( new window.DOMParser() ).parseFromString(xmlStr, "text/xml");
+      return _.map(xmlDoc.childNodes, data_factory);
+    })(st)
+  } else if (window && typeof window.ActiveXObject != "undefined" && new window.ActiveXObject("Microsoft.XMLDOM")) {
+    return (function(xmlStr) {
+      var xmlDoc = new window.ActiveXObject("Microsoft.XMLDOM");
+      xmlDoc.async = "false";
+      xmlDoc.loadXML(xmlStr);
+      return _.map(xmlDoc.childNodes, data_factory);
+    })(st)
+  }
+}
+
+/*
+
+  includes xmldom
+  
+*/
+function ServerXMLParser(st){
+
+  /*
+  
+    server side XML parsing
+    
+  */
+  var xml = require('xmldom');
+  var DOMParser = xml.DOMParser;
+  var doc = new DOMParser().parseFromString(st);
+  var results = _.map(doc.childNodes, data_factory);
+  
+  return results;
+}
+
+function fromXML(string){
+
+  return is_node ? ServerXMLParser(string) : BrowserXMLParser(string);
+
+}
+
+
+function string_factory(data, depth){
+
+  var meta = data._digger || {};
+  var children = data._children || [];
+  var attr = data;
+
+  function get_indent_string(){
+    var st = "\t";
+    var ret = '';
+    for(var i=0; i<depth; i++){
+      ret += st;
+    }
+    return ret;
+  }
+
+  var pairs = {
+    id:meta.id,
+    class:_.isArray(meta.class) ? meta.class.join(' ') : ''
+  }
+
+  var pair_strings = [];
+
+  _.each(attr, function(val, key){
+    if(key=='_digger'){
+      return;
+    }
+    pairs[key] = _.isString(val) ? val : '' + val;
+  })
+
+  _.each(pairs, function(value, field){
+    if(!_.isEmpty(value)){
+      pair_strings.push(field + '="' + value + '"');  
+    }
+  })
+
+  if(children && children.length>0){
+    var ret = get_indent_string() + '<' + meta.tag + ' ' + pair_strings.join(' ') + '>' + "\n";
+
+    _.each(children, function(child){      
+      ret += string_factory(child, depth+1);
+    })
+
+    ret += get_indent_string() + '</' + meta.tag + '>' + "\n";
+
+    return ret;    
+  }
+  else{
+    return get_indent_string() + '<' + meta.tag + ' ' + pair_strings.join(' ') + ' />' + "\n";
+  }
+}
+
+/*
+  This is the sync version of a warehouse search used by in-memory container 'find' commands
+
+  The packet will be either a straight select or a contract
+ */
+function toXML(data_array){
+  return _.map(data_array, function(data){
+    return string_factory(data, 0);
+  }).join("\n");
+}
+},{"lodash":8,"xmldom":31}],28:[function(require,module,exports){
 /*
  * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
  * in FIPS PUB 180-1
@@ -16438,7 +16861,136 @@ exports.hex_md5 = hex_md5;
 exports.b64_md5 = b64_md5;
 exports.any_md5 = any_md5;
 
-},{}],23:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+
+var _ = require('lodash');
+var find = require('./find');
+var search = require('./search');
+var inspectselect = require('../selector');
+
+var finder = find(search.searcher);
+
+var sortfns = {
+  title:function(a, b){
+    if ( a.title().toLowerCase() < b.title().toLowerCase() )
+      return -1;
+    if ( a.title().toLowerCase() > b.title().toLowerCase() )
+      return 1;
+    return 0;
+  }
+}
+
+module.exports = {
+  find:function(){
+    var selectors = _.map(_.toArray(arguments), function(arg){
+      return _.isString(arg) ? inspectselect(arg) : arg;
+    })
+    return finder(selectors, this);
+  },
+
+  sort:function(fn){
+    if(!fn){
+      fn = sortfns.title;
+    }
+
+    this.each(function(container){
+      var newchildren = container.children().containers().sort(fn);
+      var model = container.get(0);
+      model.children = _.map(newchildren, function(container){
+        return container.get(0);
+      })
+    })
+
+    return this;
+  },
+
+  filter:function(filterfn){
+
+    /*
+    
+      turn anything other than a function into the filter function
+
+      the compiler looks after turning strings into selector objects
+      
+    */
+    if(!_.isFunction(filterfn)){
+      filterfn = search.compiler(filterfn);
+    }
+
+    var matching_container_array = _.filter(this.containers(), filterfn);
+
+    return this.spawn(_.map(matching_container_array, function(container){
+      return container.get(0);
+    }))
+  },
+
+  match:function(selector){
+
+    if(this.count()<=0){
+      return false;
+    }
+
+    var results = this.filter(selector);
+
+    return results.count()>0;
+  }
+}
+},{"../selector":26,"./find":32,"./search":33,"lodash":8}],30:[function(require,module,exports){
+// Original code adapted from Robert Kieffer.
+// details at https://github.com/broofa/node-uuid
+(function() {
+  var _global = this;
+
+  var mathRNG, whatwgRNG;
+
+  // NOTE: Math.random() does not guarantee "cryptographic quality"
+  mathRNG = function(size) {
+    var bytes = new Array(size);
+    var r;
+
+    for (var i = 0, r; i < size; i++) {
+      if ((i & 0x03) == 0) r = Math.random() * 0x100000000;
+      bytes[i] = r >>> ((i & 0x03) << 3) & 0xff;
+    }
+
+    return bytes;
+  }
+
+  // currently only available in webkit-based browsers.
+  if (_global.crypto && crypto.getRandomValues) {
+    var _rnds = new Uint32Array(4);
+    whatwgRNG = function(size) {
+      var bytes = new Array(size);
+      crypto.getRandomValues(_rnds);
+
+      for (var c = 0 ; c < size; c++) {
+        bytes[c] = _rnds[c >> 2] >>> ((c & 0x03) * 8) & 0xff;
+      }
+      return bytes;
+    }
+  }
+
+  module.exports = whatwgRNG || mathRNG;
+
+}())
+},{}],26:[function(require,module,exports){
 /*
   Module dependencies.
 */
@@ -16745,446 +17297,7 @@ function miniparse(selector_string){
   }
   return selector;
 }
-},{"lodash":10}],18:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-
-var _ = require('lodash');
-var find = require('./find');
-var search = require('./search');
-var inspectselect = require('../selector');
-
-var finder = find(search.searcher);
-
-var sortfns = {
-  title:function(a, b){
-    if ( a.title().toLowerCase() < b.title().toLowerCase() )
-      return -1;
-    if ( a.title().toLowerCase() > b.title().toLowerCase() )
-      return 1;
-    return 0;
-  }
-}
-
-module.exports = {
-  find:function(){
-    var selectors = _.map(_.toArray(arguments), function(arg){
-      return _.isString(arg) ? inspectselect(arg) : arg;
-    })
-    return finder(selectors, this);
-  },
-
-  sort:function(fn){
-    if(!fn){
-      fn = sortfns.title;
-    }
-
-    this.each(function(container){
-      var newchildren = container.children().containers().sort(fn);
-      var model = container.get(0);
-      model.children = _.map(newchildren, function(container){
-        return container.get(0);
-      })
-    })
-
-    return this;
-  },
-
-  filter:function(filterfn){
-
-    /*
-    
-      turn anything other than a function into the filter function
-
-      the compiler looks after turning strings into selector objects
-      
-    */
-    if(!_.isFunction(filterfn)){
-      filterfn = search.compiler(filterfn);
-    }
-
-    var matching_container_array = _.filter(this.containers(), filterfn);
-
-    return this.spawn(_.map(matching_container_array, function(container){
-      return container.get(0);
-    }))
-  },
-
-  match:function(selector){
-
-    if(this.count()<=0){
-      return false;
-    }
-
-    var results = this.filter(selector);
-
-    return results.count()>0;
-  }
-}
-},{"../selector":23,"./find":31,"./search":32,"lodash":10}],24:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-
-var _ = require('lodash');
-
-var window = this;
-
-module.exports.parse = fromXML;
-module.exports.stringify = toXML;
-
-var is_node = !window.document;
-
-/*
-  digger.io - XML Format
-  ----------------------
-
-  Turns XML strings into container data and back again
-
-
- */
-
-function null_filter(val){
-  return !_.isUndefined(val) && !_.isNull(val);
-}
-
-function data_factory(element){
-
-  if(element.nodeType!=element.ELEMENT_NODE){
-    return;
-  }
-
-  var metafields = {
-    id:true,
-    diggerid:true
-  }
-  
-  var manualfields = {
-    tag:true,
-    class:true
-  }
-
-  var data = {
-    _digger:{
-      tag:element.nodeName,
-      class:_.filter((element.getAttribute('class') || '').split(/\s+/), function(classname){
-        return classname.match(/\w/);
-      })
-    },
-    _children:[]
-  }
-  
-  _.each(metafields, function(v, metafield){
-    data._digger[metafield] = element.getAttribute(metafield) || '';
-  })
-
-  _.each(element.attributes, function(attr){
-    if(!metafields[attr.name] && !manualfields[attr.name]){
-      data[attr.name] = attr.value;
-    }
-  })
-
-  data._children = _.filter(_.map(element.childNodes, data_factory), null_filter);
-
-  return data;
-}
-
-function BrowserXMLParser(st){
-  if (typeof window.DOMParser != "undefined") {
-    return (function(xmlStr) {
-      var xmlDoc = ( new window.DOMParser() ).parseFromString(xmlStr, "text/xml");
-      return _.map(xmlDoc.childNodes, data_factory);
-    })(st)
-  } else if (window && typeof window.ActiveXObject != "undefined" && new window.ActiveXObject("Microsoft.XMLDOM")) {
-    return (function(xmlStr) {
-      var xmlDoc = new window.ActiveXObject("Microsoft.XMLDOM");
-      xmlDoc.async = "false";
-      xmlDoc.loadXML(xmlStr);
-      return _.map(xmlDoc.childNodes, data_factory);
-    })(st)
-  }
-}
-
-/*
-
-  includes xmldom
-  
-*/
-function ServerXMLParser(st){
-
-  /*
-  
-    server side XML parsing
-    
-  */
-  var xml = require('xmldom');
-  var DOMParser = xml.DOMParser;
-  var doc = new DOMParser().parseFromString(st);
-  var results = _.map(doc.childNodes, data_factory);
-  
-  return results;
-}
-
-function fromXML(string){
-
-  return is_node ? ServerXMLParser(string) : BrowserXMLParser(string);
-
-}
-
-
-function string_factory(data, depth){
-
-  var meta = data._digger || {};
-  var children = data._children || [];
-  var attr = data;
-
-  function get_indent_string(){
-    var st = "\t";
-    var ret = '';
-    for(var i=0; i<depth; i++){
-      ret += st;
-    }
-    return ret;
-  }
-
-  var pairs = {
-    id:meta.id,
-    class:_.isArray(meta.class) ? meta.class.join(' ') : ''
-  }
-
-  var pair_strings = [];
-
-  _.each(attr, function(val, key){
-    if(key=='_digger'){
-      return;
-    }
-    pairs[key] = _.isString(val) ? val : '' + val;
-  })
-
-  _.each(pairs, function(value, field){
-    if(!_.isEmpty(value)){
-      pair_strings.push(field + '="' + value + '"');  
-    }
-  })
-
-  if(children && children.length>0){
-    var ret = get_indent_string() + '<' + meta.tag + ' ' + pair_strings.join(' ') + '>' + "\n";
-
-    _.each(children, function(child){      
-      ret += string_factory(child, depth+1);
-    })
-
-    ret += get_indent_string() + '</' + meta.tag + '>' + "\n";
-
-    return ret;    
-  }
-  else{
-    return get_indent_string() + '<' + meta.tag + ' ' + pair_strings.join(' ') + ' />' + "\n";
-  }
-}
-
-/*
-  This is the sync version of a warehouse search used by in-memory container 'find' commands
-
-  The packet will be either a straight select or a contract
- */
-function toXML(data_array){
-  return _.map(data_array, function(data){
-    return string_factory(data, 0);
-  }).join("\n");
-}
-},{"xmldom":33,"lodash":10}],30:[function(require,module,exports){
-// Original code adapted from Robert Kieffer.
-// details at https://github.com/broofa/node-uuid
-(function() {
-  var _global = this;
-
-  var mathRNG, whatwgRNG;
-
-  // NOTE: Math.random() does not guarantee "cryptographic quality"
-  mathRNG = function(size) {
-    var bytes = new Array(size);
-    var r;
-
-    for (var i = 0, r; i < size; i++) {
-      if ((i & 0x03) == 0) r = Math.random() * 0x100000000;
-      bytes[i] = r >>> ((i & 0x03) << 3) & 0xff;
-    }
-
-    return bytes;
-  }
-
-  // currently only available in webkit-based browsers.
-  if (_global.crypto && crypto.getRandomValues) {
-    var _rnds = new Uint32Array(4);
-    whatwgRNG = function(size) {
-      var bytes = new Array(size);
-      crypto.getRandomValues(_rnds);
-
-      for (var c = 0 ; c < size; c++) {
-        bytes[c] = _rnds[c >> 2] >>> ((c & 0x03) * 8) & 0xff;
-      }
-      return bytes;
-    }
-  }
-
-  module.exports = whatwgRNG || mathRNG;
-
-}())
-},{}],22:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-
-/**
- * Module dependencies.
- */
-
-var util = require('util');
-var Message = require('./message');
-var url = require('url');
-var _ = require('lodash');
-
-/*
-
-
-  
-*/
-
-module.exports = Request;
-
-var url_fields = [
-  'protocol',
-  'hostname',
-  'port',
-  'pathname',
-  'hash'
-]
-
-var default_fields = {
-  'protocol':'http:',
-  'hostname':'localhost',
-  'port':null,
-  'pathname':'/',
-  'hash':null
-}
-
-function Request(data){
-  var self = this;
-  data = data || {};
-  Message.apply(this, [data]);
-
-  this.url = data.url || '/';
-  this.method = data.method || 'get';
-  this.query = data.query || {};
-
-  var parsed = url.parse(this.url);
-
-  if(parsed.query){
-    _.each(parsed.query.split('&'), function(part){
-      var parts = part.split('=');
-      self.query[parts[0]] = parts[1];
-    })
-  }
-
-  _.each(url_fields, function(field){
-    self[field] = parsed[field] || default_fields[field];
-  })
-}
-
-
-Request.factory = function(data){
-  return new Request(data);
-}
-
-
-util.inherits(Request, Message);
-
-Request.prototype.clone = function(){
-  return Request.factory(JSON.parse(JSON.stringify(this.toJSON())));
-}
-
-Request.prototype.debug = function(){
-  this.setHeader('x-digger-debug', true);
-  return this;
-}
-
-Request.prototype.inject = function(child){
-  var self = this;
-  _.each([
-    'x-digger-debug',
-    'x-json-resource',
-    'x-json-meta',
-    'x-contract-id'
-  ], function(field){
-    var val = self.getHeader(field);
-    if(val){
-      child.setHeader(field, val);  
-    }
-  })
-  return this;
-}
-
-Request.prototype.toJSON = function(){
-  var self = this;
-  var ret = Message.prototype.toJSON.apply(this);
-
-  ret.url = this.url;
-  ret.method = this.method;
-  ret.query = this.query;
-
-  _.each(url_fields, function(field){
-    ret[field] = self[field];
-  })
-
-  return ret;
-}
-
-Request.prototype.expect = function(content_type){
-  this.setHeader('x-expect', content_type);
-  return this;
-}
-},{"util":11,"url":4,"./message":26,"lodash":10}],34:[function(require,module,exports){
+},{"lodash":8}],34:[function(require,module,exports){
 module.exports = hasKeys
 
 function hasKeys(source) {
@@ -17193,116 +17306,7 @@ function hasKeys(source) {
         typeof source === "function")
 }
 
-},{}],26:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-
-/**
- * Module dependencies.
- */
-
-var _ = require('lodash');
-var util = require('util');
-var EventEmitter = require('events').EventEmitter;
-
-/*
-
-  telegraft - network request
-
-  basic version of http.serverRequest
-  
-*/
-
-module.exports = Message;
-
-function Message(data){
-  data = data || {};
-  EventEmitter.call(this);
-  this.headers = data.headers || {};
-  this.body = data.body || null;
-  this.headerSent = false;
-}
-
-util.inherits(Message, EventEmitter);
-
-Message.prototype.toJSON = function(){
-  return {
-    headers:this.headers,
-    body:this.body
-  }
-}
-
-
-/*
-
-  copied mostly from node.js/lib/http.js
-  
-*/
-Message.prototype.setHeader = function(name, value) {
-  if (arguments.length < 2) {
-    throw new Error('`name` and `value` are required for setHeader().');
-  }
-
-  if (this.headerSent) {
-    throw new Error('Can\'t set headers after they are sent.');
-  }
-
-  var key = name.toLowerCase();
-  this.headers = this.headers || {};
-  this.headers[key] = value;
-  return this;
-}
-
-
-Message.prototype.getHeader = function(name) {
-  if (arguments.length < 1) {
-    throw new Error('`name` is required for getHeader().');
-  }
-
-  if (!this.headers) return;
-
-  var key = name.toLowerCase();
-  var value = this.headers[key];
-
-  if(!value){
-    return value;
-  }
-
-  if(name.indexOf('x-json')===0 && _.isString(value)){
-    value = this.headers[key] = JSON.parse(value);
-  }
-  
-  return value;
-}
-
-
-Message.prototype.removeHeader = function(name) {
-  if (arguments.length < 1) {
-    throw new Error('`name` is required for removeHeader().');
-  }
-
-  if (this.headerSent) {
-    throw new Error('Can\'t remove headers after they are sent.');
-  }
-
-  if (!this.headers) return;
-
-  var key = name.toLowerCase();
-  delete this.headers[key];
-}
-},{"util":11,"events":3,"lodash":10}],25:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 var Keys = require("object-keys")
 var hasKeys = require("./has-keys")
 
@@ -17329,7 +17333,7 @@ function extend() {
     return target
 }
 
-},{"./has-keys":34,"object-keys":35}],33:[function(require,module,exports){
+},{"./has-keys":34,"object-keys":35}],31:[function(require,module,exports){
 function DOMParser(options){
 	this.options = 
 			options != true && //To the version (0.1.12) compatible
@@ -18724,180 +18728,7 @@ if(typeof require == 'function'){
 	exports.XMLSerializer = XMLSerializer;
 }
 
-},{}],31:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-
-var _ = require('lodash');
-
-/*
-  Quarry.io - Find
-  ----------------
-
-  A sync version of the selector resolver for use with already loaded containers
-
-  This is used for container.find() to return the results right away jQuery style
-
-
-
-
- */
-
-module.exports = factory;
-
-function State(arr){
-  this.count = arr.length;
-  this.index = 0;
-  this.finished = false;
-}
-
-State.prototype.next = function(){
-  this.index++;
-  if(this.index>=this.count){
-    this.finished = true;
-  }
-}
-
-/*
-
-  search is the function that accepts a single container and the single selector to resolve
-  
-*/
-function factory(searchfn){
-
-  /*
-  
-    context is the container to search from
-
-    selectors is the top level array container indivudally processed selector strings
-    
-  */
-
-  return function(selectors, context){
-
-    var final_state = new State(selectors);
-    var final_results = context.spawn();
-
-    /*
-    
-      loop over each of the seperate selector strings
-
-      container("selectorA", "selectorB")
-
-      B -> A
-      
-    */
-    _.each(selectors.reverse(), function(stage){
-
-      final_state.next();
-
-      /*
-      
-        this is a merge of the phase results
-
-        the last iteration of this becomes the final results
-        
-      */
-      var stage_results = context.spawn();
-
-      /*
-      
-        now we have the phases - these can be done in parallel
-        
-      */
-      _.each(stage.phases, function(phase){
-
-        
-        var phase_context = context;
-
-        var selector_state = new State(phase);
-
-        _.each(phase, function(selector){
-
-          selector_state.next();
-
-          var results = searchfn(selector, phase_context);
-
-          /*
-          
-            quit the stage loop with no results
-            
-          */
-          if(results.count()<=0){
-            return false;
-          }
-
-          /*
-          
-            if there is still more to get for this string
-            then we update the pipe skeleton
-            
-          */
-          if(!selector_state.finished){
-            phase_context = results;
-          }
-          /*
-          
-            this
-            
-          */
-          else{
-            stage_results.add(results);
-          }
-
-          return true;
-
-        })
-
-      
-
-      })
-
-      /*
-      
-        quit the stages with no results
-        
-      */
-      if(stage_results.count()<=0){
-        return false;
-      }
-
-
-      /*
-      
-        this is the result of a stage - we pipe the results to the next stage
-        or call them the final results
-        
-      */
-
-      if(!final_state.finished){
-        context = stage_results;
-      }
-      else{
-        final_results = stage_results;
-      }
-    })
-
-    return final_results;
-
-  }
-}
-},{"lodash":10}],37:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 //[4]   	NameStartChar	   ::=   	":" | [A-Z] | "_" | [a-z] | [#xC0-#xD6] | [#xD8-#xF6] | [#xF8-#x2FF] | [#x370-#x37D] | [#x37F-#x1FFF] | [#x200C-#x200D] | [#x2070-#x218F] | [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | [#xFDF0-#xFFFD] | [#x10000-#xEFFFF]
 //[4a]   	NameChar	   ::=   	NameStartChar | "-" | "." | [0-9] | #xB7 | [#x0300-#x036F] | [#x203F-#x2040]
 //[5]   	Name	   ::=   	NameStartChar (NameChar)*
@@ -19463,7 +19294,7 @@ if(typeof require == 'function'){
 exports.XMLReader=XMLReader;
 }
 
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -19655,7 +19486,180 @@ function search(selector, context){
 
   return ret;
 }
-},{"../../utils":15,"lodash":10,"async":9}],35:[function(require,module,exports){
+},{"../../utils":16,"lodash":8,"async":7}],32:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+
+var _ = require('lodash');
+
+/*
+  Quarry.io - Find
+  ----------------
+
+  A sync version of the selector resolver for use with already loaded containers
+
+  This is used for container.find() to return the results right away jQuery style
+
+
+
+
+ */
+
+module.exports = factory;
+
+function State(arr){
+  this.count = arr.length;
+  this.index = 0;
+  this.finished = false;
+}
+
+State.prototype.next = function(){
+  this.index++;
+  if(this.index>=this.count){
+    this.finished = true;
+  }
+}
+
+/*
+
+  search is the function that accepts a single container and the single selector to resolve
+  
+*/
+function factory(searchfn){
+
+  /*
+  
+    context is the container to search from
+
+    selectors is the top level array container indivudally processed selector strings
+    
+  */
+
+  return function(selectors, context){
+
+    var final_state = new State(selectors);
+    var final_results = context.spawn();
+
+    /*
+    
+      loop over each of the seperate selector strings
+
+      container("selectorA", "selectorB")
+
+      B -> A
+      
+    */
+    _.each(selectors.reverse(), function(stage){
+
+      final_state.next();
+
+      /*
+      
+        this is a merge of the phase results
+
+        the last iteration of this becomes the final results
+        
+      */
+      var stage_results = context.spawn();
+
+      /*
+      
+        now we have the phases - these can be done in parallel
+        
+      */
+      _.each(stage.phases, function(phase){
+
+        
+        var phase_context = context;
+
+        var selector_state = new State(phase);
+
+        _.each(phase, function(selector){
+
+          selector_state.next();
+
+          var results = searchfn(selector, phase_context);
+
+          /*
+          
+            quit the stage loop with no results
+            
+          */
+          if(results.count()<=0){
+            return false;
+          }
+
+          /*
+          
+            if there is still more to get for this string
+            then we update the pipe skeleton
+            
+          */
+          if(!selector_state.finished){
+            phase_context = results;
+          }
+          /*
+          
+            this
+            
+          */
+          else{
+            stage_results.add(results);
+          }
+
+          return true;
+
+        })
+
+      
+
+      })
+
+      /*
+      
+        quit the stages with no results
+        
+      */
+      if(stage_results.count()<=0){
+        return false;
+      }
+
+
+      /*
+      
+        this is the result of a stage - we pipe the results to the next stage
+        or call them the final results
+        
+      */
+
+      if(!final_state.finished){
+        context = stage_results;
+      }
+      else{
+        final_results = stage_results;
+      }
+    })
+
+    return final_results;
+
+  }
+}
+},{"lodash":8}],35:[function(require,module,exports){
 module.exports = Object.keys || require('./shim');
 
 
@@ -20432,5 +20436,5 @@ is.string = function (value) {
 };
 
 
-},{}]},{},[6])
+},{}]},{},[4])
 ;

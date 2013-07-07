@@ -55,6 +55,7 @@ $digger._trigger_ready = function(){
 		fn.apply($digger, [$digger]);
 	})
 	readycallbacks = [];
+	isready = true;
 }
 
 /*
@@ -75,12 +76,20 @@ $digger.bootstrap = function(config){
 		channel:null
 	})
 
+	console.log('-------------------------------------------');
+	console.log('digger.io browserapi version: ' + $digger.version);
+
 	var socket_address = [config.protocol, config.host, '/', config.channel].join('');
 	console.log('connecting to socket: ' + socket_address);
 
 	var socket = io.connect(socket_address);
 
 	socket.on('connect', function(){
+		console.log('socket connected');
+		if(config.user){
+			$digger.user = Proto.factory(config.user); 
+			console.log('digger user: ' + $digger.user.attr('name'));
+		}
 		$digger._trigger_ready();
 	})
 
@@ -95,12 +104,7 @@ $digger.bootstrap = function(config){
 		})
 	})
 
-	$digger.config = _.extend({}, config, window.$diggerconfig);
-
-	if(config.user){
-		$digger.user = Proto.factory(config.user); 
-		console.log('digger user: ' + $digger.user.attr('name'));
-	}
+	$digger.config = _.extend({}, config, window.$diggerconfig);	
 }
 
 /*

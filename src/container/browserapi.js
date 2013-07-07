@@ -84,13 +84,25 @@ $digger.bootstrap = function(config){
 
 	var socket = io.connect(socket_address);
 
+	/*
+	
+		a counter of how many times the socket came online
+		
+	*/
+	var connections = 0;
+
 	socket.on('connect', function(){
 		console.log('socket connected');
-		if(config.user){
-			$digger.user = Proto.factory(config.user); 
-			console.log('digger user: ' + $digger.user.attr('name'));
+		connections++;
+
+		if(connections<=1){
+			if(config.user){
+				$digger.user = Proto.factory(config.user); 
+				console.log('digger user: ' + $digger.user.attr('name'));
+			}
+			$digger._trigger_ready();	
 		}
-		$digger._trigger_ready();
+		
 	})
 
 	/*

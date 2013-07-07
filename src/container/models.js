@@ -39,6 +39,7 @@ var utils = require('../utils');
 function extractdata(data, attr){
 
   if(_.isString(data)){
+    data = data.replace(/^\s+/, '');
     // we assume XML
     if(data.charAt(0)=='<'){
       data = XML.parse(data);

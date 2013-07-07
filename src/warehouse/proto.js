@@ -96,6 +96,10 @@ Warehouse.prototype.prepare = function(setupfn){
  */
 
 Warehouse.prototype.use = function(route, fn){
+  if(route==='before'){
+    this.stack.unshift({ route: '/', handle: fn });
+    return this;
+  }
   // default route to '/'
   if ('string' != typeof route) {
     fn = route;

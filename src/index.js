@@ -34,7 +34,7 @@ var path = require('path');
 
 var exports = module.exports = {
 
-  version:require(__dirname + '/../package.json'),
+  version:require(__dirname + '/../package.json').version,
 
   /*
   

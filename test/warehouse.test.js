@@ -216,4 +216,25 @@ describe('warehouse', function(){
 
     warehouse(req, res);
   })
+
+  it('should allow a handler to be inserted at the start of the stack', function(done){
+    var warehouse = digger.warehouse();
+
+    warehouse.use(function(req, res, next){
+      throw new Error('this should never happen');
+    })
+    
+    warehouse.use('before', function(req, res, next){
+      done();
+    })
+
+    var req = digger.request({
+      method:'get',
+      url:'/'
+    })
+
+    var res = digger.response(true);
+
+    warehouse(req, res);
+  })
 })

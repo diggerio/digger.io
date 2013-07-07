@@ -95,6 +95,10 @@ Warehouse.prototype.prepare = function(setupfn){
 
  */
 
+Warehouse.prototype.security = function(fn){
+  this.use('before', fn);
+}
+
 Warehouse.prototype.use = function(route, fn){
   if(route==='before'){
     this.stack.unshift({ route: '/', handle: fn });

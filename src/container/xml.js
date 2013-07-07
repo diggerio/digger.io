@@ -40,6 +40,8 @@ function null_filter(val){
 
 function data_factory(element){
 
+  console.log('-------------------------------------------');
+  console.dir(element);
   if(element.nodeType!=element.ELEMENT_NODE){
     return;
   }

@@ -86,6 +86,29 @@ $digger.bootstrap = function(config){
 
 	/*
 	
+		this is run the first time the socket connects
+
+		this triggers the digger ready phase
+		
+	*/
+
+	function diggerready(){
+		if(config.user){
+			$digger.user = Proto.factory(config.user); 
+			console.log('digger user: ' + $digger.user.attr('name'));
+		}
+		if(config.blueprints){
+			$digger.blueprint.add(config.blueprints);
+			console.log('adding digger blueprints: ' + _.keys(config.blueprints).length);
+			_.each(config.blueprints, function(print, name){
+				console.log('   - ' + name);
+			})
+		}
+		$digger._trigger_ready();	
+	}
+
+	/*
+	
 		a counter of how many times the socket came online
 		
 	*/
@@ -96,13 +119,8 @@ $digger.bootstrap = function(config){
 		connections++;
 
 		if(connections<=1){
-			if(config.user){
-				$digger.user = Proto.factory(config.user); 
-				console.log('digger user: ' + $digger.user.attr('name'));
-			}
-			$digger._trigger_ready();	
+			diggerready();
 		}
-		
 	})
 
 	/*
@@ -130,6 +148,23 @@ $digger.connect = function(stackpath){
 	}
 
 	return $digger.supplychain.connect(stackpath);
+}
+
+var blueprints = {};
+
+$digger.blueprint = {
+  add:function(prints){
+    for(var i in prints){
+      blueprints[i] = prints[i];
+    }
+    return this;
+  },
+  get:function(name){
+    if(arguments.length<=0){
+      return blueprints;
+    }
+    return blueprints[name];
+  }
 }
 
 /*

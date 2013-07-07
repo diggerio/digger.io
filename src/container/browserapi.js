@@ -65,27 +65,42 @@ $digger._trigger_ready = function(){
 	
 */
 $digger.bootstrap = function(config){
+
+	config = _.extend({}, config.windowconfig, config.userconfig);
+	readycallbacks = readycallbacks.concat(config.readycallbacks || []);
+	
 	config = _.defaults(config, {
 		protocol:'http://',
 		host:'digger.io',
 		channel:null
 	})
 
-	var socket = io.connect([config.protocol, config.host, '/', config.channel].join(''));
+	var socket_address = [config.protocol, config.host, '/', config.channel].join('');
+	console.log('connecting to socket: ' + socket_address);
+
+	var socket = io.connect(socket_address);
 
 	socket.on('connect', function(){
 		$digger._trigger_ready();
 	})
 
+	/*
+	
+		this is the client side container plugged into the socket.io transport
+		
+	*/
 	$digger.supplychain = SupplyChain(function(req, res){
 		socket.emit('request', req.toJSON(), function(rawres){
-			console.log('-------------------------------------------');
-			console.log('answer');
-			console.dir(rawres);
 			res.fill(rawres);
 		})
 	})
 
+	$digger.config = _.extend({}, config, window.$diggerconfig);
+
+	if(config.user){
+		$digger.user = Proto.factory(config.user); 
+		console.log('digger user: ' + $digger.user.attr('name'));
+	}
 }
 
 /*
@@ -107,7 +122,7 @@ $digger.connect = function(stackpath){
 	
 */
 $digger.Proto = Proto;
-$digger.create = $digger.Proto.factory;
+$digger.create = Proto.factory;
 $digger.config = {};
 $digger.user = null;
 

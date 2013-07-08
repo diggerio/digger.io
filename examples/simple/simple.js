@@ -70,6 +70,7 @@ var warehouse = digger.warehouse();
 warehouse.use(function(req, res, next){
 	console.log('-------------------------------------------');
 	console.dir(req.toJSON());
+	next();
 })
 
 /*

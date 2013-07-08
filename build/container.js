@@ -291,200 +291,6 @@ EventEmitter.prototype.listeners = function(type) {
 
 })(require("__browserify_process"))
 },{"__browserify_process":2}],4:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-var Proto = require('./proto');
-var SupplyChain = require('../warehouse/supplychain');
-
-var _ = require('lodash');
-var async = require('async');
-
-/*
-
-	$digger is the default on ready handler
-	
-*/
-
-var isready = false;
-var readycallbacks = [];
-
-var version = require('../../package.json').version;
-
-function $digger(){
-	/*
-	
-		a ready handler
-		
-	*/
-	if(_.isFunction(arguments[0])){
-		if(isready){
-			arguments[0].apply($digger, [$digger]);
-		}
-		else{
-			readycallbacks.push(arguments[0]);
-		}
-	}
-}
-
-$digger.version = version;
-
-$digger._trigger_ready = function(){
-	_.each(readycallbacks, function(fn){
-		fn.apply($digger, [$digger]);
-	})
-	readycallbacks = [];
-	isready = true;
-}
-
-/*
-
-	this connects the socket
-
-	it is passed any config by the server
-	
-*/
-$digger.bootstrap = function(config){
-
-	config = _.extend({}, config.windowconfig, config.userconfig);
-	readycallbacks = readycallbacks.concat(config.readycallbacks || []);
-	
-	config = _.defaults(config, {
-		protocol:'http://',
-		host:'digger.io',
-		channel:null
-	})
-
-	console.log('-------------------------------------------');
-	console.log('digger.io browserapi version: ' + $digger.version);
-	console.dir(config);
-
-	var socket_address = [config.protocol, config.host, '/', config.channel].join('');
-	console.log('connecting to socket: ' + socket_address);
-
-	var socket = io.connect(socket_address);
-
-	/*
-	
-		this is run the first time the socket connects
-
-		this triggers the digger ready phase
-		
-	*/
-
-	function diggerready(){
-		if(config.user){
-			$digger.user = Proto.factory(config.user); 
-			console.log('digger user: ' + $digger.user.attr('name'));
-		}
-		if(config.blueprints){
-			$digger.blueprint.add(config.blueprints);
-			console.log('adding digger blueprints: ' + _.keys(config.blueprints).length);
-			_.each(config.blueprints, function(print, name){
-				console.log('   - ' + name);
-			})
-		}
-		$digger._trigger_ready();	
-	}
-
-	/*
-	
-		a counter of how many times the socket came online
-		
-	*/
-	var connections = 0;
-
-	socket.on('connect', function(){
-		console.log('socket connected');
-		connections++;
-
-		if(connections<=1){
-			diggerready();
-		}
-	})
-
-	/*
-	
-		this is the client side container plugged into the socket.io transport
-		
-	*/
-	$digger.supplychain = SupplyChain(function(req, res){
-		socket.emit('request', req.toJSON(), function(rawres){
-			res.fill(rawres);
-		})
-	})
-
-	$digger.config = _.extend({}, config, window.$diggerconfig);	
-}
-
-/*
-
-	get a container that has a socket supply chain hooked up to the given stackpath
-	
-*/
-$digger.connect = function(stackpath){
-	if(!this.supplychain){
-		throw new Error('there is no supplychain - this means we are not yet connected - place code inside of $digger(function(){})');
-	}
-
-	return $digger.supplychain.connect(stackpath);
-}
-
-var blueprints = {};
-
-$digger.blueprint = {
-  add:function(prints){
-    for(var i in prints){
-      blueprints[i] = prints[i];
-    }
-    return this;
-  },
-  get:function(name){
-    if(arguments.length<=0){
-      return blueprints;
-    }
-    return blueprints[name];
-  }
-}
-
-/*
-
-	we let the client re-route requests
-	
-*/
-var routes = {};
-
-$digger.router = function(from, to){
-	routes[from] = to;
-}
-/*
-
-	we export these vars to the window immediately - everything else is done inside the $digger handler
-	
-*/
-$digger.Proto = Proto;
-$digger.create = Proto.factory;
-$digger.config = {};
-$digger.user = null;
-
-window._ = _;
-window.async = async;
-window.$digger = $digger;
-},{"./proto":5,"../../package.json":1,"../warehouse/supplychain":6,"async":7,"lodash":8}],9:[function(require,module,exports){
 var punycode = { encode : function (s) { return s } };
 
 exports.parse = urlParse;
@@ -1090,7 +896,7 @@ function parseHost(host) {
   return out;
 }
 
-},{"querystring":10}],11:[function(require,module,exports){
+},{"querystring":5}],6:[function(require,module,exports){
 var events = require('events');
 
 exports.isArray = isArray;
@@ -1444,6 +1250,203 @@ exports.format = function(f) {
 };
 
 },{"events":3}],7:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+var Proto = require('./proto');
+var SupplyChain = require('../warehouse/supplychain');
+
+var _ = require('lodash');
+var async = require('async');
+
+/*
+
+	$digger is the default on ready handler
+	
+*/
+
+var isready = false;
+var readycallbacks = [];
+
+var version = require('../../package.json').version;
+
+function $digger(){
+	/*
+	
+		a ready handler
+		
+	*/
+	if(_.isFunction(arguments[0])){
+		if(isready){
+			arguments[0].apply($digger, [$digger]);
+		}
+		else{
+			readycallbacks.push(arguments[0]);
+		}
+	}
+}
+
+$digger.version = version;
+
+$digger._trigger_ready = function(){
+	_.each(readycallbacks, function(fn){
+		fn.apply($digger, [$digger]);
+	})
+	readycallbacks = [];
+	isready = true;
+}
+
+/*
+
+	this connects the socket
+
+	it is passed any config by the server
+	
+*/
+$digger.bootstrap = function(config){
+
+	config = _.extend({}, config.windowconfig, config.userconfig);
+	readycallbacks = readycallbacks.concat(config.readycallbacks || []);
+	
+	config = _.defaults(config, {
+		protocol:'http://',
+		host:'digger.io',
+		channel:null
+	})
+
+	console.log('-------------------------------------------');
+	console.log('digger.io browserapi version: ' + $digger.version);
+	console.dir(config);
+
+	var socket_address = [config.protocol, config.host, '/', config.channel].join('');
+	console.log('connecting to socket: ' + socket_address);
+
+	var socket = io.connect(socket_address);
+
+	/*
+	
+		this is run the first time the socket connects
+
+		this triggers the digger ready phase
+		
+	*/
+
+	function diggerready(){
+		if(config.user){
+			$digger.user = Proto.factory(config.user); 
+			console.log('digger user: ' + $digger.user.attr('name'));
+		}
+		if(config.blueprints){
+			$digger.blueprint.add(config.blueprints);
+			console.log('adding digger blueprints: ' + _.keys(config.blueprints).length);
+			_.each(config.blueprints, function(print, name){
+				console.log('   - ' + name);
+			})
+		}
+		$digger._trigger_ready();	
+	}
+
+	/*
+	
+		a counter of how many times the socket came online
+		
+	*/
+	var connections = 0;
+
+	socket.on('connect', function(){
+		console.log('socket connected');
+		connections++;
+
+		if(connections<=1){
+			diggerready();
+		}
+	})
+
+	/*
+	
+		this is the client side container plugged into the socket.io transport
+		
+	*/
+	$digger.supplychain = SupplyChain(function(req, res){
+		console.log('-------------------------------------------');
+		console.dir(req.toJSON());
+		socket.emit('request', req.toJSON(), function(rawres){
+			console.dir(rawres);
+			res.fill(rawres);
+		})
+	})
+
+	$digger.config = _.extend({}, config, window.$diggerconfig);	
+}
+
+/*
+
+	get a container that has a socket supply chain hooked up to the given stackpath
+	
+*/
+$digger.connect = function(stackpath){
+	if(!this.supplychain){
+		throw new Error('there is no supplychain - this means we are not yet connected - place code inside of $digger(function(){})');
+	}
+
+	return $digger.supplychain.connect(stackpath);
+}
+
+var blueprints = {};
+
+$digger.blueprint = {
+  add:function(prints){
+    for(var i in prints){
+      blueprints[i] = prints[i];
+    }
+    return this;
+  },
+  get:function(name){
+    if(arguments.length<=0){
+      return blueprints;
+    }
+    return blueprints[name];
+  }
+}
+
+/*
+
+	we let the client re-route requests
+	
+*/
+var routes = {};
+
+$digger.router = function(from, to){
+	routes[from] = to;
+}
+/*
+
+	we export these vars to the window immediately - everything else is done inside the $digger handler
+	
+*/
+$digger.Proto = Proto;
+$digger.create = Proto.factory;
+$digger.config = {};
+$digger.user = null;
+
+window._ = _;
+window.async = async;
+window.$digger = $digger;
+},{"./proto":8,"../warehouse/supplychain":9,"../../package.json":1,"async":10,"lodash":11}],10:[function(require,module,exports){
 (function(process){/*global setImmediate: false, setTimeout: false, console: false */
 (function () {
 
@@ -2401,7 +2404,7 @@ exports.format = function(f) {
 }());
 
 })(require("__browserify_process"))
-},{"__browserify_process":2}],10:[function(require,module,exports){
+},{"__browserify_process":2}],5:[function(require,module,exports){
 
 /**
  * Object#toString() ref for stringify().
@@ -2720,7 +2723,7 @@ function decode(str) {
   }
 }
 
-},{}],8:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 (function(global){/**
  * @license
  * Lo-Dash 1.2.1 (Custom Build) <http://lodash.com/>
@@ -7987,7 +7990,242 @@ function decode(str) {
 }(this));
 
 })(window)
-},{}],5:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
+/*
+  Copyright (c) 2012 All contributors as noted in the AUTHORS file
+
+  This file is part of quarry.io
+
+  quarry.io is free software; you can redistribute it and/or modify it under
+  the terms of the GNU Lesser General Public License as published by
+  the Free Software Foundation; either version 3 of the License, or
+  (at your option) any later version.
+
+  quarry.io is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/*
+
+	supply chain
+
+  a container layer ontop of the underlying req, res network
+
+  this connects a function with the container API
+
+  so:
+
+    var container = digger.supplychain(function(req, res){
+      // here we have a req with
+
+      // x-json-selectors filled in
+
+    })
+
+    container('find me').ship(function(stuff){
+      // here we have whatever the function returned
+    })
+
+
+  it is a neat trick to create a supplychain that proxies over
+  the network to fullfull the request
+
+  This lets us make generic objects that access network services
+
+  It also lets us use the same code to built a socket supply chain
+  (for websocket browser connections) and a HTTP supply chain (for 
+  REST api's etc)
+
+	
+*/
+var EventEmitter = require('events').EventEmitter;
+var _ = require('lodash');
+
+var Container = require('../container/proto');
+var Contract = require('../network/contract');
+var Response = require('../network/response');
+
+var Merge = Contract.mergefactory;
+var Sequence = Contract.sequencefactory;
+
+/*
+
+  create a new supply chain that will pipe a req and res object into the
+  provided fn
+
+  
+*/
+
+function factory(){
+
+  var url = '/';
+  var supplierfn = null;
+  var container = null;
+
+  _.each(_.toArray(arguments), function(arg){
+    if(_.isFunction(arg)){
+      /*
+      
+        it is an existing container
+        
+      */
+      if(_.isFunction(arg.diggerid)){
+        container = arg;
+      }
+      /*
+      
+        otherwise the supplierchain function
+        
+      */
+      else{
+        supplierfn = arg;  
+      }
+    }
+    /*
+    
+      it is a URL to create a container from
+      
+    */
+    else if(_.isString(arg)){
+      container = Container.factory('_supplychain');
+      url = arg;
+    }
+    else if(_.isArray(arg) || _.isObject(arg)){
+      if(!_.isArray(arg)){
+        arg = [arg];
+      }
+
+      container = Container.factory(arg);
+    }
+
+  })
+
+
+  if(!container){
+    container = Container.factory('_supplychain');
+  }
+
+  if(!supplierfn){
+    supplierfn = function(req, res){
+      res.send404();
+    }
+  }
+
+  if(!container.diggerwarehouse()){
+    container.diggerwarehouse(url);
+  }
+
+  /*
+  
+    are we connected directly to some backend functions (i.e. non network mode)
+
+    if yes then we will fake serialize the requests
+    
+  */
+  var should_auto_serialize = supplierfn._diggertype=='warehouse' || supplierfn._diggertype=='supplier' || supplierfn._diggertype=='provider';
+
+  function supplychain(){}
+
+  _.extend(supplychain, EventEmitter.prototype);
+
+  supplychain.ship = function(contract, callback){
+    var self = this;
+
+    var res = Response.factory(function(){
+
+      /*
+      
+        resolve means extracting the multipart responses
+        
+      */
+      res.resolve(function(results, errors){
+        if(should_auto_serialize){
+          results = JSON.parse(JSON.stringify(results));
+        }
+        var answer = results;
+        if(contract.getHeader('x-expect')==='digger/containers'){
+          if(results && results.length>0){
+            answer = container.spawn(results);
+          }
+          else{
+            answer = container.spawn();
+          }
+        }
+
+        contract.emit('shipped', answer);
+        callback(answer, res);
+      })
+
+    })
+
+    if(should_auto_serialize){
+      _.each(JSON.parse(JSON.stringify(contract.toJSON())), function(v, k){
+        contract[k] = v;
+      })
+    }
+    
+    supplierfn(contract, res);
+
+    return res;
+  }
+
+  /*
+  
+    the switchboard features of the supplychain
+    
+  */
+  supplychain.listen = function(key, callback){
+    if(supplierfn.switchboard){
+      supplierfn.switchboard.listen(key, callback);
+    }
+    return this;
+  }
+
+  supplychain.broadcast = function(key, message){
+    if(supplierfn.switchboard){
+      supplierfn.switchboard.broadcast(key, message);
+    }
+    return this;
+  }
+
+
+  container.supplychain = supplychain;
+
+  /*
+  
+    used to create other container with different URLs
+    
+  */
+  container.connect = function(url){
+    var ret = Container.factory('_supplychain');
+    ret.diggerwarehouse(url);
+    ret.supplychain = supplychain;
+    return ret;
+  }
+  
+  container.merge = function(arr){
+    var contract = Merge(arr);
+    contract.supplychain = supplychain;
+    return contract;
+  }
+
+  container.sequence = function(arr){
+    var contract = Sequence(arr);
+    contract.supplychain = supplychain;
+    return contract;
+  }
+  
+
+  return container;
+}
+
+module.exports = factory;
+},{"events":3,"../container/proto":8,"../network/contract":12,"../network/response":13,"lodash":11}],8:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -8700,242 +8938,7 @@ Container.prototype.select = Contracts.select;
 Container.prototype.append = Contracts.append;
 Container.prototype.save = Contracts.save;
 Container.prototype.remove = Contracts.remove;
-},{"events":3,"./models":12,"./contracts":13,"../utils":14,"./deepdot":15,"./search":16,"lodash":8,"async":7}],6:[function(require,module,exports){
-/*
-  Copyright (c) 2012 All contributors as noted in the AUTHORS file
-
-  This file is part of quarry.io
-
-  quarry.io is free software; you can redistribute it and/or modify it under
-  the terms of the GNU Lesser General Public License as published by
-  the Free Software Foundation; either version 3 of the License, or
-  (at your option) any later version.
-
-  quarry.io is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU Lesser General Public License for more details.
-
-  You should have received a copy of the GNU Lesser General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
-
-	supply chain
-
-  a container layer ontop of the underlying req, res network
-
-  this connects a function with the container API
-
-  so:
-
-    var container = digger.supplychain(function(req, res){
-      // here we have a req with
-
-      // x-json-selectors filled in
-
-    })
-
-    container('find me').ship(function(stuff){
-      // here we have whatever the function returned
-    })
-
-
-  it is a neat trick to create a supplychain that proxies over
-  the network to fullfull the request
-
-  This lets us make generic objects that access network services
-
-  It also lets us use the same code to built a socket supply chain
-  (for websocket browser connections) and a HTTP supply chain (for 
-  REST api's etc)
-
-	
-*/
-var EventEmitter = require('events').EventEmitter;
-var _ = require('lodash');
-
-var Container = require('../container/proto');
-var Contract = require('../network/contract');
-var Response = require('../network/response');
-
-var Merge = Contract.mergefactory;
-var Sequence = Contract.sequencefactory;
-
-/*
-
-  create a new supply chain that will pipe a req and res object into the
-  provided fn
-
-  
-*/
-
-function factory(){
-
-  var url = '/';
-  var supplierfn = null;
-  var container = null;
-
-  _.each(_.toArray(arguments), function(arg){
-    if(_.isFunction(arg)){
-      /*
-      
-        it is an existing container
-        
-      */
-      if(_.isFunction(arg.diggerid)){
-        container = arg;
-      }
-      /*
-      
-        otherwise the supplierchain function
-        
-      */
-      else{
-        supplierfn = arg;  
-      }
-    }
-    /*
-    
-      it is a URL to create a container from
-      
-    */
-    else if(_.isString(arg)){
-      container = Container.factory('_supplychain');
-      url = arg;
-    }
-    else if(_.isArray(arg) || _.isObject(arg)){
-      if(!_.isArray(arg)){
-        arg = [arg];
-      }
-
-      container = Container.factory(arg);
-    }
-
-  })
-
-
-  if(!container){
-    container = Container.factory('_supplychain');
-  }
-
-  if(!supplierfn){
-    supplierfn = function(req, res){
-      res.send404();
-    }
-  }
-
-  if(!container.diggerwarehouse()){
-    container.diggerwarehouse(url);
-  }
-
-  /*
-  
-    are we connected directly to some backend functions (i.e. non network mode)
-
-    if yes then we will fake serialize the requests
-    
-  */
-  var should_auto_serialize = supplierfn._diggertype=='warehouse' || supplierfn._diggertype=='supplier' || supplierfn._diggertype=='provider';
-
-  function supplychain(){}
-
-  _.extend(supplychain, EventEmitter.prototype);
-
-  supplychain.ship = function(contract, callback){
-    var self = this;
-
-    var res = Response.factory(function(){
-
-      /*
-      
-        resolve means extracting the multipart responses
-        
-      */
-      res.resolve(function(results, errors){
-        if(should_auto_serialize){
-          results = JSON.parse(JSON.stringify(results));
-        }
-        var answer = results;
-        if(contract.getHeader('x-expect')==='digger/containers'){
-          if(results && results.length>0){
-            answer = container.spawn(results);
-          }
-          else{
-            answer = container.spawn();
-          }
-        }
-
-        contract.emit('shipped', answer);
-        callback(answer, res);
-      })
-
-    })
-
-    if(should_auto_serialize){
-      _.each(JSON.parse(JSON.stringify(contract.toJSON())), function(v, k){
-        contract[k] = v;
-      })
-    }
-    
-    supplierfn(contract, res);
-
-    return res;
-  }
-
-  /*
-  
-    the switchboard features of the supplychain
-    
-  */
-  supplychain.listen = function(key, callback){
-    if(supplierfn.switchboard){
-      supplierfn.switchboard.listen(key, callback);
-    }
-    return this;
-  }
-
-  supplychain.broadcast = function(key, message){
-    if(supplierfn.switchboard){
-      supplierfn.switchboard.broadcast(key, message);
-    }
-    return this;
-  }
-
-
-  container.supplychain = supplychain;
-
-  /*
-  
-    used to create other container with different URLs
-    
-  */
-  container.connect = function(url){
-    var ret = Container.factory('_supplychain');
-    ret.diggerwarehouse(url);
-    ret.supplychain = supplychain;
-    return ret;
-  }
-  
-  container.merge = function(arr){
-    var contract = Merge(arr);
-    contract.supplychain = supplychain;
-    return contract;
-  }
-
-  container.sequence = function(arr){
-    var contract = Sequence(arr);
-    contract.supplychain = supplychain;
-    return contract;
-  }
-  
-
-  return container;
-}
-
-module.exports = factory;
-},{"events":3,"../container/proto":5,"../network/contract":17,"../network/response":18,"lodash":8}],14:[function(require,module,exports){
+},{"events":3,"./deepdot":14,"../utils":15,"./models":16,"./contracts":17,"./search":18,"lodash":11,"async":10}],15:[function(require,module,exports){
 (function(){/*
 
 	(The MIT License)
@@ -9140,7 +9143,7 @@ function extend(){
 }
 
 })()
-},{"url":9,"lodash":8,"node-uuid":19}],20:[function(require,module,exports){
+},{"url":4,"lodash":11,"node-uuid":19}],20:[function(require,module,exports){
 require=(function(e,t,n,r){function i(r){if(!n[r]){if(!t[r]){if(e)return e(r);throw new Error("Cannot find module '"+r+"'")}var s=n[r]={exports:{}};t[r][0](function(e){var n=t[r][1][e];return i(n?n:e)},s,s.exports)}return n[r].exports}for(var s=0;s<r.length;s++)i(r[s]);return i})(typeof require!=="undefined"&&require,{1:[function(require,module,exports){
 exports.readIEEE754 = function(buffer, offset, isBE, mLen, nBytes) {
   var e, m,
@@ -13253,7 +13256,350 @@ SlowBuffer.prototype.writeDoubleBE = Buffer.prototype.writeDoubleBE;
 }());
 
 })(require("__browserify_buffer").Buffer)
-},{"crypto":21,"__browserify_buffer":20}],13:[function(require,module,exports){
+},{"crypto":21,"__browserify_buffer":20}],16:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+
+var _ = require('lodash');
+var XML = require('./xml');
+var utils = require('../utils');
+
+/*
+
+  model factory
+
+  turns input data into a container data array
+  
+*/
+
+
+/*
+
+  takes data in as string (XML, JSON) or array of objects or single object
+
+  returns container data
+  
+*/
+function extractdata(data, attr){
+
+  if(_.isString(data)){
+    data = data.replace(/^\s+/, '');
+    // we assume XML
+    if(data.charAt(0)=='<'){
+      data = XML.parse(data);
+    }
+    // or JSON string
+    else if(data.charAt(0)=='['){
+      data = JSON.parse(data);
+    }
+    // we could do YAML here
+    else{
+      attr = attr || {};
+      attr._digger = attr._digger || {};
+      attr._digger.tag = data;
+      attr._children = attr._children || [];
+      attr._data = attr._data || {};
+      data = [attr];
+    }
+  }
+  else if(!_.isArray(data)){
+    if(!data){
+      data = {};
+    }
+    data = [data];
+  }
+
+  return data;
+}
+
+/*
+
+  extract the raw data array and then map it for defaults
+  
+*/
+module.exports = function modelfactory(data, attr){
+
+  if(!data){
+    return [];
+  }
+  
+  var models = extractdata(data, attr);
+
+  function nonulls(model){
+    return model!==null;
+  }
+  /*
+  
+    prepare the data
+    
+  */
+  models = _.filter(_.map(models || [], function(model){
+
+    if(!model){
+      return null;
+    }
+
+    var digger = model._digger = model._digger || {};
+    digger.class = digger.class || [];
+    digger.diggerpath = digger.diggerpath || [];
+    digger.diggerid = digger.diggerid || utils.diggerid();
+
+    model._children = model._children || [];
+
+    return model;
+  }), nonulls)
+
+  return models;
+}
+
+module.exports.toXML = XML.stringify;
+},{"../utils":15,"./xml":22,"lodash":11}],12:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+
+/**
+ * Module dependencies.
+ */
+
+var util = require('util');
+var Message = require('./message');
+var url = require('url');
+var _ = require('lodash');
+var utils = require('../utils');
+var Request = require('./request');
+var Response = require('./response');
+
+
+/*
+
+
+  
+*/
+
+module.exports = Contract;
+
+function Contract(data){
+  var self = this;
+  data = data || {};
+  if(_.isString(data)){
+    data = {
+      headers:{
+        'x-contract-type':data
+      }
+    }
+  }
+  Request.apply(this, [data]);
+
+  this.setHeader('content-type', 'digger/contract');
+
+  if(!this.getHeader('x-contract-type')){
+    this.setHeader('x-contract-type', 'merge');
+  }
+
+  if(!this.getHeader('x-contract-id')){
+    this.setHeader('x-contract-id', utils.diggerid());
+  }
+
+  if(!this.body){
+    this.body = [];
+  }
+}
+
+util.inherits(Contract, Request);
+
+Contract.factory = function(data){
+  return new Contract(data);
+}
+
+Contract.mergefactory = function(data){
+  var contract = Contract.factory('merge');
+  contract.url = 'reception:/';
+  contract.method = 'post';
+  contract.body = _.map(data, function(child){
+    return child.toJSON();
+  })
+  return contract;
+}
+
+Contract.sequencefactory = function(data){
+  var contract = Contract.factory('sequence');
+  contract.url = 'reception:/';
+  contract.method = 'post';
+  contract.body = _.map(data, function(child){
+    return child.toJSON();
+  })
+  return contract;
+}
+
+Contract.prototype.add = function(req){
+  var self = this;
+
+  if(_.isArray(req)){
+    _.each(req, function(item){
+      self.add(item);
+    })
+  }
+  else{
+
+    var whattoadd = req;
+
+    if(_.isFunction(req.toJSON)){
+      if(req.getHeader('x-contract-type')==this.getHeader('x-contract-type')){
+        this.body = this.body.concat(req.body);
+      }
+      else{
+        this.body.push(req.toJSON());
+      }
+    }
+  }
+  return this;
+}
+
+Contract.prototype.ship = function(callback){
+  if(!this.supplychain){
+    console.log('-------------------------------------------');
+    console.log('there is no supplychain to ship with');
+    throw new Error('contract has not been given a supply chain to ship with');
+  }
+
+  return this.supplychain.ship(this, callback);
+}
+},{"util":6,"url":4,"../utils":15,"./request":23,"./response":13,"./message":24,"lodash":11}],14:[function(require,module,exports){
+var _ = require('lodash');
+var extend = require('xtend');
+var EventEmitter = require('events').EventEmitter;
+
+module.exports = deepdot;
+module.exports.factory = factory;
+
+function update(obj, prop, value){
+  
+  if(_.isArray(value)){
+    obj[prop] = value;
+    return value;
+  }
+  
+  var existing_prop = obj[prop];
+
+  if(_.isObject(obj[prop]) && _.isObject(value)){
+    extend(obj[prop], value);
+  }
+  else{
+    
+    obj[prop] = value;
+    
+  }
+
+  return value;
+}
+
+function deepdot(obj, prop, value){
+
+  if(obj===null){
+    return null;
+  }
+  if(!prop){
+    return obj;
+  }
+  prop = prop.replace(/^\./, '');
+  var parts = prop.split('.');
+  var last = parts.pop();
+  var current = obj;
+  var setmode = arguments.length>=3;
+
+  if(!_.isObject(current)){
+    return current;
+  }
+
+  while(parts.length>0 && current!==null){
+
+    var nextpart = parts.shift();
+    var nextvalue = current[nextpart]; 
+    
+    if(!nextvalue){
+
+      if(setmode){
+        nextvalue = current[nextpart] = {};
+      }
+      else{
+        break;  
+      }
+      
+    }
+    else{
+      if(!_.isObject(nextvalue)){
+        break;
+      }
+    }
+
+    current = nextvalue;
+  }
+
+  if(!_.isObject(current)){
+    return current;
+  }
+
+  if(setmode){
+    return update(current, last, value);
+  }
+  else{
+    return current[last];
+  }
+}
+
+/*
+
+  return an event emitter that is hooked into a single object
+  
+*/
+function factory(obj){
+  
+  function dot(){
+
+    var args = _.toArray(arguments);
+    args.unshift(obj);
+
+    var ret = deepdot.apply(null, args);
+
+    if(arguments.length>1){
+      dot.emit('change', arguments[0], arguments[1]);
+    }
+
+    return ret;
+  }
+
+  _.extend(dot, EventEmitter.prototype);
+
+  return dot;
+}
+},{"events":3,"lodash":11,"xtend":25}],17:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -13515,350 +13861,7 @@ function remove(){
   contract.supplychain = this.supplychain;
   return contract;
 }
-},{"../network/contract":17,"./selector":22,"../network/request":23,"lodash":8}],12:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-
-var _ = require('lodash');
-var XML = require('./xml');
-var utils = require('../utils');
-
-/*
-
-  model factory
-
-  turns input data into a container data array
-  
-*/
-
-
-/*
-
-  takes data in as string (XML, JSON) or array of objects or single object
-
-  returns container data
-  
-*/
-function extractdata(data, attr){
-
-  if(_.isString(data)){
-    data = data.replace(/^\s+/, '');
-    // we assume XML
-    if(data.charAt(0)=='<'){
-      data = XML.parse(data);
-    }
-    // or JSON string
-    else if(data.charAt(0)=='['){
-      data = JSON.parse(data);
-    }
-    // we could do YAML here
-    else{
-      attr = attr || {};
-      attr._digger = attr._digger || {};
-      attr._digger.tag = data;
-      attr._children = attr._children || [];
-      attr._data = attr._data || {};
-      data = [attr];
-    }
-  }
-  else if(!_.isArray(data)){
-    if(!data){
-      data = {};
-    }
-    data = [data];
-  }
-
-  return data;
-}
-
-/*
-
-  extract the raw data array and then map it for defaults
-  
-*/
-module.exports = function modelfactory(data, attr){
-
-  if(!data){
-    return [];
-  }
-  
-  var models = extractdata(data, attr);
-
-  function nonulls(model){
-    return model!==null;
-  }
-  /*
-  
-    prepare the data
-    
-  */
-  models = _.filter(_.map(models || [], function(model){
-
-    if(!model){
-      return null;
-    }
-
-    var digger = model._digger = model._digger || {};
-    digger.class = digger.class || [];
-    digger.diggerpath = digger.diggerpath || [];
-    digger.diggerid = digger.diggerid || utils.diggerid();
-
-    model._children = model._children || [];
-
-    return model;
-  }), nonulls)
-
-  return models;
-}
-
-module.exports.toXML = XML.stringify;
-},{"../utils":14,"./xml":24,"lodash":8}],15:[function(require,module,exports){
-var _ = require('lodash');
-var extend = require('xtend');
-var EventEmitter = require('events').EventEmitter;
-
-module.exports = deepdot;
-module.exports.factory = factory;
-
-function update(obj, prop, value){
-  
-  if(_.isArray(value)){
-    obj[prop] = value;
-    return value;
-  }
-  
-  var existing_prop = obj[prop];
-
-  if(_.isObject(obj[prop]) && _.isObject(value)){
-    extend(obj[prop], value);
-  }
-  else{
-    
-    obj[prop] = value;
-    
-  }
-
-  return value;
-}
-
-function deepdot(obj, prop, value){
-
-  if(obj===null){
-    return null;
-  }
-  if(!prop){
-    return obj;
-  }
-  prop = prop.replace(/^\./, '');
-  var parts = prop.split('.');
-  var last = parts.pop();
-  var current = obj;
-  var setmode = arguments.length>=3;
-
-  if(!_.isObject(current)){
-    return current;
-  }
-
-  while(parts.length>0 && current!==null){
-
-    var nextpart = parts.shift();
-    var nextvalue = current[nextpart]; 
-    
-    if(!nextvalue){
-
-      if(setmode){
-        nextvalue = current[nextpart] = {};
-      }
-      else{
-        break;  
-      }
-      
-    }
-    else{
-      if(!_.isObject(nextvalue)){
-        break;
-      }
-    }
-
-    current = nextvalue;
-  }
-
-  if(!_.isObject(current)){
-    return current;
-  }
-
-  if(setmode){
-    return update(current, last, value);
-  }
-  else{
-    return current[last];
-  }
-}
-
-/*
-
-  return an event emitter that is hooked into a single object
-  
-*/
-function factory(obj){
-  
-  function dot(){
-
-    var args = _.toArray(arguments);
-    args.unshift(obj);
-
-    var ret = deepdot.apply(null, args);
-
-    if(arguments.length>1){
-      dot.emit('change', arguments[0], arguments[1]);
-    }
-
-    return ret;
-  }
-
-  _.extend(dot, EventEmitter.prototype);
-
-  return dot;
-}
-},{"events":3,"lodash":8,"xtend":25}],17:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-
-/**
- * Module dependencies.
- */
-
-var util = require('util');
-var Message = require('./message');
-var url = require('url');
-var _ = require('lodash');
-var utils = require('../utils');
-var Request = require('./request');
-var Response = require('./response');
-
-
-/*
-
-
-  
-*/
-
-module.exports = Contract;
-
-function Contract(data){
-  var self = this;
-  data = data || {};
-  if(_.isString(data)){
-    data = {
-      headers:{
-        'x-contract-type':data
-      }
-    }
-  }
-  Request.apply(this, [data]);
-
-  this.setHeader('content-type', 'digger/contract');
-
-  if(!this.getHeader('x-contract-type')){
-    this.setHeader('x-contract-type', 'merge');
-  }
-
-  if(!this.getHeader('x-contract-id')){
-    this.setHeader('x-contract-id', utils.diggerid());
-  }
-
-  if(!this.body){
-    this.body = [];
-  }
-}
-
-util.inherits(Contract, Request);
-
-Contract.factory = function(data){
-  return new Contract(data);
-}
-
-Contract.mergefactory = function(data){
-  var contract = Contract.factory('merge');
-  contract.url = 'reception:/';
-  contract.method = 'post';
-  contract.body = _.map(data, function(child){
-    return child.toJSON();
-  })
-  return contract;
-}
-
-Contract.sequencefactory = function(data){
-  var contract = Contract.factory('sequence');
-  contract.url = 'reception:/';
-  contract.method = 'post';
-  contract.body = _.map(data, function(child){
-    return child.toJSON();
-  })
-  return contract;
-}
-
-Contract.prototype.add = function(req){
-  var self = this;
-
-  if(_.isArray(req)){
-    _.each(req, function(item){
-      self.add(item);
-    })
-  }
-  else{
-
-    var whattoadd = req;
-
-    if(_.isFunction(req.toJSON)){
-      if(req.getHeader('x-contract-type')==this.getHeader('x-contract-type')){
-        this.body = this.body.concat(req.body);
-      }
-      else{
-        this.body.push(req.toJSON());
-      }
-    }
-  }
-  return this;
-}
-
-Contract.prototype.ship = function(callback){
-  if(!this.supplychain){
-    console.log('-------------------------------------------');
-    console.log('there is no supplychain to ship with');
-    throw new Error('contract has not been given a supply chain to ship with');
-  }
-
-  return this.supplychain.ship(this, callback);
-}
-},{"util":11,"url":9,"./message":26,"./response":18,"../utils":14,"./request":23,"lodash":8}],18:[function(require,module,exports){
+},{"../network/contract":12,"../network/request":23,"./selector":26,"lodash":11}],13:[function(require,module,exports){
 (function(){/*
 
 	(The MIT License)
@@ -14073,7 +14076,7 @@ Response.prototype.add = function(childres){
   return this;
 }
 })()
-},{"util":11,"./message":26,"lodash":8,"q":27}],27:[function(require,module,exports){
+},{"util":6,"./message":24,"lodash":11,"q":27}],27:[function(require,module,exports){
 (function(process){// vim:ts=4:sts=4:sw=4:
 /*!
  *
@@ -15827,98 +15830,7 @@ return Q;
 });
 
 })(require("__browserify_process"))
-},{"__browserify_process":2}],16:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-
-var _ = require('lodash');
-var find = require('./find');
-var search = require('./search');
-var inspectselect = require('../selector');
-
-var finder = find(search.searcher);
-
-var sortfns = {
-  title:function(a, b){
-    if ( a.title().toLowerCase() < b.title().toLowerCase() )
-      return -1;
-    if ( a.title().toLowerCase() > b.title().toLowerCase() )
-      return 1;
-    return 0;
-  }
-}
-
-module.exports = {
-  find:function(){
-    var selectors = _.map(_.toArray(arguments), function(arg){
-      return _.isString(arg) ? inspectselect(arg) : arg;
-    })
-    return finder(selectors, this);
-  },
-
-  sort:function(fn){
-    if(!fn){
-      fn = sortfns.title;
-    }
-
-    this.each(function(container){
-      var newchildren = container.children().containers().sort(fn);
-      var model = container.get(0);
-      model.children = _.map(newchildren, function(container){
-        return container.get(0);
-      })
-    })
-
-    return this;
-  },
-
-  filter:function(filterfn){
-
-    /*
-    
-      turn anything other than a function into the filter function
-
-      the compiler looks after turning strings into selector objects
-      
-    */
-    if(!_.isFunction(filterfn)){
-      filterfn = search.compiler(filterfn);
-    }
-
-    var matching_container_array = _.filter(this.containers(), filterfn);
-
-    return this.spawn(_.map(matching_container_array, function(container){
-      return container.get(0);
-    }))
-  },
-
-  match:function(selector){
-
-    if(this.count()<=0){
-      return false;
-    }
-
-    var results = this.filter(selector);
-
-    return results.count()>0;
-  }
-}
-},{"./find":28,"./search":29,"../selector":22,"lodash":8}],21:[function(require,module,exports){
+},{"__browserify_process":2}],21:[function(require,module,exports){
 var sha = require('./sha')
 var rng = require('./rng')
 var md5 = require('./md5')
@@ -15994,7 +15906,132 @@ exports.randomBytes = function(size, callback) {
   }
 })
 
-},{"./rng":30,"./sha":31,"./md5":32}],24:[function(require,module,exports){
+},{"./rng":28,"./md5":29,"./sha":30}],23:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+
+/**
+ * Module dependencies.
+ */
+
+var util = require('util');
+var Message = require('./message');
+var url = require('url');
+var _ = require('lodash');
+
+/*
+
+
+  
+*/
+
+module.exports = Request;
+
+var url_fields = [
+  'protocol',
+  'hostname',
+  'port',
+  'pathname',
+  'hash'
+]
+
+var default_fields = {
+  'protocol':'http:',
+  'hostname':'localhost',
+  'port':null,
+  'pathname':'/',
+  'hash':null
+}
+
+function Request(data){
+  var self = this;
+  data = data || {};
+  Message.apply(this, [data]);
+
+  this.url = data.url || '/';
+  this.method = data.method || 'get';
+  this.query = data.query || {};
+
+  var parsed = url.parse(this.url);
+
+  if(parsed.query){
+    _.each(parsed.query.split('&'), function(part){
+      var parts = part.split('=');
+      self.query[parts[0]] = parts[1];
+    })
+  }
+
+  _.each(url_fields, function(field){
+    self[field] = parsed[field] || default_fields[field];
+  })
+}
+
+
+Request.factory = function(data){
+  return new Request(data);
+}
+
+
+util.inherits(Request, Message);
+
+Request.prototype.clone = function(){
+  return Request.factory(JSON.parse(JSON.stringify(this.toJSON())));
+}
+
+Request.prototype.debug = function(){
+  this.setHeader('x-digger-debug', true);
+  return this;
+}
+
+Request.prototype.inject = function(child){
+  var self = this;
+  _.each([
+    'x-digger-debug',
+    'x-json-resource',
+    'x-json-meta',
+    'x-json-user',
+    'x-contract-id'
+  ], function(field){
+    var val = self.getHeader(field);
+    if(val){
+      child.setHeader(field, val);  
+    }
+  })
+  return this;
+}
+
+Request.prototype.toJSON = function(){
+  var self = this;
+  var ret = Message.prototype.toJSON.apply(this);
+
+  ret.url = this.url;
+  ret.method = this.method;
+  ret.query = this.query;
+
+  _.each(url_fields, function(field){
+    ret[field] = self[field];
+  })
+
+  return ret;
+}
+
+Request.prototype.expect = function(content_type){
+  this.setHeader('x-expect', content_type);
+  return this;
+}
+},{"util":6,"url":4,"./message":24,"lodash":11}],22:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -16180,7 +16217,405 @@ function toXML(data_array){
     return string_factory(data, 0);
   }).join("\n");
 }
-},{"xmldom":33,"lodash":8}],23:[function(require,module,exports){
+},{"xmldom":31,"lodash":11}],18:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+
+var _ = require('lodash');
+var find = require('./find');
+var search = require('./search');
+var inspectselect = require('../selector');
+
+var finder = find(search.searcher);
+
+var sortfns = {
+  title:function(a, b){
+    if ( a.title().toLowerCase() < b.title().toLowerCase() )
+      return -1;
+    if ( a.title().toLowerCase() > b.title().toLowerCase() )
+      return 1;
+    return 0;
+  }
+}
+
+module.exports = {
+  find:function(){
+    var selectors = _.map(_.toArray(arguments), function(arg){
+      return _.isString(arg) ? inspectselect(arg) : arg;
+    })
+    return finder(selectors, this);
+  },
+
+  sort:function(fn){
+    if(!fn){
+      fn = sortfns.title;
+    }
+
+    this.each(function(container){
+      var newchildren = container.children().containers().sort(fn);
+      var model = container.get(0);
+      model.children = _.map(newchildren, function(container){
+        return container.get(0);
+      })
+    })
+
+    return this;
+  },
+
+  filter:function(filterfn){
+
+    /*
+    
+      turn anything other than a function into the filter function
+
+      the compiler looks after turning strings into selector objects
+      
+    */
+    if(!_.isFunction(filterfn)){
+      filterfn = search.compiler(filterfn);
+    }
+
+    var matching_container_array = _.filter(this.containers(), filterfn);
+
+    return this.spawn(_.map(matching_container_array, function(container){
+      return container.get(0);
+    }))
+  },
+
+  match:function(selector){
+
+    if(this.count()<=0){
+      return false;
+    }
+
+    var results = this.filter(selector);
+
+    return results.count()>0;
+  }
+}
+},{"./find":32,"./search":33,"../selector":26,"lodash":11}],26:[function(require,module,exports){
+/*
+  Module dependencies.
+*/
+
+var _ = require('lodash');
+
+module.exports = parse;
+module.exports.mini = miniparse;
+
+/*
+  Quarry.io Selector
+  -------------------
+
+  Represents a CSS selector that will be passed off to selectors or perform in-memory search
+
+ */
+
+/***********************************************************************************
+ ***********************************************************************************
+  Here is the  data structure:
+
+  "selector": " > * product.onsale[price<100] > img caption.red, friend",
+  "phases":
+    [
+      [
+          {
+              "splitter": ">",
+              "tag": "*"
+          },
+          {
+              "splitter": "",
+              "tag": "product",
+              "classnames": {
+                  "onsale": true
+              },
+              "attr": [
+                  {
+                      "field": "price",
+                      "operator": "<",
+                      "value": "100"
+                  }
+              ]
+          },
+          {
+              "splitter": ">",
+              "tag": "img"
+          },
+          {
+              "splitter": "",
+              "tag": "caption",
+              "classnames": {
+                  "red": true
+              }
+          }
+      ],
+      [
+          {
+              "tag": "friend"
+          }
+      ]
+    ]
+
+ */
+
+/*
+  Regular Expressions for each chunk
+*/
+
+var chunkers = [
+  // the 'type' selector
+  {
+    name:'tag',
+    regexp:/^(\*|\w+)/,
+    mapper:function(val, map){
+      map.tag = val;
+    }
+  },
+  // the '.classname' selector
+  {
+    name:'class',
+    regexp:/^\.\w+/,
+    mapper:function(val, map){
+      map.class = map.class || {};
+      map.class[val.replace(/^\./, '')] = true;
+    }
+  },
+  // the '#id' selector
+  {
+    name:'id',
+    regexp:/^#\w+/,
+    mapper:function(val, map){
+      map.id = val.replace(/^#/, '');
+    }
+  },
+  // the '=quarryid' selector
+  {
+    name:'diggerid',
+    regexp:/^=[\w-]+/,
+    mapper:function(val, map){
+      map.diggerid = val.replace(/^=/, '');
+    }
+  },
+  // the ':modifier' selector
+  {
+    name:'modifier',
+    regexp:/^:\w+(\(.*?\))?/,
+    mapper:function(val, map){
+      map.modifier = map.modifier || {};
+      var parts = val.split('(');
+      var key = parts[0];
+      val = parts[1];
+
+      if(val){
+        val = val.replace(/\)$/, '');
+
+        /*
+        
+          this turns '45' into 45 and '"hello"' into 'hello'
+          
+        */
+        val = JSON.parse(val);
+      }
+      else{
+        val = true;
+      }
+
+      map.modifier[key.replace(/^:/, '')] = val;
+    }
+  },
+  // the '[attr<100]' selector
+  {
+    name:'attr',
+    regexp:/^\[.*?["']?.*?["']?\]/,
+    mapper:function(val, map){
+      map.attr = map.attr || [];
+      var match = val.match(/\[(.*?)([=><\^\|\*\~\$\!]+)["']?(.*?)["']?\]/);
+      if(match){
+        map.attr.push({
+          field:match[1],
+          operator:match[2],
+          value:match[3]
+        });
+      }
+      else {
+        map.attr.push({
+          field:attrString.replace(/^\[/, '').replace(/\]$/, '')
+        });
+      }
+    }
+  },
+  // the ' ' or ' > ' splitter
+  {
+    name:'splitter',
+    regexp:/^[ ,<>]+/,
+    mapper:function(val, map){
+      map.splitter = val.replace(/\s+/g, '');
+    }
+
+  }
+];
+
+
+/*
+  Parse selector string into flat array of chunks
+ 
+  Example in: product.onsale[price<100]
+ */
+function parseChunks(selector){
+
+  var lastMatch = null;
+  var workingString = selector ? selector : '';
+  var lastString = '';
+
+  // this is a flat array of type, string pairs
+  var chunks = [];
+
+  var matchNextChunk = function(){
+
+    lastMatch = null;
+
+    for(var i in chunkers){
+      var chunker = chunkers[i];
+
+      if(lastMatch = workingString.match(chunker.regexp)){
+
+        // merge the value into the chunker data
+        chunks.push(_.extend({
+          value:lastMatch[0]
+        }, chunker));
+
+        workingString = workingString.replace(lastMatch[0], '');
+
+        return true;
+      }
+    }
+    
+    return false;
+
+  }
+  
+  // the main chunking loop happens here
+  while(matchNextChunk()){
+    
+    // this is the sanity check in case we match nothing
+    if(lastString==workingString){
+      break;
+    }
+  }
+
+  return chunks;
+}
+
+function new_selector(){
+  return {
+    classnames:{},
+    attr:[],
+    modifier:{}
+  }
+}
+
+/*
+
+  turns a selector string into an array of arrays (phases) of selector objects
+ 
+ */
+function parse(selector_string){
+
+  if(!_.isString(selector_string)){
+    return selector_string;
+  }
+
+  var chunks = parseChunks(selector_string);
+
+  var phases = [];
+  var currentPhase = [];
+  var currentSelector = new_selector();
+
+  var addCurrentPhase = function(){
+    if(currentPhase.length>0){
+      phases.push(currentPhase);
+    }
+    currentPhase = [];
+  }
+
+  var addCurrentSelector = function(){
+    if((_.keys(currentSelector)).length>0){
+      currentPhase.push(currentSelector);
+    }
+    currentSelector = new_selector();
+  }
+
+  var addChunkToSelector = function(chunk, selector){
+    chunk.mapper.apply(null, [chunk.value, selector]);
+  }
+
+  _.each(chunks, function(chunk, index){
+    if(chunk.name=='splitter' && chunk.value.match(/,/)){
+      addCurrentSelector();
+      addCurrentPhase();
+    }
+    else{
+
+      if(chunk.name=='splitter' && index>0){
+        addCurrentSelector();
+      }
+
+      addChunkToSelector(chunk, currentSelector);
+
+    }
+  })
+
+  addCurrentSelector();
+  addCurrentPhase();
+
+  return {
+    string:selector_string,
+    phases:phases
+  }
+}
+
+function miniparse(selector_string){
+
+  if(!_.isString(selector_string)){
+    return selector_string;
+  }
+  selector_string = selector_string || '';
+  var selector = {
+    class:{},
+    modifier:{}
+  }
+  selector_string = selector_string.replace(/_(\w+)/, function(match, id){
+    selector.id = id;
+    return '';
+  })
+  selector_string = selector_string.replace(/\.(\w+)/g, function(match, classname){
+    selector.class[classname] = true;
+    return '';
+  })
+  if(selector_string.match(/\d/)){
+    selector.diggerid = selector_string;
+  }
+  else{
+    selector.tag = selector_string;
+  }
+  return selector;
+}
+},{"lodash":11}],24:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -16200,111 +16635,96 @@ function toXML(data_array){
  * Module dependencies.
  */
 
-var util = require('util');
-var Message = require('./message');
-var url = require('url');
 var _ = require('lodash');
+var util = require('util');
+var EventEmitter = require('events').EventEmitter;
 
 /*
 
+  telegraft - network request
 
+  basic version of http.serverRequest
   
 */
 
-module.exports = Request;
+module.exports = Message;
 
-var url_fields = [
-  'protocol',
-  'hostname',
-  'port',
-  'pathname',
-  'hash'
-]
-
-var default_fields = {
-  'protocol':'http:',
-  'hostname':'localhost',
-  'port':null,
-  'pathname':'/',
-  'hash':null
+function Message(data){
+  data = data || {};
+  EventEmitter.call(this);
+  this.headers = data.headers || {};
+  this.body = data.body || null;
+  this.headerSent = false;
 }
 
-function Request(data){
-  var self = this;
-  data = data || {};
-  Message.apply(this, [data]);
+util.inherits(Message, EventEmitter);
 
-  this.url = data.url || '/';
-  this.method = data.method || 'get';
-  this.query = data.query || {};
+Message.prototype.toJSON = function(){
+  return {
+    headers:this.headers,
+    body:this.body
+  }
+}
 
-  var parsed = url.parse(this.url);
 
-  if(parsed.query){
-    _.each(parsed.query.split('&'), function(part){
-      var parts = part.split('=');
-      self.query[parts[0]] = parts[1];
-    })
+/*
+
+  copied mostly from node.js/lib/http.js
+  
+*/
+Message.prototype.setHeader = function(name, value) {
+  if (arguments.length < 2) {
+    throw new Error('`name` and `value` are required for setHeader().');
   }
 
-  _.each(url_fields, function(field){
-    self[field] = parsed[field] || default_fields[field];
-  })
-}
+  if (this.headerSent) {
+    throw new Error('Can\'t set headers after they are sent.');
+  }
 
-
-Request.factory = function(data){
-  return new Request(data);
-}
-
-
-util.inherits(Request, Message);
-
-Request.prototype.clone = function(){
-  return Request.factory(JSON.parse(JSON.stringify(this.toJSON())));
-}
-
-Request.prototype.debug = function(){
-  this.setHeader('x-digger-debug', true);
+  var key = name.toLowerCase();
+  this.headers = this.headers || {};
+  this.headers[key] = value;
   return this;
 }
 
-Request.prototype.inject = function(child){
-  var self = this;
-  _.each([
-    'x-digger-debug',
-    'x-json-resource',
-    'x-json-meta',
-    'x-contract-id'
-  ], function(field){
-    var val = self.getHeader(field);
-    if(val){
-      child.setHeader(field, val);  
-    }
-  })
-  return this;
+
+Message.prototype.getHeader = function(name) {
+  if (arguments.length < 1) {
+    throw new Error('`name` is required for getHeader().');
+  }
+
+  if (!this.headers) return;
+
+  var key = name.toLowerCase();
+  var value = this.headers[key];
+
+  if(!value){
+    return value;
+  }
+
+  if(name.indexOf('x-json')===0 && _.isString(value)){
+    value = this.headers[key] = JSON.parse(value);
+  }
+  
+  return value;
 }
 
-Request.prototype.toJSON = function(){
-  var self = this;
-  var ret = Message.prototype.toJSON.apply(this);
 
-  ret.url = this.url;
-  ret.method = this.method;
-  ret.query = this.query;
+Message.prototype.removeHeader = function(name) {
+  if (arguments.length < 1) {
+    throw new Error('`name` is required for removeHeader().');
+  }
 
-  _.each(url_fields, function(field){
-    ret[field] = self[field];
-  })
+  if (this.headerSent) {
+    throw new Error('Can\'t remove headers after they are sent.');
+  }
 
-  return ret;
+  if (!this.headers) return;
+
+  var key = name.toLowerCase();
+  delete this.headers[key];
 }
-
-Request.prototype.expect = function(content_type){
-  this.setHeader('x-expect', content_type);
-  return this;
-}
-},{"util":11,"url":9,"./message":26,"lodash":8}],32:[function(require,module,exports){
+},{"util":6,"events":3,"lodash":11}],29:[function(require,module,exports){
 /*
  * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
  * Digest Algorithm, as defined in RFC 1321.
@@ -16690,7 +17110,7 @@ exports.hex_md5 = hex_md5;
 exports.b64_md5 = b64_md5;
 exports.any_md5 = any_md5;
 
-},{}],30:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 // Original code adapted from Robert Kieffer.
 // details at https://github.com/broofa/node-uuid
 (function() {
@@ -16728,7 +17148,16 @@ exports.any_md5 = any_md5;
   module.exports = whatwgRNG || mathRNG;
 
 }())
-},{}],31:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
+module.exports = hasKeys
+
+function hasKeys(source) {
+    return source !== null &&
+        (typeof source === "object" ||
+        typeof source === "function")
+}
+
+},{}],30:[function(require,module,exports){
 /*
  * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
  * in FIPS PUB 180-1
@@ -16940,431 +17369,6 @@ function binb2b64(binarray)
 }
 
 
-},{}],22:[function(require,module,exports){
-/*
-  Module dependencies.
-*/
-
-var _ = require('lodash');
-
-module.exports = parse;
-module.exports.mini = miniparse;
-
-/*
-  Quarry.io Selector
-  -------------------
-
-  Represents a CSS selector that will be passed off to selectors or perform in-memory search
-
- */
-
-/***********************************************************************************
- ***********************************************************************************
-  Here is the  data structure:
-
-  "selector": " > * product.onsale[price<100] > img caption.red, friend",
-  "phases":
-    [
-      [
-          {
-              "splitter": ">",
-              "tag": "*"
-          },
-          {
-              "splitter": "",
-              "tag": "product",
-              "classnames": {
-                  "onsale": true
-              },
-              "attr": [
-                  {
-                      "field": "price",
-                      "operator": "<",
-                      "value": "100"
-                  }
-              ]
-          },
-          {
-              "splitter": ">",
-              "tag": "img"
-          },
-          {
-              "splitter": "",
-              "tag": "caption",
-              "classnames": {
-                  "red": true
-              }
-          }
-      ],
-      [
-          {
-              "tag": "friend"
-          }
-      ]
-    ]
-
- */
-
-/*
-  Regular Expressions for each chunk
-*/
-
-var chunkers = [
-  // the 'type' selector
-  {
-    name:'tag',
-    regexp:/^(\*|\w+)/,
-    mapper:function(val, map){
-      map.tag = val;
-    }
-  },
-  // the '.classname' selector
-  {
-    name:'class',
-    regexp:/^\.\w+/,
-    mapper:function(val, map){
-      map.class = map.class || {};
-      map.class[val.replace(/^\./, '')] = true;
-    }
-  },
-  // the '#id' selector
-  {
-    name:'id',
-    regexp:/^#\w+/,
-    mapper:function(val, map){
-      map.id = val.replace(/^#/, '');
-    }
-  },
-  // the '=quarryid' selector
-  {
-    name:'diggerid',
-    regexp:/^=[\w-]+/,
-    mapper:function(val, map){
-      map.diggerid = val.replace(/^=/, '');
-    }
-  },
-  // the ':modifier' selector
-  {
-    name:'modifier',
-    regexp:/^:\w+(\(.*?\))?/,
-    mapper:function(val, map){
-      map.modifier = map.modifier || {};
-      var parts = val.split('(');
-      var key = parts[0];
-      val = parts[1];
-
-      if(val){
-        val = val.replace(/\)$/, '');
-
-        /*
-        
-          this turns '45' into 45 and '"hello"' into 'hello'
-          
-        */
-        val = JSON.parse(val);
-      }
-      else{
-        val = true;
-      }
-
-      map.modifier[key.replace(/^:/, '')] = val;
-    }
-  },
-  // the '[attr<100]' selector
-  {
-    name:'attr',
-    regexp:/^\[.*?["']?.*?["']?\]/,
-    mapper:function(val, map){
-      map.attr = map.attr || [];
-      var match = val.match(/\[(.*?)([=><\^\|\*\~\$\!]+)["']?(.*?)["']?\]/);
-      if(match){
-        map.attr.push({
-          field:match[1],
-          operator:match[2],
-          value:match[3]
-        });
-      }
-      else {
-        map.attr.push({
-          field:attrString.replace(/^\[/, '').replace(/\]$/, '')
-        });
-      }
-    }
-  },
-  // the ' ' or ' > ' splitter
-  {
-    name:'splitter',
-    regexp:/^[ ,<>]+/,
-    mapper:function(val, map){
-      map.splitter = val.replace(/\s+/g, '');
-    }
-
-  }
-];
-
-
-/*
-  Parse selector string into flat array of chunks
- 
-  Example in: product.onsale[price<100]
- */
-function parseChunks(selector){
-
-  var lastMatch = null;
-  var workingString = selector ? selector : '';
-  var lastString = '';
-
-  // this is a flat array of type, string pairs
-  var chunks = [];
-
-  var matchNextChunk = function(){
-
-    lastMatch = null;
-
-    for(var i in chunkers){
-      var chunker = chunkers[i];
-
-      if(lastMatch = workingString.match(chunker.regexp)){
-
-        // merge the value into the chunker data
-        chunks.push(_.extend({
-          value:lastMatch[0]
-        }, chunker));
-
-        workingString = workingString.replace(lastMatch[0], '');
-
-        return true;
-      }
-    }
-    
-    return false;
-
-  }
-  
-  // the main chunking loop happens here
-  while(matchNextChunk()){
-    
-    // this is the sanity check in case we match nothing
-    if(lastString==workingString){
-      break;
-    }
-  }
-
-  return chunks;
-}
-
-function new_selector(){
-  return {
-    classnames:{},
-    attr:[],
-    modifier:{}
-  }
-}
-
-/*
-
-  turns a selector string into an array of arrays (phases) of selector objects
- 
- */
-function parse(selector_string){
-
-  if(!_.isString(selector_string)){
-    return selector_string;
-  }
-
-  var chunks = parseChunks(selector_string);
-
-  var phases = [];
-  var currentPhase = [];
-  var currentSelector = new_selector();
-
-  var addCurrentPhase = function(){
-    if(currentPhase.length>0){
-      phases.push(currentPhase);
-    }
-    currentPhase = [];
-  }
-
-  var addCurrentSelector = function(){
-    if((_.keys(currentSelector)).length>0){
-      currentPhase.push(currentSelector);
-    }
-    currentSelector = new_selector();
-  }
-
-  var addChunkToSelector = function(chunk, selector){
-    chunk.mapper.apply(null, [chunk.value, selector]);
-  }
-
-  _.each(chunks, function(chunk, index){
-    if(chunk.name=='splitter' && chunk.value.match(/,/)){
-      addCurrentSelector();
-      addCurrentPhase();
-    }
-    else{
-
-      if(chunk.name=='splitter' && index>0){
-        addCurrentSelector();
-      }
-
-      addChunkToSelector(chunk, currentSelector);
-
-    }
-  })
-
-  addCurrentSelector();
-  addCurrentPhase();
-
-  return {
-    string:selector_string,
-    phases:phases
-  }
-}
-
-function miniparse(selector_string){
-
-  if(!_.isString(selector_string)){
-    return selector_string;
-  }
-  selector_string = selector_string || '';
-  var selector = {
-    class:{},
-    modifier:{}
-  }
-  selector_string = selector_string.replace(/_(\w+)/, function(match, id){
-    selector.id = id;
-    return '';
-  })
-  selector_string = selector_string.replace(/\.(\w+)/g, function(match, classname){
-    selector.class[classname] = true;
-    return '';
-  })
-  if(selector_string.match(/\d/)){
-    selector.diggerid = selector_string;
-  }
-  else{
-    selector.tag = selector_string;
-  }
-  return selector;
-}
-},{"lodash":8}],26:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-
-/**
- * Module dependencies.
- */
-
-var _ = require('lodash');
-var util = require('util');
-var EventEmitter = require('events').EventEmitter;
-
-/*
-
-  telegraft - network request
-
-  basic version of http.serverRequest
-  
-*/
-
-module.exports = Message;
-
-function Message(data){
-  data = data || {};
-  EventEmitter.call(this);
-  this.headers = data.headers || {};
-  this.body = data.body || null;
-  this.headerSent = false;
-}
-
-util.inherits(Message, EventEmitter);
-
-Message.prototype.toJSON = function(){
-  return {
-    headers:this.headers,
-    body:this.body
-  }
-}
-
-
-/*
-
-  copied mostly from node.js/lib/http.js
-  
-*/
-Message.prototype.setHeader = function(name, value) {
-  if (arguments.length < 2) {
-    throw new Error('`name` and `value` are required for setHeader().');
-  }
-
-  if (this.headerSent) {
-    throw new Error('Can\'t set headers after they are sent.');
-  }
-
-  var key = name.toLowerCase();
-  this.headers = this.headers || {};
-  this.headers[key] = value;
-  return this;
-}
-
-
-Message.prototype.getHeader = function(name) {
-  if (arguments.length < 1) {
-    throw new Error('`name` is required for getHeader().');
-  }
-
-  if (!this.headers) return;
-
-  var key = name.toLowerCase();
-  var value = this.headers[key];
-
-  if(!value){
-    return value;
-  }
-
-  if(name.indexOf('x-json')===0 && _.isString(value)){
-    value = this.headers[key] = JSON.parse(value);
-  }
-  
-  return value;
-}
-
-
-Message.prototype.removeHeader = function(name) {
-  if (arguments.length < 1) {
-    throw new Error('`name` is required for removeHeader().');
-  }
-
-  if (this.headerSent) {
-    throw new Error('Can\'t remove headers after they are sent.');
-  }
-
-  if (!this.headers) return;
-
-  var key = name.toLowerCase();
-  delete this.headers[key];
-}
-},{"util":11,"events":3,"lodash":8}],34:[function(require,module,exports){
-module.exports = hasKeys
-
-function hasKeys(source) {
-    return source !== null &&
-        (typeof source === "object" ||
-        typeof source === "function")
-}
-
 },{}],25:[function(require,module,exports){
 var Keys = require("object-keys")
 var hasKeys = require("./has-keys")
@@ -17392,180 +17396,7 @@ function extend() {
     return target
 }
 
-},{"./has-keys":34,"object-keys":35}],28:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-
-var _ = require('lodash');
-
-/*
-  Quarry.io - Find
-  ----------------
-
-  A sync version of the selector resolver for use with already loaded containers
-
-  This is used for container.find() to return the results right away jQuery style
-
-
-
-
- */
-
-module.exports = factory;
-
-function State(arr){
-  this.count = arr.length;
-  this.index = 0;
-  this.finished = false;
-}
-
-State.prototype.next = function(){
-  this.index++;
-  if(this.index>=this.count){
-    this.finished = true;
-  }
-}
-
-/*
-
-  search is the function that accepts a single container and the single selector to resolve
-  
-*/
-function factory(searchfn){
-
-  /*
-  
-    context is the container to search from
-
-    selectors is the top level array container indivudally processed selector strings
-    
-  */
-
-  return function(selectors, context){
-
-    var final_state = new State(selectors);
-    var final_results = context.spawn();
-
-    /*
-    
-      loop over each of the seperate selector strings
-
-      container("selectorA", "selectorB")
-
-      B -> A
-      
-    */
-    _.each(selectors.reverse(), function(stage){
-
-      final_state.next();
-
-      /*
-      
-        this is a merge of the phase results
-
-        the last iteration of this becomes the final results
-        
-      */
-      var stage_results = context.spawn();
-
-      /*
-      
-        now we have the phases - these can be done in parallel
-        
-      */
-      _.each(stage.phases, function(phase){
-
-        
-        var phase_context = context;
-
-        var selector_state = new State(phase);
-
-        _.each(phase, function(selector){
-
-          selector_state.next();
-
-          var results = searchfn(selector, phase_context);
-
-          /*
-          
-            quit the stage loop with no results
-            
-          */
-          if(results.count()<=0){
-            return false;
-          }
-
-          /*
-          
-            if there is still more to get for this string
-            then we update the pipe skeleton
-            
-          */
-          if(!selector_state.finished){
-            phase_context = results;
-          }
-          /*
-          
-            this
-            
-          */
-          else{
-            stage_results.add(results);
-          }
-
-          return true;
-
-        })
-
-      
-
-      })
-
-      /*
-      
-        quit the stages with no results
-        
-      */
-      if(stage_results.count()<=0){
-        return false;
-      }
-
-
-      /*
-      
-        this is the result of a stage - we pipe the results to the next stage
-        or call them the final results
-        
-      */
-
-      if(!final_state.finished){
-        context = stage_results;
-      }
-      else{
-        final_results = stage_results;
-      }
-    })
-
-    return final_results;
-
-  }
-}
-},{"lodash":8}],33:[function(require,module,exports){
+},{"./has-keys":34,"object-keys":35}],31:[function(require,module,exports){
 function DOMParser(options){
 	this.options = 
 			options != true && //To the version (0.1.12) compatible
@@ -17820,7 +17651,180 @@ if(typeof require == 'function'){
 	exports.DOMParser = DOMParser;
 }
 
-},{"./sax":36,"./dom":37}],29:[function(require,module,exports){
+},{"./sax":36,"./dom":37}],32:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+
+var _ = require('lodash');
+
+/*
+  Quarry.io - Find
+  ----------------
+
+  A sync version of the selector resolver for use with already loaded containers
+
+  This is used for container.find() to return the results right away jQuery style
+
+
+
+
+ */
+
+module.exports = factory;
+
+function State(arr){
+  this.count = arr.length;
+  this.index = 0;
+  this.finished = false;
+}
+
+State.prototype.next = function(){
+  this.index++;
+  if(this.index>=this.count){
+    this.finished = true;
+  }
+}
+
+/*
+
+  search is the function that accepts a single container and the single selector to resolve
+  
+*/
+function factory(searchfn){
+
+  /*
+  
+    context is the container to search from
+
+    selectors is the top level array container indivudally processed selector strings
+    
+  */
+
+  return function(selectors, context){
+
+    var final_state = new State(selectors);
+    var final_results = context.spawn();
+
+    /*
+    
+      loop over each of the seperate selector strings
+
+      container("selectorA", "selectorB")
+
+      B -> A
+      
+    */
+    _.each(selectors.reverse(), function(stage){
+
+      final_state.next();
+
+      /*
+      
+        this is a merge of the phase results
+
+        the last iteration of this becomes the final results
+        
+      */
+      var stage_results = context.spawn();
+
+      /*
+      
+        now we have the phases - these can be done in parallel
+        
+      */
+      _.each(stage.phases, function(phase){
+
+        
+        var phase_context = context;
+
+        var selector_state = new State(phase);
+
+        _.each(phase, function(selector){
+
+          selector_state.next();
+
+          var results = searchfn(selector, phase_context);
+
+          /*
+          
+            quit the stage loop with no results
+            
+          */
+          if(results.count()<=0){
+            return false;
+          }
+
+          /*
+          
+            if there is still more to get for this string
+            then we update the pipe skeleton
+            
+          */
+          if(!selector_state.finished){
+            phase_context = results;
+          }
+          /*
+          
+            this
+            
+          */
+          else{
+            stage_results.add(results);
+          }
+
+          return true;
+
+        })
+
+      
+
+      })
+
+      /*
+      
+        quit the stages with no results
+        
+      */
+      if(stage_results.count()<=0){
+        return false;
+      }
+
+
+      /*
+      
+        this is the result of a stage - we pipe the results to the next stage
+        or call them the final results
+        
+      */
+
+      if(!final_state.finished){
+        context = stage_results;
+      }
+      else{
+        final_results = stage_results;
+      }
+    })
+
+    return final_results;
+
+  }
+}
+},{"lodash":11}],33:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -18012,7 +18016,7 @@ function search(selector, context){
 
   return ret;
 }
-},{"../../utils":14,"lodash":8,"async":7}],36:[function(require,module,exports){
+},{"../../utils":15,"async":10,"lodash":11}],36:[function(require,module,exports){
 //[4]   	NameStartChar	   ::=   	":" | [A-Z] | "_" | [a-z] | [#xC0-#xD6] | [#xD8-#xF6] | [#xF8-#x2FF] | [#x370-#x37D] | [#x37F-#x1FFF] | [#x200C-#x200D] | [#x2070-#x218F] | [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | [#xFDF0-#xFFFD] | [#x10000-#xEFFFF]
 //[4a]   	NameChar	   ::=   	NameStartChar | "-" | "." | [0-9] | #xB7 | [#x0300-#x036F] | [#x203F-#x2040]
 //[5]   	Name	   ::=   	NameStartChar (NameChar)*
@@ -19768,7 +19772,30 @@ module.exports = Object.keys || require('./shim');
 }());
 
 
-},{"is":39,"foreach":40}],39:[function(require,module,exports){
+},{"foreach":39,"is":40}],39:[function(require,module,exports){
+
+var hasOwn = Object.prototype.hasOwnProperty;
+
+module.exports = function forEach (obj, fn, ctx) {
+    if (typeof fn !== 'function') {
+        throw new TypeError('iterator must be a function');
+    }
+    var l = obj.length;
+    if (l === +l) {
+        for (var i = 0; i < l; i++) {
+            fn.call(ctx, obj[i], i, obj);
+        }
+    } else {
+        for (var k in obj) {
+            if (hasOwn.call(obj, k)) {
+                fn.call(ctx, obj[k], k, obj);
+            }
+        }
+    }
+};
+
+
+},{}],40:[function(require,module,exports){
 
 /**!
  * is
@@ -20472,28 +20499,5 @@ is.string = function (value) {
 };
 
 
-},{}],40:[function(require,module,exports){
-
-var hasOwn = Object.prototype.hasOwnProperty;
-
-module.exports = function forEach (obj, fn, ctx) {
-    if (typeof fn !== 'function') {
-        throw new TypeError('iterator must be a function');
-    }
-    var l = obj.length;
-    if (l === +l) {
-        for (var i = 0; i < l; i++) {
-            fn.call(ctx, obj[i], i, obj);
-        }
-    } else {
-        for (var k in obj) {
-            if (hasOwn.call(obj, k)) {
-                fn.call(ctx, obj[k], k, obj);
-            }
-        }
-    }
-};
-
-
-},{}]},{},[4])
+},{}]},{},[7])
 ;

@@ -130,7 +130,10 @@ $digger.bootstrap = function(config){
 		
 	*/
 	$digger.supplychain = SupplyChain(function(req, res){
+		console.log('-------------------------------------------');
+		console.dir(req.toJSON());
 		socket.emit('request', req.toJSON(), function(rawres){
+			console.dir(rawres);
 			res.fill(rawres);
 		})
 	})

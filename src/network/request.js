@@ -92,6 +92,7 @@ Request.prototype.inject = function(child){
     'x-digger-debug',
     'x-json-resource',
     'x-json-meta',
+    'x-json-user',
     'x-contract-id'
   ], function(field){
     var val = self.getHeader(field);

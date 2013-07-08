@@ -43,7 +43,7 @@ Reception.factory = function(settings){
 
 	var reception = Warehouse();
 
-	
+	var contractresolver = ContractResolver(reception);
 	/*
 	
 		prevent warehouses from messing with the path
@@ -57,6 +57,8 @@ Reception.factory = function(settings){
 		
 	*/
 	reception.settings = Container(settings);
+
+	reception.use(contractresolver);
 
 	return reception;
 }

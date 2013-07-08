@@ -170,6 +170,16 @@ $digger.blueprint = {
 
 /*
 
+	we let the client re-route requests
+	
+*/
+var routes = {};
+
+$digger.router = function(from, to){
+	routes[from] = to;
+}
+/*
+
 	we export these vars to the window immediately - everything else is done inside the $digger handler
 	
 */

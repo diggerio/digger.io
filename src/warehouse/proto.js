@@ -80,8 +80,8 @@ Warehouse.prototype.prepare = function(setupfn){
     self._prepared = true;
     var callbacks = self._preparestack;
     self._preparestack = [];
-    async.forEach(callbacks, function(fn, nextfn){
-      fn();    
+    async.parallel(callbacks, function(fn, nextfn){
+      fn();
       nextfn();
     }, function(){
 

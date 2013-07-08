@@ -78,6 +78,7 @@ $digger.bootstrap = function(config){
 
 	console.log('-------------------------------------------');
 	console.log('digger.io browserapi version: ' + $digger.version);
+	console.dir(config);
 
 	var socket_address = [config.protocol, config.host, '/', config.channel].join('');
 	console.log('connecting to socket: ' + socket_address);

@@ -14,6 +14,7 @@
 
 process.env.DIGGERSERVER = require(__dirname + '/../package.json').version;
 
+/*
 function getErrorObject(){
     try { throw Error('') } catch(err) { return err; }
 }
@@ -24,9 +25,11 @@ function getLineNumber(){
   var match = [];
   return ('(' + caller_line.split(/\/digger\.io\//).pop() || '');
 }
+*/
 
 module.exports = function(){
   
+  /*
   if(process.env.NODE_ENV!=='development' || process.env.CONSOLE==='false'){
     return;
   }
@@ -37,4 +40,5 @@ module.exports = function(){
     var num = getLineNumber();
     oldlog(num + ': ' + st);
   }
+  */
 }

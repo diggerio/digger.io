@@ -219,6 +219,41 @@ describe('container', function(){
     test.children().eq(1).attr('test').should.equal(23);
   })
 
+
+  it('should allow arrays to be set as the value', function(){
+
+    var test = digger.create('test');
+
+    test.attr('arr', [1,2,3]);
+
+    test.attr('arr').should.be.a('array');
+
+  })
+
+  it('should allow objects to be set as the value', function(){
+
+    var test = digger.create('test');
+
+    test.attr('obj', {
+      fruit:'apple'
+    })
+
+    test.attr('obj').should.be.a('object');
+    test.attr('obj.fruit').should.equal('apple');
+
+  })
+
+  it('should allow booleans to be set as the value', function(){
+
+    var test = digger.create('test');
+
+    test.attr('bool', false);
+
+    test.attr('bool').should.be.a('boolean');
+    test.attr('bool').should.equal(false);
+
+  })
+
   it('should get the attribute for the first model', function(){
 
     var test = digger.create(data.citiesxml);

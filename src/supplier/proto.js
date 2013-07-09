@@ -758,10 +758,6 @@ Supplier.factory = function(settings){
 			return;
 		}
 
-		console.log('-------------------------------------------');
-		console.log('-------------------------------------------');
-		console.log('provision');
-
 		var routes = {};
 
 		/*
@@ -780,8 +776,7 @@ Supplier.factory = function(settings){
 			})
 
 			supplier.emit('provision', routes);
-			req.setHeader('x-json-resource', routes);
-			console.dir(routes);
+			req.setHeader('x-json-resource', routes);			
 		}
 
 		if(supplier._provisionfn){

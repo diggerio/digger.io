@@ -76,7 +76,6 @@ function factory(handle){
 
     var skeleton_array = req.body || [];
 
-
     skeleton_array = _.filter(skeleton_array, function(obj){
       return obj.tag!='supplychain';
     })

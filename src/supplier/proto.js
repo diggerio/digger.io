@@ -715,6 +715,7 @@ Supplier.factory = function(settings){
 			if(req.pathname===''){
 				req.pathname = '/';
 			}
+			req.url = req.pathname;
 		}
 
 		next();
@@ -734,11 +735,11 @@ Supplier.factory = function(settings){
 		if(req.pathname===''){
 			req.pathname = '/';
 		}
+		req.url = req.pathname;
 		return resource;
   }
 
 	supplier.use(function(req, res, next){
-
 		/*
 		
 			this means the request is coming from within our select resolver
@@ -751,6 +752,15 @@ Supplier.factory = function(settings){
 			next();
 			return;
 		}
+
+		if(req.getHeader('x-json-resource')){
+			next();
+			return;
+		}
+
+		console.log('-------------------------------------------');
+		console.log('-------------------------------------------');
+		console.log('provision');
 
 		var routes = {};
 
@@ -771,6 +781,7 @@ Supplier.factory = function(settings){
 
 			supplier.emit('provision', routes);
 			req.setHeader('x-json-resource', routes);
+			console.dir(routes);
 		}
 
 		if(supplier._provisionfn){
@@ -802,7 +813,10 @@ Supplier.factory = function(settings){
 	
 	/*
 	
-		why this is not get I do not know
+		this is use not get so we catch every route without mucking about
+
+		we simulate it being a get by calling next right away if the method is
+		something else
 		
 	*/
 	supplier.use(routes.get.select);

@@ -49,6 +49,20 @@ describe('container', function(){
     test.tag().should.equal('product');
   })
 
+
+  it('should run the is() function and return the right result', function() {
+
+    var test = digger.create('product', {
+      price:100,
+      _digger:{
+        id:'test'
+      }
+    })
+
+    test.is('product').should.equal(true);
+    test.is('product2').should.equal(false);
+  })
+
   it('should ensure a digger id', function() {
     var test = digger.create('product', {
       price:100,

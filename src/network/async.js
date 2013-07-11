@@ -34,6 +34,33 @@ var _ = require('lodash');
 
 var exports = module.exports = {
 
+  batch:function(arr, alldone){
+    var newarr = _.isArray(arr) ? [] : {};
+
+    _.each(arr, function(val, key){
+      var fn = function(done){
+        if(_.isFunction(val.getHeader) && val.getHeader('x-contract-type')){
+          val.ship(function(results){
+            lastresults = results;
+            done(null, results);
+          })
+        }
+        else{
+          val(done);
+        }
+      }
+
+      if(_.isArray(newarr)){
+        newarr.push(fn);
+      }
+      else{
+        newarr[key] = fn;
+      }
+    })
+
+    async.parallel(newarr, alldone);
+  },
+
   pipe:function(arr, alldone){
     var lastresults = null;
 

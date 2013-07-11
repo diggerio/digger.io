@@ -234,6 +234,28 @@ Container.prototype.clone = function(){
   return ret;
 }
 
+/*
+
+  get the object containing the given field name
+  
+*/
+Container.prototype.propertymodel = function(field){
+  if(field.indexOf('.')<0){
+    return this.get(0);
+  }
+  else{
+    var parts = field.split('.');
+    parts.pop();
+    var field = parts.join('.');
+    var model = this.attr(field);
+    if(!model){
+      model = {};
+      this.attr(field, model);
+    }
+    return model;
+  }
+}
+
 Container.prototype.children = function(){
   var models = [];
   var self = this;
@@ -549,6 +571,10 @@ Container.prototype.id = wrapper('_digger', 'id');
 Container.prototype.tag = wrapper('_digger', 'tag');
 Container.prototype.classnames = wrapper('_digger', 'class');
 
+Container.prototype.is = function(tag){
+  return this.tag()==tag;
+}
+
 Container.prototype.addClass = function(classname){
   var self = this;
   _.each(this.models, function(model){
@@ -588,6 +614,18 @@ Container.prototype.inject_data = function(data){
   string summary
   
 */
+
+Container.prototype.title = function(){
+  var name = this.attr('name');
+  if(!name){
+    name = this.attr('title');
+  }
+  if(!name){
+    name = this.tag();
+  }
+  return name;
+}
+
 Container.prototype.summary = function(options){
 
   options = options || {};

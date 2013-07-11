@@ -113,12 +113,10 @@ var chunkers = [
       if(val){
         val = val.replace(/\)$/, '');
 
-        /*
-        
-          this turns '45' into 45 and '"hello"' into 'hello'
-          
-        */
-        val = JSON.parse(val);
+        if(val.match(/^[\d\.-]+$/)){
+          val = JSON.parse(val);
+        }
+
       }
       else{
         val = true;

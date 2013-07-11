@@ -111,6 +111,23 @@ Contract.prototype.add = function(req){
   return this;
 }
 
+/*
+
+  inject properties into the x-json-digger-properties header
+
+  all suppliers listen to this header
+  
+*/
+
+Contract.prototype.digger_property = function(field, val){
+  var props = this.getHeader('x-json-digger-properties') || {};
+  if(arguments.length>1){
+    props[field] = val;
+    this.setHeader('x-json-digger-properties', props);
+  }
+  return props[field];
+}
+
 Contract.prototype.ship = function(callback){
   if(!this.supplychain){
     console.log('-------------------------------------------');

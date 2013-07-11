@@ -68,6 +68,8 @@ var exports = module.exports = {
   contract:require('./network/contract').factory,
   pipe:require('./network/async').pipe,
   merge:require('./network/async').merge,
+  series:require('./network/async').series,
+  parallel:require('./network/async').merge,
 
   browserapi_path:function(){
     return path.normalize(__dirname + '/../build/container.js');

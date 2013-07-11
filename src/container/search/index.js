@@ -30,6 +30,15 @@ var sortfns = {
     if ( a.title().toLowerCase() > b.title().toLowerCase() )
       return 1;
     return 0;
+  },
+  field:function(name){
+    return function(a, b){
+      if ( a.attr(name).toLowerCase() < b.attr(name).toLowerCase() )
+        return -1;
+      if ( a.attr(name).toLowerCase() > b.attr(name).toLowerCase() )
+        return 1;
+      return 0;
+    }
   }
 }
 
@@ -42,7 +51,10 @@ module.exports = {
   },
 
   sort:function(fn){
-    if(!fn){
+    if(_.isString(fn)){
+      fn = sortfns.field(fn);
+    }
+    else if(!fn){
       fn = sortfns.title;
     }
 

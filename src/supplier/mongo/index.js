@@ -190,12 +190,47 @@ function factory(options){
 
     var options = {};
 
-    if(modifier.limit){
-      options.limit = modifier.limit;
-    }
-
     if(modifier.first){
       options.limit = 1;
+    }
+    else if(modifier.limit){
+      if(modifier.limit.match(/,/)){
+        var parts = _.map(modifier.limit.split(','), function(st){
+          return st.replace(/\D/g, '');
+        })
+        options.skip = parts[0];
+        options.limit = parts[1];
+      }
+      else{
+        options.limit = modifier.limit;
+      }
+    }
+
+    var usesort = null;
+
+    if(modifier.sort){
+      var directions = {
+        asc:1,
+        desc:-1
+      }
+
+      var direction = 1;
+      var field = modifier.sort;
+
+      field = field.replace(/ (asc|desc)/i, function(match, dir){
+        direction = directions[dir] ? directions[dir] : dir;
+        return '';
+      })
+
+      field = field.replace(/-/i, function(match, dir){
+        direction = -1;
+        return '';
+      })
+
+      var sort = {};
+      sort[field] = direction;
+      options.sort = sort;
+      usesort = sort;
     }
 
     var fields = includedata ? null : {
@@ -223,7 +258,9 @@ function factory(options){
         return {
           query:descendent_query,
           fields:null,
-          options:{}
+          options:{
+            sort:usesort
+          }
         }
       }
       else{

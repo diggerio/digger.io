@@ -105,6 +105,7 @@ $digger.bootstrap = function(config){
 				console.log('   - ' + name);
 			})
 		}
+		
 		$digger._trigger_ready();	
 	}
 
@@ -159,6 +160,7 @@ $digger.connect = function(stackpath){
 }
 
 var blueprints = {};
+var templates = {};
 
 $digger.blueprint = {
   add:function(prints){
@@ -172,6 +174,32 @@ $digger.blueprint = {
       return blueprints;
     }
     return blueprints[name];
+  },
+  create:function(name){
+  	var blueprint = this.get(name);
+  	var data = JSON.parse(JSON.stringify({
+  		_digger:blueprint._digger
+  	}))
+
+  	var container = $digger.create([data]);
+  	container.digger('new', true);
+
+  	return container;
+  }
+}
+
+$digger.template = {
+	add:function(plates){
+    for(var i in plates){
+      templates[i] = plates[i];
+    }
+    return this;
+  },
+  get:function(name){
+    if(arguments.length<=0){
+      return templates;
+    }
+    return templates[name];
   }
 }
 

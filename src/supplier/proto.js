@@ -182,6 +182,19 @@ Supplier.factory = function(settings){
 	*/
 	supplier.handle_select_query = function(select_query, req, res, next){
 
+		var properties = req.getHeader('x-json-digger-properties') || {};
+
+		var modifier = select_query.selector.modifier || {};
+
+		if(modifier.laststep){
+			if(properties.order_by){
+				modifier.order_by = properties.order_by;
+			}
+			if(properties.limit){
+				modifier.limit = properties.limit;
+			}
+		}
+		
 		var use_stack = ([]).concat(specialized_stack, standard_stack);
 		if(use_stack.length<=0){
 			next();

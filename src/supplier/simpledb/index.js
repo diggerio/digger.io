@@ -148,7 +148,12 @@ function factory(options){
         context = rootcontainer;
       }
 
-      var results = context.find({string:'', phases:[[select_query.selector]]});
+      var selector = select_query.selector;
+      var results = context.find({string:'', phases:[[selector]]});
+
+      if(selector.modifier.sort){
+        results.sort(selector.modifier.sort);
+      }
 
       //results
       promise.resolve(results.toJSON());

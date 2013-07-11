@@ -177,7 +177,17 @@ function search(selector, context){
   var modifier = selector.modifier || {};
 
   if(modifier.limit){
-    ret.models = ret.models.slice(0, modifier.limit);
+    var st = '' + modifier.limit;
+    if(st.indexOf(',')>=0){
+      var parts = _.map(st.split(','), function(stt){
+        return stt.replace(/\D/g, '');
+      })
+      ret.models = ret.models.slice(parts[0], parts[1]);
+    }
+    else{
+      ret.models = ret.models.slice(0, modifier.limit);
+    }
+    
   }
 
   if(modifier.first && ret.models.length>0){

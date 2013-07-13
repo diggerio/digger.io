@@ -17,6 +17,7 @@
 */
 var Proto = require('./proto');
 var SupplyChain = require('../warehouse/supplychain');
+var asyncmethods = require('../network/async');
 
 var _ = require('lodash');
 var async = require('async');
@@ -222,6 +223,15 @@ $digger.Proto = Proto;
 $digger.create = Proto.factory;
 $digger.config = {};
 $digger.user = null;
+
+/*
+
+	mount each of the async contract methods onto the global $digger
+	
+*/
+_.each(asyncmethods, function(fn, name){
+	$digger[name] = fn;
+})
 
 window._ = _;
 window.async = async;

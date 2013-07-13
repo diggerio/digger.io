@@ -174,6 +174,8 @@ function factory(options){
     var includedata = selector.modifier.laststep;
     var includechildren = includedata && selector.modifier.tree;
 
+    var iscountermode = false;
+
     if(search_terms.length<=0){
       return null;
     }
@@ -205,6 +207,10 @@ function factory(options){
       else{
         options.limit = modifier.limit;
       }
+    }
+
+    if(modifier.count){
+      iscountermode = true;
     }
 
     var usesort = null;
@@ -241,7 +247,13 @@ function factory(options){
     var results_map = {};
 
     function get_tree_query(results){
-      if(includechildren && results.length>0){
+
+      /*
+      
+        only if :tree and there is no :count mode
+        
+      */
+      if(!iscountermode && includechildren && results.length>0){
         // first lets map the results we have by id
         
         _.each(results, function(result){
@@ -292,6 +304,7 @@ function factory(options){
       query:query,
       fields:fields,
       options:options,
+      countermode:iscountermode,
       get_tree_query:get_tree_query,
       combine_tree_results:combine_tree_results
     }

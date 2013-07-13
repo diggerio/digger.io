@@ -86,8 +86,10 @@ var exports = module.exports = {
 
   merge:function(arr, alldone){
 
-    var fns = _.map(arr, function(fn){
-      return function(nextfn){
+    var newfns = _.isArray(arr) ? [] : {};
+
+    _.each(arr, function(fn, key){
+      var newfn = function(nextfn){
         if(_.isFunction(fn.getHeader) && fn.getHeader('x-contract-type')){
           fn.ship(function(results){
             nextfn(null, results);
@@ -99,9 +101,16 @@ var exports = module.exports = {
           })
         }
       }
+
+      if(_.isArray(arr)){
+        newfns.push(newfn);
+      }
+      else{
+        newfns[key] = newfn;
+      }
     })
 
-    async.parallel(fns, function(error, results){
+    async.parallel(newfns, function(error, results){
       if(alldone){
         alldone(null, results);
       }

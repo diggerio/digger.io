@@ -194,12 +194,13 @@ function factory(options){
       options.limit = 1;
     }
     else if(modifier.limit){
-      if(modifier.limit.match(/,/)){
-        var parts = _.map(modifier.limit.split(','), function(st){
+      var val = '' + modifier.limit;
+      if(val.match(/,/)){
+        var parts = _.map(val.split(','), function(st){
           return st.replace(/\D/g, '');
         })
-        options.skip = parts[0];
-        options.limit = parts[1];
+        options.skip = parseInt(parts[0], null);
+        options.limit = parseInt(parts[1], null);
       }
       else{
         options.limit = modifier.limit;

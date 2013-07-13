@@ -155,6 +155,12 @@ function factory(options){
         results.sort(selector.modifier.sort);
       }
 
+      if(selector.modifier.count){
+        results = context.spawn([{
+          count:context.count()
+        }])
+      }
+
       //results
       promise.resolve(results.toJSON());
     })

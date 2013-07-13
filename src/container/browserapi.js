@@ -176,15 +176,15 @@ $digger.blueprint = {
     return blueprints[name];
   },
   create:function(name){
-  	var blueprint = this.get(name);
-  	var data = JSON.parse(JSON.stringify({
-  		_digger:blueprint._digger
-  	}))
+		var blueprint = this.get(name);
+		var data = JSON.parse(JSON.stringify({
+			_digger:blueprint._digger
+		}))
 
-  	var container = $digger.create([data]);
-  	container.digger('new', true);
+		var container = $digger.create([data]);
+		container.digger('new', true);
 
-  	return container;
+		return container;
   }
 }
 

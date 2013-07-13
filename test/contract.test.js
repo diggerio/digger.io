@@ -266,6 +266,7 @@ describe('contract', function(){
           }
 
         ], function(error, result){
+
           result.should.equal(10);
           seqnext();
         });
@@ -280,12 +281,14 @@ describe('contract', function(){
           }
 
         ], function(error, results){
+
           results[0].attr('title').should.equal('apple');
           results[1].should.equal(10);
+
           seqnext();
         })
       }
-    ], done);
+    ], done)
   })
 
 })

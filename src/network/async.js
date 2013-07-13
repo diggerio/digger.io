@@ -85,24 +85,25 @@ var exports = module.exports = {
   },
 
   merge:function(arr, alldone){
-    var allresults = [];
 
-    async.forEachSeries(arr, function(fn, nextfn){
-      if(_.isFunction(fn.getHeader) && fn.getHeader('x-contract-type')){
-        fn.ship(function(results){
-          allresults.push(results);
-          nextfn();
-        })
+    var fns = _.map(arr, function(fn){
+      return function(nextfn){
+        if(_.isFunction(fn.getHeader) && fn.getHeader('x-contract-type')){
+          fn.ship(function(results){
+            nextfn(null, results);
+          })
+        }
+        else{
+          fn(function(error, results){
+            nextfn(null, results);
+          })
+        }
       }
-      else{
-        fn(function(error, results){
-          allresults.push(results);
-          nextfn();
-        })
-      }
-    }, function(error){
+    })
+
+    async.parallel(fns, function(error, results){
       if(alldone){
-        alldone(null, allresults);
+        alldone(null, results);
       }
     })
   }

@@ -246,7 +246,7 @@ Container.prototype.propertymodel = function(field){
   else{
     var parts = field.split('.');
     parts.pop();
-    var field = parts.join('.');
+    field = parts.join('.');
     var model = this.attr(field);
     if(!model){
       model = {};

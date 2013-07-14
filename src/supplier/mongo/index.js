@@ -335,6 +335,7 @@ function factory(options){
         data._digger.diggerpath = [next_root_position];
         data._digger.rootposition = next_root_position;
 
+        delete(data._data);
         self.assign_tree_encodings(data._digger);
 
         self._insert(req, data, function(error){
@@ -360,7 +361,8 @@ function factory(options){
       
       data._digger.diggerpath = parent_data._digger.diggerpath.concat([parent_data._digger.next_child_position]);
       data._digger.diggerparentid = parent_data._digger.diggerid;
-
+      delete(data._data);
+      
       self.assign_tree_encodings(data._digger);
 
       self._update(req, parent_data, function(){

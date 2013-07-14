@@ -152,6 +152,15 @@ function factory(handle){
       */
       var stage_results = [];
 
+      if(!stage){
+        console.log('-------------------------------------------');
+        console.log('-------------------------------------------');
+        console.log('warning no stage found');
+        console.log(JSON.stringify(req.toJSON(), null, 4));
+        next_stage();
+        return;
+      }
+
       /*
       
         now we have the phases - these can be done in parallel

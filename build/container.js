@@ -51,839 +51,6 @@ module.exports={
 }
 
 },{}],2:[function(require,module,exports){
-// shim for using process in browser
-
-var process = module.exports = {};
-
-process.nextTick = (function () {
-    var canSetImmediate = typeof window !== 'undefined'
-    && window.setImmediate;
-    var canPost = typeof window !== 'undefined'
-    && window.postMessage && window.addEventListener
-    ;
-
-    if (canSetImmediate) {
-        return function (f) { return window.setImmediate(f) };
-    }
-
-    if (canPost) {
-        var queue = [];
-        window.addEventListener('message', function (ev) {
-            if (ev.source === window && ev.data === 'process-tick') {
-                ev.stopPropagation();
-                if (queue.length > 0) {
-                    var fn = queue.shift();
-                    fn();
-                }
-            }
-        }, true);
-
-        return function nextTick(fn) {
-            queue.push(fn);
-            window.postMessage('process-tick', '*');
-        };
-    }
-
-    return function nextTick(fn) {
-        setTimeout(fn, 0);
-    };
-})();
-
-process.title = 'browser';
-process.browser = true;
-process.env = {};
-process.argv = [];
-
-process.binding = function (name) {
-    throw new Error('process.binding is not supported');
-}
-
-// TODO(shtylman)
-process.cwd = function () { return '/' };
-process.chdir = function (dir) {
-    throw new Error('process.chdir is not supported');
-};
-
-},{}],3:[function(require,module,exports){
-(function(process){if (!process.EventEmitter) process.EventEmitter = function () {};
-
-var EventEmitter = exports.EventEmitter = process.EventEmitter;
-var isArray = typeof Array.isArray === 'function'
-    ? Array.isArray
-    : function (xs) {
-        return Object.prototype.toString.call(xs) === '[object Array]'
-    }
-;
-function indexOf (xs, x) {
-    if (xs.indexOf) return xs.indexOf(x);
-    for (var i = 0; i < xs.length; i++) {
-        if (x === xs[i]) return i;
-    }
-    return -1;
-}
-
-// By default EventEmitters will print a warning if more than
-// 10 listeners are added to it. This is a useful default which
-// helps finding memory leaks.
-//
-// Obviously not all Emitters should be limited to 10. This function allows
-// that to be increased. Set to zero for unlimited.
-var defaultMaxListeners = 10;
-EventEmitter.prototype.setMaxListeners = function(n) {
-  if (!this._events) this._events = {};
-  this._events.maxListeners = n;
-};
-
-
-EventEmitter.prototype.emit = function(type) {
-  // If there is no 'error' event listener then throw.
-  if (type === 'error') {
-    if (!this._events || !this._events.error ||
-        (isArray(this._events.error) && !this._events.error.length))
-    {
-      if (arguments[1] instanceof Error) {
-        throw arguments[1]; // Unhandled 'error' event
-      } else {
-        throw new Error("Uncaught, unspecified 'error' event.");
-      }
-      return false;
-    }
-  }
-
-  if (!this._events) return false;
-  var handler = this._events[type];
-  if (!handler) return false;
-
-  if (typeof handler == 'function') {
-    switch (arguments.length) {
-      // fast cases
-      case 1:
-        handler.call(this);
-        break;
-      case 2:
-        handler.call(this, arguments[1]);
-        break;
-      case 3:
-        handler.call(this, arguments[1], arguments[2]);
-        break;
-      // slower
-      default:
-        var args = Array.prototype.slice.call(arguments, 1);
-        handler.apply(this, args);
-    }
-    return true;
-
-  } else if (isArray(handler)) {
-    var args = Array.prototype.slice.call(arguments, 1);
-
-    var listeners = handler.slice();
-    for (var i = 0, l = listeners.length; i < l; i++) {
-      listeners[i].apply(this, args);
-    }
-    return true;
-
-  } else {
-    return false;
-  }
-};
-
-// EventEmitter is defined in src/node_events.cc
-// EventEmitter.prototype.emit() is also defined there.
-EventEmitter.prototype.addListener = function(type, listener) {
-  if ('function' !== typeof listener) {
-    throw new Error('addListener only takes instances of Function');
-  }
-
-  if (!this._events) this._events = {};
-
-  // To avoid recursion in the case that type == "newListeners"! Before
-  // adding it to the listeners, first emit "newListeners".
-  this.emit('newListener', type, listener);
-
-  if (!this._events[type]) {
-    // Optimize the case of one listener. Don't need the extra array object.
-    this._events[type] = listener;
-  } else if (isArray(this._events[type])) {
-
-    // Check for listener leak
-    if (!this._events[type].warned) {
-      var m;
-      if (this._events.maxListeners !== undefined) {
-        m = this._events.maxListeners;
-      } else {
-        m = defaultMaxListeners;
-      }
-
-      if (m && m > 0 && this._events[type].length > m) {
-        this._events[type].warned = true;
-        console.error('(node) warning: possible EventEmitter memory ' +
-                      'leak detected. %d listeners added. ' +
-                      'Use emitter.setMaxListeners() to increase limit.',
-                      this._events[type].length);
-        console.trace();
-      }
-    }
-
-    // If we've already got an array, just append.
-    this._events[type].push(listener);
-  } else {
-    // Adding the second element, need to change to array.
-    this._events[type] = [this._events[type], listener];
-  }
-
-  return this;
-};
-
-EventEmitter.prototype.on = EventEmitter.prototype.addListener;
-
-EventEmitter.prototype.once = function(type, listener) {
-  var self = this;
-  self.on(type, function g() {
-    self.removeListener(type, g);
-    listener.apply(this, arguments);
-  });
-
-  return this;
-};
-
-EventEmitter.prototype.removeListener = function(type, listener) {
-  if ('function' !== typeof listener) {
-    throw new Error('removeListener only takes instances of Function');
-  }
-
-  // does not use listeners(), so no side effect of creating _events[type]
-  if (!this._events || !this._events[type]) return this;
-
-  var list = this._events[type];
-
-  if (isArray(list)) {
-    var i = indexOf(list, listener);
-    if (i < 0) return this;
-    list.splice(i, 1);
-    if (list.length == 0)
-      delete this._events[type];
-  } else if (this._events[type] === listener) {
-    delete this._events[type];
-  }
-
-  return this;
-};
-
-EventEmitter.prototype.removeAllListeners = function(type) {
-  if (arguments.length === 0) {
-    this._events = {};
-    return this;
-  }
-
-  // does not use listeners(), so no side effect of creating _events[type]
-  if (type && this._events && this._events[type]) this._events[type] = null;
-  return this;
-};
-
-EventEmitter.prototype.listeners = function(type) {
-  if (!this._events) this._events = {};
-  if (!this._events[type]) this._events[type] = [];
-  if (!isArray(this._events[type])) {
-    this._events[type] = [this._events[type]];
-  }
-  return this._events[type];
-};
-
-})(require("__browserify_process"))
-},{"__browserify_process":2}],4:[function(require,module,exports){
-(function(){/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-var Proto = require('./proto');
-var SupplyChain = require('../warehouse/supplychain');
-var asyncmethods = require('../network/async');
-
-var _ = require('lodash');
-var async = require('async');
-
-/*
-
-	$digger is the default on ready handler
-	
-*/
-
-var isready = false;
-var readycallbacks = [];
-
-var version = require('../../package.json').version;
-
-function $digger(){
-	/*
-	
-		a ready handler
-		
-	*/
-	if(_.isFunction(arguments[0])){
-		if(isready){
-			arguments[0].apply($digger, [$digger]);
-		}
-		else{
-			readycallbacks.push(arguments[0]);
-		}
-	}
-}
-
-$digger.version = version;
-
-$digger._trigger_ready = function(){
-	_.each(readycallbacks, function(fn){
-		fn.apply($digger, [$digger]);
-	})
-	readycallbacks = [];
-	isready = true;
-}
-
-/*
-
-	this connects the socket
-
-	it is passed any config by the server
-	
-*/
-$digger.bootstrap = function(config){
-
-	config = _.extend({}, config.windowconfig, config.userconfig);
-	readycallbacks = readycallbacks.concat(config.readycallbacks || []);
-	
-	config = _.defaults(config, {
-		protocol:'http://',
-		host:'digger.io',
-		channel:null
-	})
-
-	console.log('-------------------------------------------');
-	console.log('digger.io browserapi version: ' + $digger.version);
-	console.dir(config);
-
-	var socket_address = [config.protocol, config.host, '/', config.channel].join('');
-	console.log('connecting to socket: ' + socket_address);
-
-	var socket = io.connect(socket_address);
-
-	/*
-	
-		this is run the first time the socket connects
-
-		this triggers the digger ready phase
-		
-	*/
-
-	function diggerready(){
-		if(config.user){
-			$digger.user = Proto.factory(config.user); 
-			console.log('digger user: ' + $digger.user.attr('name'));
-		}
-		if(config.blueprints){
-			$digger.blueprint.add(config.blueprints);
-			console.log('adding digger blueprints: ' + _.keys(config.blueprints).length);
-			_.each(config.blueprints, function(print, name){
-				console.log('   - ' + name);
-			})
-		}
-		
-		$digger._trigger_ready();	
-	}
-
-	/*
-	
-		a counter of how many times the socket came online
-		
-	*/
-	var connections = 0;
-
-	socket.on('connect', function(){
-		console.log('socket connected');
-		connections++;
-
-		if(connections<=1){
-			diggerready();
-		}
-	})
-
-	/*
-	
-		this is the client side container plugged into the socket.io transport
-		
-	*/
-	$digger.supplychain = SupplyChain(function(req, res){
-		if($digger.config.debug){
-			console.log(JSON.stringify(req.toJSON(), null, 4));	
-		}
-		
-		socket.emit('request', req.toJSON(), function(rawres){
-			if($digger.config.debug){
-				console.log(JSON.stringify(rawres, null, 4));
-			}
-			res.fill(rawres);
-		})
-	})
-
-	$digger.config = _.extend({}, config, window.$diggerconfig);	
-}
-
-/*
-
-	get a container that has a socket supply chain hooked up to the given stackpath
-	
-*/
-$digger.connect = function(stackpath){
-	if(!this.supplychain){
-		throw new Error('there is no supplychain - this means we are not yet connected - place code inside of $digger(function(){})');
-	}
-
-	return $digger.supplychain.connect(stackpath);
-}
-
-var blueprints = {};
-var templates = {};
-
-$digger.blueprint = {
-  add:function(prints){
-    for(var i in prints){
-      blueprints[i] = prints[i];
-    }
-    return this;
-  },
-  get:function(name){
-    if(arguments.length<=0){
-      return blueprints;
-    }
-    return blueprints[name];
-  },
-  create:function(name){
-		var blueprint = this.get(name);
-		var data = JSON.parse(JSON.stringify({
-			_digger:blueprint._digger
-		}))
-
-		var container = $digger.create([data]);
-		container.digger('new', true);
-
-		return container;
-  }
-}
-
-$digger.template = {
-	add:function(plates){
-    for(var i in plates){
-      templates[i] = plates[i];
-    }
-    return this;
-  },
-  get:function(name){
-    if(arguments.length<=0){
-      return templates;
-    }
-    return templates[name];
-  }
-}
-
-/*
-
-	we let the client re-route requests
-	
-*/
-var routes = {};
-
-$digger.router = function(from, to){
-	routes[from] = to;
-}
-/*
-
-	we export these vars to the window immediately - everything else is done inside the $digger handler
-	
-*/
-$digger.Proto = Proto;
-$digger.create = Proto.factory;
-$digger.config = {};
-$digger.user = null;
-
-/*
-
-	mount each of the async contract methods onto the global $digger
-	
-*/
-_.each(asyncmethods, function(fn, name){
-	$digger[name] = fn;
-})
-
-window._ = _;
-window.async = async;
-window.$digger = $digger;
-})()
-},{"../../package.json":1,"../network/async":5,"../warehouse/supplychain":6,"./proto":7,"lodash":8,"async":9}],10:[function(require,module,exports){
-var events = require('events');
-
-exports.isArray = isArray;
-exports.isDate = function(obj){return Object.prototype.toString.call(obj) === '[object Date]'};
-exports.isRegExp = function(obj){return Object.prototype.toString.call(obj) === '[object RegExp]'};
-
-
-exports.print = function () {};
-exports.puts = function () {};
-exports.debug = function() {};
-
-exports.inspect = function(obj, showHidden, depth, colors) {
-  var seen = [];
-
-  var stylize = function(str, styleType) {
-    // http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
-    var styles =
-        { 'bold' : [1, 22],
-          'italic' : [3, 23],
-          'underline' : [4, 24],
-          'inverse' : [7, 27],
-          'white' : [37, 39],
-          'grey' : [90, 39],
-          'black' : [30, 39],
-          'blue' : [34, 39],
-          'cyan' : [36, 39],
-          'green' : [32, 39],
-          'magenta' : [35, 39],
-          'red' : [31, 39],
-          'yellow' : [33, 39] };
-
-    var style =
-        { 'special': 'cyan',
-          'number': 'blue',
-          'boolean': 'yellow',
-          'undefined': 'grey',
-          'null': 'bold',
-          'string': 'green',
-          'date': 'magenta',
-          // "name": intentionally not styling
-          'regexp': 'red' }[styleType];
-
-    if (style) {
-      return '\033[' + styles[style][0] + 'm' + str +
-             '\033[' + styles[style][1] + 'm';
-    } else {
-      return str;
-    }
-  };
-  if (! colors) {
-    stylize = function(str, styleType) { return str; };
-  }
-
-  function format(value, recurseTimes) {
-    // Provide a hook for user-specified inspect functions.
-    // Check that value is an object with an inspect function on it
-    if (value && typeof value.inspect === 'function' &&
-        // Filter out the util module, it's inspect function is special
-        value !== exports &&
-        // Also filter out any prototype objects using the circular check.
-        !(value.constructor && value.constructor.prototype === value)) {
-      return value.inspect(recurseTimes);
-    }
-
-    // Primitive types cannot have properties
-    switch (typeof value) {
-      case 'undefined':
-        return stylize('undefined', 'undefined');
-
-      case 'string':
-        var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
-                                                 .replace(/'/g, "\\'")
-                                                 .replace(/\\"/g, '"') + '\'';
-        return stylize(simple, 'string');
-
-      case 'number':
-        return stylize('' + value, 'number');
-
-      case 'boolean':
-        return stylize('' + value, 'boolean');
-    }
-    // For some reason typeof null is "object", so special case here.
-    if (value === null) {
-      return stylize('null', 'null');
-    }
-
-    // Look up the keys of the object.
-    var visible_keys = Object_keys(value);
-    var keys = showHidden ? Object_getOwnPropertyNames(value) : visible_keys;
-
-    // Functions without properties can be shortcutted.
-    if (typeof value === 'function' && keys.length === 0) {
-      if (isRegExp(value)) {
-        return stylize('' + value, 'regexp');
-      } else {
-        var name = value.name ? ': ' + value.name : '';
-        return stylize('[Function' + name + ']', 'special');
-      }
-    }
-
-    // Dates without properties can be shortcutted
-    if (isDate(value) && keys.length === 0) {
-      return stylize(value.toUTCString(), 'date');
-    }
-
-    var base, type, braces;
-    // Determine the object type
-    if (isArray(value)) {
-      type = 'Array';
-      braces = ['[', ']'];
-    } else {
-      type = 'Object';
-      braces = ['{', '}'];
-    }
-
-    // Make functions say that they are functions
-    if (typeof value === 'function') {
-      var n = value.name ? ': ' + value.name : '';
-      base = (isRegExp(value)) ? ' ' + value : ' [Function' + n + ']';
-    } else {
-      base = '';
-    }
-
-    // Make dates with properties first say the date
-    if (isDate(value)) {
-      base = ' ' + value.toUTCString();
-    }
-
-    if (keys.length === 0) {
-      return braces[0] + base + braces[1];
-    }
-
-    if (recurseTimes < 0) {
-      if (isRegExp(value)) {
-        return stylize('' + value, 'regexp');
-      } else {
-        return stylize('[Object]', 'special');
-      }
-    }
-
-    seen.push(value);
-
-    var output = keys.map(function(key) {
-      var name, str;
-      if (value.__lookupGetter__) {
-        if (value.__lookupGetter__(key)) {
-          if (value.__lookupSetter__(key)) {
-            str = stylize('[Getter/Setter]', 'special');
-          } else {
-            str = stylize('[Getter]', 'special');
-          }
-        } else {
-          if (value.__lookupSetter__(key)) {
-            str = stylize('[Setter]', 'special');
-          }
-        }
-      }
-      if (visible_keys.indexOf(key) < 0) {
-        name = '[' + key + ']';
-      }
-      if (!str) {
-        if (seen.indexOf(value[key]) < 0) {
-          if (recurseTimes === null) {
-            str = format(value[key]);
-          } else {
-            str = format(value[key], recurseTimes - 1);
-          }
-          if (str.indexOf('\n') > -1) {
-            if (isArray(value)) {
-              str = str.split('\n').map(function(line) {
-                return '  ' + line;
-              }).join('\n').substr(2);
-            } else {
-              str = '\n' + str.split('\n').map(function(line) {
-                return '   ' + line;
-              }).join('\n');
-            }
-          }
-        } else {
-          str = stylize('[Circular]', 'special');
-        }
-      }
-      if (typeof name === 'undefined') {
-        if (type === 'Array' && key.match(/^\d+$/)) {
-          return str;
-        }
-        name = JSON.stringify('' + key);
-        if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
-          name = name.substr(1, name.length - 2);
-          name = stylize(name, 'name');
-        } else {
-          name = name.replace(/'/g, "\\'")
-                     .replace(/\\"/g, '"')
-                     .replace(/(^"|"$)/g, "'");
-          name = stylize(name, 'string');
-        }
-      }
-
-      return name + ': ' + str;
-    });
-
-    seen.pop();
-
-    var numLinesEst = 0;
-    var length = output.reduce(function(prev, cur) {
-      numLinesEst++;
-      if (cur.indexOf('\n') >= 0) numLinesEst++;
-      return prev + cur.length + 1;
-    }, 0);
-
-    if (length > 50) {
-      output = braces[0] +
-               (base === '' ? '' : base + '\n ') +
-               ' ' +
-               output.join(',\n  ') +
-               ' ' +
-               braces[1];
-
-    } else {
-      output = braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
-    }
-
-    return output;
-  }
-  return format(obj, (typeof depth === 'undefined' ? 2 : depth));
-};
-
-
-function isArray(ar) {
-  return ar instanceof Array ||
-         Array.isArray(ar) ||
-         (ar && ar !== Object.prototype && isArray(ar.__proto__));
-}
-
-
-function isRegExp(re) {
-  return re instanceof RegExp ||
-    (typeof re === 'object' && Object.prototype.toString.call(re) === '[object RegExp]');
-}
-
-
-function isDate(d) {
-  if (d instanceof Date) return true;
-  if (typeof d !== 'object') return false;
-  var properties = Date.prototype && Object_getOwnPropertyNames(Date.prototype);
-  var proto = d.__proto__ && Object_getOwnPropertyNames(d.__proto__);
-  return JSON.stringify(proto) === JSON.stringify(properties);
-}
-
-function pad(n) {
-  return n < 10 ? '0' + n.toString(10) : n.toString(10);
-}
-
-var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
-              'Oct', 'Nov', 'Dec'];
-
-// 26 Feb 16:19:34
-function timestamp() {
-  var d = new Date();
-  var time = [pad(d.getHours()),
-              pad(d.getMinutes()),
-              pad(d.getSeconds())].join(':');
-  return [d.getDate(), months[d.getMonth()], time].join(' ');
-}
-
-exports.log = function (msg) {};
-
-exports.pump = null;
-
-var Object_keys = Object.keys || function (obj) {
-    var res = [];
-    for (var key in obj) res.push(key);
-    return res;
-};
-
-var Object_getOwnPropertyNames = Object.getOwnPropertyNames || function (obj) {
-    var res = [];
-    for (var key in obj) {
-        if (Object.hasOwnProperty.call(obj, key)) res.push(key);
-    }
-    return res;
-};
-
-var Object_create = Object.create || function (prototype, properties) {
-    // from es5-shim
-    var object;
-    if (prototype === null) {
-        object = { '__proto__' : null };
-    }
-    else {
-        if (typeof prototype !== 'object') {
-            throw new TypeError(
-                'typeof prototype[' + (typeof prototype) + '] != \'object\''
-            );
-        }
-        var Type = function () {};
-        Type.prototype = prototype;
-        object = new Type();
-        object.__proto__ = prototype;
-    }
-    if (typeof properties !== 'undefined' && Object.defineProperties) {
-        Object.defineProperties(object, properties);
-    }
-    return object;
-};
-
-exports.inherits = function(ctor, superCtor) {
-  ctor.super_ = superCtor;
-  ctor.prototype = Object_create(superCtor.prototype, {
-    constructor: {
-      value: ctor,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
-};
-
-var formatRegExp = /%[sdj%]/g;
-exports.format = function(f) {
-  if (typeof f !== 'string') {
-    var objects = [];
-    for (var i = 0; i < arguments.length; i++) {
-      objects.push(exports.inspect(arguments[i]));
-    }
-    return objects.join(' ');
-  }
-
-  var i = 1;
-  var args = arguments;
-  var len = args.length;
-  var str = String(f).replace(formatRegExp, function(x) {
-    if (x === '%%') return '%';
-    if (i >= len) return x;
-    switch (x) {
-      case '%s': return String(args[i++]);
-      case '%d': return Number(args[i++]);
-      case '%j': return JSON.stringify(args[i++]);
-      default:
-        return x;
-    }
-  });
-  for(var x = args[i]; i < len; x = args[++i]){
-    if (x === null || typeof x !== 'object') {
-      str += ' ' + x;
-    } else {
-      str += ' ' + exports.inspect(x);
-    }
-  }
-  return str;
-};
-
-},{"events":3}],11:[function(require,module,exports){
 var punycode = { encode : function (s) { return s } };
 
 exports.parse = urlParse;
@@ -1489,7 +656,1185 @@ function parseHost(host) {
   return out;
 }
 
-},{"querystring":12}],8:[function(require,module,exports){
+},{"querystring":3}],4:[function(require,module,exports){
+// shim for using process in browser
+
+var process = module.exports = {};
+
+process.nextTick = (function () {
+    var canSetImmediate = typeof window !== 'undefined'
+    && window.setImmediate;
+    var canPost = typeof window !== 'undefined'
+    && window.postMessage && window.addEventListener
+    ;
+
+    if (canSetImmediate) {
+        return function (f) { return window.setImmediate(f) };
+    }
+
+    if (canPost) {
+        var queue = [];
+        window.addEventListener('message', function (ev) {
+            if (ev.source === window && ev.data === 'process-tick') {
+                ev.stopPropagation();
+                if (queue.length > 0) {
+                    var fn = queue.shift();
+                    fn();
+                }
+            }
+        }, true);
+
+        return function nextTick(fn) {
+            queue.push(fn);
+            window.postMessage('process-tick', '*');
+        };
+    }
+
+    return function nextTick(fn) {
+        setTimeout(fn, 0);
+    };
+})();
+
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+}
+
+// TODO(shtylman)
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+
+},{}],5:[function(require,module,exports){
+(function(process){if (!process.EventEmitter) process.EventEmitter = function () {};
+
+var EventEmitter = exports.EventEmitter = process.EventEmitter;
+var isArray = typeof Array.isArray === 'function'
+    ? Array.isArray
+    : function (xs) {
+        return Object.prototype.toString.call(xs) === '[object Array]'
+    }
+;
+function indexOf (xs, x) {
+    if (xs.indexOf) return xs.indexOf(x);
+    for (var i = 0; i < xs.length; i++) {
+        if (x === xs[i]) return i;
+    }
+    return -1;
+}
+
+// By default EventEmitters will print a warning if more than
+// 10 listeners are added to it. This is a useful default which
+// helps finding memory leaks.
+//
+// Obviously not all Emitters should be limited to 10. This function allows
+// that to be increased. Set to zero for unlimited.
+var defaultMaxListeners = 10;
+EventEmitter.prototype.setMaxListeners = function(n) {
+  if (!this._events) this._events = {};
+  this._events.maxListeners = n;
+};
+
+
+EventEmitter.prototype.emit = function(type) {
+  // If there is no 'error' event listener then throw.
+  if (type === 'error') {
+    if (!this._events || !this._events.error ||
+        (isArray(this._events.error) && !this._events.error.length))
+    {
+      if (arguments[1] instanceof Error) {
+        throw arguments[1]; // Unhandled 'error' event
+      } else {
+        throw new Error("Uncaught, unspecified 'error' event.");
+      }
+      return false;
+    }
+  }
+
+  if (!this._events) return false;
+  var handler = this._events[type];
+  if (!handler) return false;
+
+  if (typeof handler == 'function') {
+    switch (arguments.length) {
+      // fast cases
+      case 1:
+        handler.call(this);
+        break;
+      case 2:
+        handler.call(this, arguments[1]);
+        break;
+      case 3:
+        handler.call(this, arguments[1], arguments[2]);
+        break;
+      // slower
+      default:
+        var args = Array.prototype.slice.call(arguments, 1);
+        handler.apply(this, args);
+    }
+    return true;
+
+  } else if (isArray(handler)) {
+    var args = Array.prototype.slice.call(arguments, 1);
+
+    var listeners = handler.slice();
+    for (var i = 0, l = listeners.length; i < l; i++) {
+      listeners[i].apply(this, args);
+    }
+    return true;
+
+  } else {
+    return false;
+  }
+};
+
+// EventEmitter is defined in src/node_events.cc
+// EventEmitter.prototype.emit() is also defined there.
+EventEmitter.prototype.addListener = function(type, listener) {
+  if ('function' !== typeof listener) {
+    throw new Error('addListener only takes instances of Function');
+  }
+
+  if (!this._events) this._events = {};
+
+  // To avoid recursion in the case that type == "newListeners"! Before
+  // adding it to the listeners, first emit "newListeners".
+  this.emit('newListener', type, listener);
+
+  if (!this._events[type]) {
+    // Optimize the case of one listener. Don't need the extra array object.
+    this._events[type] = listener;
+  } else if (isArray(this._events[type])) {
+
+    // Check for listener leak
+    if (!this._events[type].warned) {
+      var m;
+      if (this._events.maxListeners !== undefined) {
+        m = this._events.maxListeners;
+      } else {
+        m = defaultMaxListeners;
+      }
+
+      if (m && m > 0 && this._events[type].length > m) {
+        this._events[type].warned = true;
+        console.error('(node) warning: possible EventEmitter memory ' +
+                      'leak detected. %d listeners added. ' +
+                      'Use emitter.setMaxListeners() to increase limit.',
+                      this._events[type].length);
+        console.trace();
+      }
+    }
+
+    // If we've already got an array, just append.
+    this._events[type].push(listener);
+  } else {
+    // Adding the second element, need to change to array.
+    this._events[type] = [this._events[type], listener];
+  }
+
+  return this;
+};
+
+EventEmitter.prototype.on = EventEmitter.prototype.addListener;
+
+EventEmitter.prototype.once = function(type, listener) {
+  var self = this;
+  self.on(type, function g() {
+    self.removeListener(type, g);
+    listener.apply(this, arguments);
+  });
+
+  return this;
+};
+
+EventEmitter.prototype.removeListener = function(type, listener) {
+  if ('function' !== typeof listener) {
+    throw new Error('removeListener only takes instances of Function');
+  }
+
+  // does not use listeners(), so no side effect of creating _events[type]
+  if (!this._events || !this._events[type]) return this;
+
+  var list = this._events[type];
+
+  if (isArray(list)) {
+    var i = indexOf(list, listener);
+    if (i < 0) return this;
+    list.splice(i, 1);
+    if (list.length == 0)
+      delete this._events[type];
+  } else if (this._events[type] === listener) {
+    delete this._events[type];
+  }
+
+  return this;
+};
+
+EventEmitter.prototype.removeAllListeners = function(type) {
+  if (arguments.length === 0) {
+    this._events = {};
+    return this;
+  }
+
+  // does not use listeners(), so no side effect of creating _events[type]
+  if (type && this._events && this._events[type]) this._events[type] = null;
+  return this;
+};
+
+EventEmitter.prototype.listeners = function(type) {
+  if (!this._events) this._events = {};
+  if (!this._events[type]) this._events[type] = [];
+  if (!isArray(this._events[type])) {
+    this._events[type] = [this._events[type]];
+  }
+  return this._events[type];
+};
+
+})(require("__browserify_process"))
+},{"__browserify_process":4}],3:[function(require,module,exports){
+
+/**
+ * Object#toString() ref for stringify().
+ */
+
+var toString = Object.prototype.toString;
+
+/**
+ * Array#indexOf shim.
+ */
+
+var indexOf = typeof Array.prototype.indexOf === 'function'
+  ? function(arr, el) { return arr.indexOf(el); }
+  : function(arr, el) {
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i] === el) return i;
+      }
+      return -1;
+    };
+
+/**
+ * Array.isArray shim.
+ */
+
+var isArray = Array.isArray || function(arr) {
+  return toString.call(arr) == '[object Array]';
+};
+
+/**
+ * Object.keys shim.
+ */
+
+var objectKeys = Object.keys || function(obj) {
+  var ret = [];
+  for (var key in obj) ret.push(key);
+  return ret;
+};
+
+/**
+ * Array#forEach shim.
+ */
+
+var forEach = typeof Array.prototype.forEach === 'function'
+  ? function(arr, fn) { return arr.forEach(fn); }
+  : function(arr, fn) {
+      for (var i = 0; i < arr.length; i++) fn(arr[i]);
+    };
+
+/**
+ * Array#reduce shim.
+ */
+
+var reduce = function(arr, fn, initial) {
+  if (typeof arr.reduce === 'function') return arr.reduce(fn, initial);
+  var res = initial;
+  for (var i = 0; i < arr.length; i++) res = fn(res, arr[i]);
+  return res;
+};
+
+/**
+ * Cache non-integer test regexp.
+ */
+
+var isint = /^[0-9]+$/;
+
+function promote(parent, key) {
+  if (parent[key].length == 0) return parent[key] = {};
+  var t = {};
+  for (var i in parent[key]) t[i] = parent[key][i];
+  parent[key] = t;
+  return t;
+}
+
+function parse(parts, parent, key, val) {
+  var part = parts.shift();
+  // end
+  if (!part) {
+    if (isArray(parent[key])) {
+      parent[key].push(val);
+    } else if ('object' == typeof parent[key]) {
+      parent[key] = val;
+    } else if ('undefined' == typeof parent[key]) {
+      parent[key] = val;
+    } else {
+      parent[key] = [parent[key], val];
+    }
+    // array
+  } else {
+    var obj = parent[key] = parent[key] || [];
+    if (']' == part) {
+      if (isArray(obj)) {
+        if ('' != val) obj.push(val);
+      } else if ('object' == typeof obj) {
+        obj[objectKeys(obj).length] = val;
+      } else {
+        obj = parent[key] = [parent[key], val];
+      }
+      // prop
+    } else if (~indexOf(part, ']')) {
+      part = part.substr(0, part.length - 1);
+      if (!isint.test(part) && isArray(obj)) obj = promote(parent, key);
+      parse(parts, obj, part, val);
+      // key
+    } else {
+      if (!isint.test(part) && isArray(obj)) obj = promote(parent, key);
+      parse(parts, obj, part, val);
+    }
+  }
+}
+
+/**
+ * Merge parent key/val pair.
+ */
+
+function merge(parent, key, val){
+  if (~indexOf(key, ']')) {
+    var parts = key.split('[')
+      , len = parts.length
+      , last = len - 1;
+    parse(parts, parent, 'base', val);
+    // optimize
+  } else {
+    if (!isint.test(key) && isArray(parent.base)) {
+      var t = {};
+      for (var k in parent.base) t[k] = parent.base[k];
+      parent.base = t;
+    }
+    set(parent.base, key, val);
+  }
+
+  return parent;
+}
+
+/**
+ * Parse the given obj.
+ */
+
+function parseObject(obj){
+  var ret = { base: {} };
+  forEach(objectKeys(obj), function(name){
+    merge(ret, name, obj[name]);
+  });
+  return ret.base;
+}
+
+/**
+ * Parse the given str.
+ */
+
+function parseString(str){
+  return reduce(String(str).split('&'), function(ret, pair){
+    var eql = indexOf(pair, '=')
+      , brace = lastBraceInKey(pair)
+      , key = pair.substr(0, brace || eql)
+      , val = pair.substr(brace || eql, pair.length)
+      , val = val.substr(indexOf(val, '=') + 1, val.length);
+
+    // ?foo
+    if ('' == key) key = pair, val = '';
+    if ('' == key) return ret;
+
+    return merge(ret, decode(key), decode(val));
+  }, { base: {} }).base;
+}
+
+/**
+ * Parse the given query `str` or `obj`, returning an object.
+ *
+ * @param {String} str | {Object} obj
+ * @return {Object}
+ * @api public
+ */
+
+exports.parse = function(str){
+  if (null == str || '' == str) return {};
+  return 'object' == typeof str
+    ? parseObject(str)
+    : parseString(str);
+};
+
+/**
+ * Turn the given `obj` into a query string
+ *
+ * @param {Object} obj
+ * @return {String}
+ * @api public
+ */
+
+var stringify = exports.stringify = function(obj, prefix) {
+  if (isArray(obj)) {
+    return stringifyArray(obj, prefix);
+  } else if ('[object Object]' == toString.call(obj)) {
+    return stringifyObject(obj, prefix);
+  } else if ('string' == typeof obj) {
+    return stringifyString(obj, prefix);
+  } else {
+    return prefix + '=' + encodeURIComponent(String(obj));
+  }
+};
+
+/**
+ * Stringify the given `str`.
+ *
+ * @param {String} str
+ * @param {String} prefix
+ * @return {String}
+ * @api private
+ */
+
+function stringifyString(str, prefix) {
+  if (!prefix) throw new TypeError('stringify expects an object');
+  return prefix + '=' + encodeURIComponent(str);
+}
+
+/**
+ * Stringify the given `arr`.
+ *
+ * @param {Array} arr
+ * @param {String} prefix
+ * @return {String}
+ * @api private
+ */
+
+function stringifyArray(arr, prefix) {
+  var ret = [];
+  if (!prefix) throw new TypeError('stringify expects an object');
+  for (var i = 0; i < arr.length; i++) {
+    ret.push(stringify(arr[i], prefix + '[' + i + ']'));
+  }
+  return ret.join('&');
+}
+
+/**
+ * Stringify the given `obj`.
+ *
+ * @param {Object} obj
+ * @param {String} prefix
+ * @return {String}
+ * @api private
+ */
+
+function stringifyObject(obj, prefix) {
+  var ret = []
+    , keys = objectKeys(obj)
+    , key;
+
+  for (var i = 0, len = keys.length; i < len; ++i) {
+    key = keys[i];
+    if (null == obj[key]) {
+      ret.push(encodeURIComponent(key) + '=');
+    } else {
+      ret.push(stringify(obj[key], prefix
+        ? prefix + '[' + encodeURIComponent(key) + ']'
+        : encodeURIComponent(key)));
+    }
+  }
+
+  return ret.join('&');
+}
+
+/**
+ * Set `obj`'s `key` to `val` respecting
+ * the weird and wonderful syntax of a qs,
+ * where "foo=bar&foo=baz" becomes an array.
+ *
+ * @param {Object} obj
+ * @param {String} key
+ * @param {String} val
+ * @api private
+ */
+
+function set(obj, key, val) {
+  var v = obj[key];
+  if (undefined === v) {
+    obj[key] = val;
+  } else if (isArray(v)) {
+    v.push(val);
+  } else {
+    obj[key] = [v, val];
+  }
+}
+
+/**
+ * Locate last brace in `str` within the key.
+ *
+ * @param {String} str
+ * @return {Number}
+ * @api private
+ */
+
+function lastBraceInKey(str) {
+  var len = str.length
+    , brace
+    , c;
+  for (var i = 0; i < len; ++i) {
+    c = str[i];
+    if (']' == c) brace = false;
+    if ('[' == c) brace = true;
+    if ('=' == c && !brace) return i;
+  }
+}
+
+/**
+ * Decode `str`.
+ *
+ * @param {String} str
+ * @return {String}
+ * @api private
+ */
+
+function decode(str) {
+  try {
+    return decodeURIComponent(str.replace(/\+/g, ' '));
+  } catch (err) {
+    return str;
+  }
+}
+
+},{}],6:[function(require,module,exports){
+(function(){/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+var Proto = require('./proto');
+var SupplyChain = require('../warehouse/supplychain');
+var asyncmethods = require('../network/async');
+var utils = require('../utils');
+var _ = require('lodash');
+var async = require('async');
+
+/*
+
+	$digger is the default on ready handler
+	
+*/
+
+var isready = false;
+var readycallbacks = [];
+
+var version = require('../../package.json').version;
+
+function $digger(){
+	/*
+	
+		a ready handler
+		
+	*/
+	if(_.isFunction(arguments[0])){
+		if(isready){
+			arguments[0].apply($digger, [$digger]);
+		}
+		else{
+			readycallbacks.push(arguments[0]);
+		}
+	}
+}
+
+$digger.version = version;
+
+$digger._trigger_ready = function(){
+	_.each(readycallbacks, function(fn){
+		fn.apply($digger, [$digger]);
+	})
+	readycallbacks = [];
+	isready = true;
+}
+
+/*
+
+	this connects the socket
+
+	it is passed any config by the server
+	
+*/
+$digger.bootstrap = function(config){
+
+	config = _.extend({}, config.windowconfig, config.userconfig);
+	readycallbacks = readycallbacks.concat(config.readycallbacks || []);
+	
+	config = _.defaults(config, {
+		protocol:'http://',
+		host:'digger.io',
+		channel:null
+	})
+
+	console.log('-------------------------------------------');
+	console.log('digger.io browserapi version: ' + $digger.version);
+	console.dir(config);
+
+	var socket_address = [config.protocol, config.host, '/', config.channel].join('');
+	console.log('connecting to socket: ' + socket_address);
+
+	var socket = io.connect(socket_address);
+
+	/*
+	
+		this is run the first time the socket connects
+
+		this triggers the digger ready phase
+		
+	*/
+
+	function diggerready(){
+		if(config.user){
+			$digger.user = Proto.factory(config.user); 
+			console.log('digger user: ' + $digger.user.attr('name'));
+		}
+		if(config.blueprints){
+			$digger.blueprint.add(config.blueprints);
+			console.log('adding digger blueprints: ' + _.keys(config.blueprints).length);
+			_.each(config.blueprints, function(print, name){
+				console.log('   - ' + name);
+				console.dir(print);
+			})
+		}
+		
+		$digger._trigger_ready();	
+	}
+
+	/*
+	
+		a counter of how many times the socket came online
+		
+	*/
+	var connections = 0;
+
+	socket.on('connect', function(){
+		console.log('socket connected');
+		connections++;
+
+		if(connections<=1){
+			diggerready();
+		}
+	})
+
+	/*
+	
+		this is the client side container plugged into the socket.io transport
+		
+	*/
+	$digger.supplychain = SupplyChain(function(req, res){
+		if($digger.config.debug){
+			console.log(JSON.stringify(req.toJSON(), null, 4));	
+		}
+		
+		socket.emit('request', req.toJSON(), function(rawres){
+			if($digger.config.debug){
+				console.log(JSON.stringify(rawres, null, 4));
+			}
+			res.fill(rawres);
+		})
+	})
+
+	$digger.config = _.extend({}, config, window.$diggerconfig);	
+}
+
+/*
+
+	get a container that has a socket supply chain hooked up to the given stackpath
+	
+*/
+$digger.connect = function(stackpath){
+	if(!this.supplychain){
+		throw new Error('there is no supplychain - this means we are not yet connected - place code inside of $digger(function(){})');
+	}
+
+	return $digger.supplychain.connect(stackpath);
+}
+
+/*
+
+	BLUEPRINTS
+	
+*/
+var blueprints = {};
+
+$digger.blueprint = {
+  add:function(prints){
+    for(var i in prints){
+      blueprints[i] = prints[i];
+    }
+    return this;
+  },
+  get:function(name){
+    if(arguments.length<=0){
+      return blueprints;
+    }
+    return blueprints[name];
+  },
+  create:function(name){
+		var blueprint = this.get(name);
+		if(!blueprint){
+			return $digger.create(name, {});
+		}
+		var data = blueprint ? {
+			_digger:{
+				tag:blueprint.name
+			}
+		} : {}
+
+		_.each(blueprint.fields, function(field){
+			if(field.default){
+				data[field.name] = field.default;
+			}
+		})
+
+		var container = $digger.create([data]);
+		container.data('new', true);
+
+		return container;
+  }
+}
+
+/*
+
+	TEMPLATES
+	
+*/
+var templates = {};
+
+$digger.template = {
+	add:function(plates){
+    for(var i in plates){
+      templates[i] = plates[i];
+    }
+    return this;
+  },
+  get:function(name){
+    if(arguments.length<=0){
+      return templates;
+    }
+    return templates[name];
+  }
+}
+
+/*
+
+	we let the client re-route requests
+	
+*/
+var routes = {};
+
+$digger.router = function(from, to){
+	routes[from] = to;
+}
+/*
+
+	we export these vars to the window immediately - everything else is done inside the $digger handler
+	
+*/
+$digger.Proto = Proto;
+$digger.create = Proto.factory;
+$digger.config = {};
+$digger.user = null;
+
+$digger.diggerid = utils.diggerid;
+$digger.littleid = utils.littleid;
+
+/*
+
+	mount each of the async contract methods onto the global $digger
+	
+*/
+_.each(asyncmethods, function(fn, name){
+	$digger[name] = fn;
+})
+
+window._ = _;
+window.async = async;
+window.$digger = $digger;
+})()
+},{"../../package.json":1,"../warehouse/supplychain":7,"../network/async":8,"../utils":9,"./proto":10,"lodash":11,"async":12}],13:[function(require,module,exports){
+var events = require('events');
+
+exports.isArray = isArray;
+exports.isDate = function(obj){return Object.prototype.toString.call(obj) === '[object Date]'};
+exports.isRegExp = function(obj){return Object.prototype.toString.call(obj) === '[object RegExp]'};
+
+
+exports.print = function () {};
+exports.puts = function () {};
+exports.debug = function() {};
+
+exports.inspect = function(obj, showHidden, depth, colors) {
+  var seen = [];
+
+  var stylize = function(str, styleType) {
+    // http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
+    var styles =
+        { 'bold' : [1, 22],
+          'italic' : [3, 23],
+          'underline' : [4, 24],
+          'inverse' : [7, 27],
+          'white' : [37, 39],
+          'grey' : [90, 39],
+          'black' : [30, 39],
+          'blue' : [34, 39],
+          'cyan' : [36, 39],
+          'green' : [32, 39],
+          'magenta' : [35, 39],
+          'red' : [31, 39],
+          'yellow' : [33, 39] };
+
+    var style =
+        { 'special': 'cyan',
+          'number': 'blue',
+          'boolean': 'yellow',
+          'undefined': 'grey',
+          'null': 'bold',
+          'string': 'green',
+          'date': 'magenta',
+          // "name": intentionally not styling
+          'regexp': 'red' }[styleType];
+
+    if (style) {
+      return '\033[' + styles[style][0] + 'm' + str +
+             '\033[' + styles[style][1] + 'm';
+    } else {
+      return str;
+    }
+  };
+  if (! colors) {
+    stylize = function(str, styleType) { return str; };
+  }
+
+  function format(value, recurseTimes) {
+    // Provide a hook for user-specified inspect functions.
+    // Check that value is an object with an inspect function on it
+    if (value && typeof value.inspect === 'function' &&
+        // Filter out the util module, it's inspect function is special
+        value !== exports &&
+        // Also filter out any prototype objects using the circular check.
+        !(value.constructor && value.constructor.prototype === value)) {
+      return value.inspect(recurseTimes);
+    }
+
+    // Primitive types cannot have properties
+    switch (typeof value) {
+      case 'undefined':
+        return stylize('undefined', 'undefined');
+
+      case 'string':
+        var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
+                                                 .replace(/'/g, "\\'")
+                                                 .replace(/\\"/g, '"') + '\'';
+        return stylize(simple, 'string');
+
+      case 'number':
+        return stylize('' + value, 'number');
+
+      case 'boolean':
+        return stylize('' + value, 'boolean');
+    }
+    // For some reason typeof null is "object", so special case here.
+    if (value === null) {
+      return stylize('null', 'null');
+    }
+
+    // Look up the keys of the object.
+    var visible_keys = Object_keys(value);
+    var keys = showHidden ? Object_getOwnPropertyNames(value) : visible_keys;
+
+    // Functions without properties can be shortcutted.
+    if (typeof value === 'function' && keys.length === 0) {
+      if (isRegExp(value)) {
+        return stylize('' + value, 'regexp');
+      } else {
+        var name = value.name ? ': ' + value.name : '';
+        return stylize('[Function' + name + ']', 'special');
+      }
+    }
+
+    // Dates without properties can be shortcutted
+    if (isDate(value) && keys.length === 0) {
+      return stylize(value.toUTCString(), 'date');
+    }
+
+    var base, type, braces;
+    // Determine the object type
+    if (isArray(value)) {
+      type = 'Array';
+      braces = ['[', ']'];
+    } else {
+      type = 'Object';
+      braces = ['{', '}'];
+    }
+
+    // Make functions say that they are functions
+    if (typeof value === 'function') {
+      var n = value.name ? ': ' + value.name : '';
+      base = (isRegExp(value)) ? ' ' + value : ' [Function' + n + ']';
+    } else {
+      base = '';
+    }
+
+    // Make dates with properties first say the date
+    if (isDate(value)) {
+      base = ' ' + value.toUTCString();
+    }
+
+    if (keys.length === 0) {
+      return braces[0] + base + braces[1];
+    }
+
+    if (recurseTimes < 0) {
+      if (isRegExp(value)) {
+        return stylize('' + value, 'regexp');
+      } else {
+        return stylize('[Object]', 'special');
+      }
+    }
+
+    seen.push(value);
+
+    var output = keys.map(function(key) {
+      var name, str;
+      if (value.__lookupGetter__) {
+        if (value.__lookupGetter__(key)) {
+          if (value.__lookupSetter__(key)) {
+            str = stylize('[Getter/Setter]', 'special');
+          } else {
+            str = stylize('[Getter]', 'special');
+          }
+        } else {
+          if (value.__lookupSetter__(key)) {
+            str = stylize('[Setter]', 'special');
+          }
+        }
+      }
+      if (visible_keys.indexOf(key) < 0) {
+        name = '[' + key + ']';
+      }
+      if (!str) {
+        if (seen.indexOf(value[key]) < 0) {
+          if (recurseTimes === null) {
+            str = format(value[key]);
+          } else {
+            str = format(value[key], recurseTimes - 1);
+          }
+          if (str.indexOf('\n') > -1) {
+            if (isArray(value)) {
+              str = str.split('\n').map(function(line) {
+                return '  ' + line;
+              }).join('\n').substr(2);
+            } else {
+              str = '\n' + str.split('\n').map(function(line) {
+                return '   ' + line;
+              }).join('\n');
+            }
+          }
+        } else {
+          str = stylize('[Circular]', 'special');
+        }
+      }
+      if (typeof name === 'undefined') {
+        if (type === 'Array' && key.match(/^\d+$/)) {
+          return str;
+        }
+        name = JSON.stringify('' + key);
+        if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
+          name = name.substr(1, name.length - 2);
+          name = stylize(name, 'name');
+        } else {
+          name = name.replace(/'/g, "\\'")
+                     .replace(/\\"/g, '"')
+                     .replace(/(^"|"$)/g, "'");
+          name = stylize(name, 'string');
+        }
+      }
+
+      return name + ': ' + str;
+    });
+
+    seen.pop();
+
+    var numLinesEst = 0;
+    var length = output.reduce(function(prev, cur) {
+      numLinesEst++;
+      if (cur.indexOf('\n') >= 0) numLinesEst++;
+      return prev + cur.length + 1;
+    }, 0);
+
+    if (length > 50) {
+      output = braces[0] +
+               (base === '' ? '' : base + '\n ') +
+               ' ' +
+               output.join(',\n  ') +
+               ' ' +
+               braces[1];
+
+    } else {
+      output = braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
+    }
+
+    return output;
+  }
+  return format(obj, (typeof depth === 'undefined' ? 2 : depth));
+};
+
+
+function isArray(ar) {
+  return ar instanceof Array ||
+         Array.isArray(ar) ||
+         (ar && ar !== Object.prototype && isArray(ar.__proto__));
+}
+
+
+function isRegExp(re) {
+  return re instanceof RegExp ||
+    (typeof re === 'object' && Object.prototype.toString.call(re) === '[object RegExp]');
+}
+
+
+function isDate(d) {
+  if (d instanceof Date) return true;
+  if (typeof d !== 'object') return false;
+  var properties = Date.prototype && Object_getOwnPropertyNames(Date.prototype);
+  var proto = d.__proto__ && Object_getOwnPropertyNames(d.__proto__);
+  return JSON.stringify(proto) === JSON.stringify(properties);
+}
+
+function pad(n) {
+  return n < 10 ? '0' + n.toString(10) : n.toString(10);
+}
+
+var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
+              'Oct', 'Nov', 'Dec'];
+
+// 26 Feb 16:19:34
+function timestamp() {
+  var d = new Date();
+  var time = [pad(d.getHours()),
+              pad(d.getMinutes()),
+              pad(d.getSeconds())].join(':');
+  return [d.getDate(), months[d.getMonth()], time].join(' ');
+}
+
+exports.log = function (msg) {};
+
+exports.pump = null;
+
+var Object_keys = Object.keys || function (obj) {
+    var res = [];
+    for (var key in obj) res.push(key);
+    return res;
+};
+
+var Object_getOwnPropertyNames = Object.getOwnPropertyNames || function (obj) {
+    var res = [];
+    for (var key in obj) {
+        if (Object.hasOwnProperty.call(obj, key)) res.push(key);
+    }
+    return res;
+};
+
+var Object_create = Object.create || function (prototype, properties) {
+    // from es5-shim
+    var object;
+    if (prototype === null) {
+        object = { '__proto__' : null };
+    }
+    else {
+        if (typeof prototype !== 'object') {
+            throw new TypeError(
+                'typeof prototype[' + (typeof prototype) + '] != \'object\''
+            );
+        }
+        var Type = function () {};
+        Type.prototype = prototype;
+        object = new Type();
+        object.__proto__ = prototype;
+    }
+    if (typeof properties !== 'undefined' && Object.defineProperties) {
+        Object.defineProperties(object, properties);
+    }
+    return object;
+};
+
+exports.inherits = function(ctor, superCtor) {
+  ctor.super_ = superCtor;
+  ctor.prototype = Object_create(superCtor.prototype, {
+    constructor: {
+      value: ctor,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    }
+  });
+};
+
+var formatRegExp = /%[sdj%]/g;
+exports.format = function(f) {
+  if (typeof f !== 'string') {
+    var objects = [];
+    for (var i = 0; i < arguments.length; i++) {
+      objects.push(exports.inspect(arguments[i]));
+    }
+    return objects.join(' ');
+  }
+
+  var i = 1;
+  var args = arguments;
+  var len = args.length;
+  var str = String(f).replace(formatRegExp, function(x) {
+    if (x === '%%') return '%';
+    if (i >= len) return x;
+    switch (x) {
+      case '%s': return String(args[i++]);
+      case '%d': return Number(args[i++]);
+      case '%j': return JSON.stringify(args[i++]);
+      default:
+        return x;
+    }
+  });
+  for(var x = args[i]; i < len; x = args[++i]){
+    if (x === null || typeof x !== 'object') {
+      str += ' ' + x;
+    } else {
+      str += ' ' + exports.inspect(x);
+    }
+  }
+  return str;
+};
+
+},{"events":5}],11:[function(require,module,exports){
 (function(global){/**
  * @license
  * Lo-Dash 1.2.1 (Custom Build) <http://lodash.com/>
@@ -6756,7 +7101,7 @@ function parseHost(host) {
 }(this));
 
 })(window)
-},{}],9:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 (function(process){/*global setImmediate: false, setTimeout: false, console: false */
 (function () {
 
@@ -7714,1424 +8059,7 @@ function parseHost(host) {
 }());
 
 })(require("__browserify_process"))
-},{"__browserify_process":2}],12:[function(require,module,exports){
-
-/**
- * Object#toString() ref for stringify().
- */
-
-var toString = Object.prototype.toString;
-
-/**
- * Array#indexOf shim.
- */
-
-var indexOf = typeof Array.prototype.indexOf === 'function'
-  ? function(arr, el) { return arr.indexOf(el); }
-  : function(arr, el) {
-      for (var i = 0; i < arr.length; i++) {
-        if (arr[i] === el) return i;
-      }
-      return -1;
-    };
-
-/**
- * Array.isArray shim.
- */
-
-var isArray = Array.isArray || function(arr) {
-  return toString.call(arr) == '[object Array]';
-};
-
-/**
- * Object.keys shim.
- */
-
-var objectKeys = Object.keys || function(obj) {
-  var ret = [];
-  for (var key in obj) ret.push(key);
-  return ret;
-};
-
-/**
- * Array#forEach shim.
- */
-
-var forEach = typeof Array.prototype.forEach === 'function'
-  ? function(arr, fn) { return arr.forEach(fn); }
-  : function(arr, fn) {
-      for (var i = 0; i < arr.length; i++) fn(arr[i]);
-    };
-
-/**
- * Array#reduce shim.
- */
-
-var reduce = function(arr, fn, initial) {
-  if (typeof arr.reduce === 'function') return arr.reduce(fn, initial);
-  var res = initial;
-  for (var i = 0; i < arr.length; i++) res = fn(res, arr[i]);
-  return res;
-};
-
-/**
- * Cache non-integer test regexp.
- */
-
-var isint = /^[0-9]+$/;
-
-function promote(parent, key) {
-  if (parent[key].length == 0) return parent[key] = {};
-  var t = {};
-  for (var i in parent[key]) t[i] = parent[key][i];
-  parent[key] = t;
-  return t;
-}
-
-function parse(parts, parent, key, val) {
-  var part = parts.shift();
-  // end
-  if (!part) {
-    if (isArray(parent[key])) {
-      parent[key].push(val);
-    } else if ('object' == typeof parent[key]) {
-      parent[key] = val;
-    } else if ('undefined' == typeof parent[key]) {
-      parent[key] = val;
-    } else {
-      parent[key] = [parent[key], val];
-    }
-    // array
-  } else {
-    var obj = parent[key] = parent[key] || [];
-    if (']' == part) {
-      if (isArray(obj)) {
-        if ('' != val) obj.push(val);
-      } else if ('object' == typeof obj) {
-        obj[objectKeys(obj).length] = val;
-      } else {
-        obj = parent[key] = [parent[key], val];
-      }
-      // prop
-    } else if (~indexOf(part, ']')) {
-      part = part.substr(0, part.length - 1);
-      if (!isint.test(part) && isArray(obj)) obj = promote(parent, key);
-      parse(parts, obj, part, val);
-      // key
-    } else {
-      if (!isint.test(part) && isArray(obj)) obj = promote(parent, key);
-      parse(parts, obj, part, val);
-    }
-  }
-}
-
-/**
- * Merge parent key/val pair.
- */
-
-function merge(parent, key, val){
-  if (~indexOf(key, ']')) {
-    var parts = key.split('[')
-      , len = parts.length
-      , last = len - 1;
-    parse(parts, parent, 'base', val);
-    // optimize
-  } else {
-    if (!isint.test(key) && isArray(parent.base)) {
-      var t = {};
-      for (var k in parent.base) t[k] = parent.base[k];
-      parent.base = t;
-    }
-    set(parent.base, key, val);
-  }
-
-  return parent;
-}
-
-/**
- * Parse the given obj.
- */
-
-function parseObject(obj){
-  var ret = { base: {} };
-  forEach(objectKeys(obj), function(name){
-    merge(ret, name, obj[name]);
-  });
-  return ret.base;
-}
-
-/**
- * Parse the given str.
- */
-
-function parseString(str){
-  return reduce(String(str).split('&'), function(ret, pair){
-    var eql = indexOf(pair, '=')
-      , brace = lastBraceInKey(pair)
-      , key = pair.substr(0, brace || eql)
-      , val = pair.substr(brace || eql, pair.length)
-      , val = val.substr(indexOf(val, '=') + 1, val.length);
-
-    // ?foo
-    if ('' == key) key = pair, val = '';
-    if ('' == key) return ret;
-
-    return merge(ret, decode(key), decode(val));
-  }, { base: {} }).base;
-}
-
-/**
- * Parse the given query `str` or `obj`, returning an object.
- *
- * @param {String} str | {Object} obj
- * @return {Object}
- * @api public
- */
-
-exports.parse = function(str){
-  if (null == str || '' == str) return {};
-  return 'object' == typeof str
-    ? parseObject(str)
-    : parseString(str);
-};
-
-/**
- * Turn the given `obj` into a query string
- *
- * @param {Object} obj
- * @return {String}
- * @api public
- */
-
-var stringify = exports.stringify = function(obj, prefix) {
-  if (isArray(obj)) {
-    return stringifyArray(obj, prefix);
-  } else if ('[object Object]' == toString.call(obj)) {
-    return stringifyObject(obj, prefix);
-  } else if ('string' == typeof obj) {
-    return stringifyString(obj, prefix);
-  } else {
-    return prefix + '=' + encodeURIComponent(String(obj));
-  }
-};
-
-/**
- * Stringify the given `str`.
- *
- * @param {String} str
- * @param {String} prefix
- * @return {String}
- * @api private
- */
-
-function stringifyString(str, prefix) {
-  if (!prefix) throw new TypeError('stringify expects an object');
-  return prefix + '=' + encodeURIComponent(str);
-}
-
-/**
- * Stringify the given `arr`.
- *
- * @param {Array} arr
- * @param {String} prefix
- * @return {String}
- * @api private
- */
-
-function stringifyArray(arr, prefix) {
-  var ret = [];
-  if (!prefix) throw new TypeError('stringify expects an object');
-  for (var i = 0; i < arr.length; i++) {
-    ret.push(stringify(arr[i], prefix + '[' + i + ']'));
-  }
-  return ret.join('&');
-}
-
-/**
- * Stringify the given `obj`.
- *
- * @param {Object} obj
- * @param {String} prefix
- * @return {String}
- * @api private
- */
-
-function stringifyObject(obj, prefix) {
-  var ret = []
-    , keys = objectKeys(obj)
-    , key;
-
-  for (var i = 0, len = keys.length; i < len; ++i) {
-    key = keys[i];
-    if (null == obj[key]) {
-      ret.push(encodeURIComponent(key) + '=');
-    } else {
-      ret.push(stringify(obj[key], prefix
-        ? prefix + '[' + encodeURIComponent(key) + ']'
-        : encodeURIComponent(key)));
-    }
-  }
-
-  return ret.join('&');
-}
-
-/**
- * Set `obj`'s `key` to `val` respecting
- * the weird and wonderful syntax of a qs,
- * where "foo=bar&foo=baz" becomes an array.
- *
- * @param {Object} obj
- * @param {String} key
- * @param {String} val
- * @api private
- */
-
-function set(obj, key, val) {
-  var v = obj[key];
-  if (undefined === v) {
-    obj[key] = val;
-  } else if (isArray(v)) {
-    v.push(val);
-  } else {
-    obj[key] = [v, val];
-  }
-}
-
-/**
- * Locate last brace in `str` within the key.
- *
- * @param {String} str
- * @return {Number}
- * @api private
- */
-
-function lastBraceInKey(str) {
-  var len = str.length
-    , brace
-    , c;
-  for (var i = 0; i < len; ++i) {
-    c = str[i];
-    if (']' == c) brace = false;
-    if ('[' == c) brace = true;
-    if ('=' == c && !brace) return i;
-  }
-}
-
-/**
- * Decode `str`.
- *
- * @param {String} str
- * @return {String}
- * @api private
- */
-
-function decode(str) {
-  try {
-    return decodeURIComponent(str.replace(/\+/g, ' '));
-  } catch (err) {
-    return str;
-  }
-}
-
-},{}],6:[function(require,module,exports){
-/*
-  Copyright (c) 2012 All contributors as noted in the AUTHORS file
-
-  This file is part of quarry.io
-
-  quarry.io is free software; you can redistribute it and/or modify it under
-  the terms of the GNU Lesser General Public License as published by
-  the Free Software Foundation; either version 3 of the License, or
-  (at your option) any later version.
-
-  quarry.io is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU Lesser General Public License for more details.
-
-  You should have received a copy of the GNU Lesser General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
-
-	supply chain
-
-  a container layer ontop of the underlying req, res network
-
-  this connects a function with the container API
-
-  so:
-
-    var container = digger.supplychain(function(req, res){
-      // here we have a req with
-
-      // x-json-selectors filled in
-
-    })
-
-    container('find me').ship(function(stuff){
-      // here we have whatever the function returned
-    })
-
-
-  it is a neat trick to create a supplychain that proxies over
-  the network to fullfull the request
-
-  This lets us make generic objects that access network services
-
-  It also lets us use the same code to built a socket supply chain
-  (for websocket browser connections) and a HTTP supply chain (for 
-  REST api's etc)
-
-	
-*/
-var EventEmitter = require('events').EventEmitter;
-var _ = require('lodash');
-
-var Container = require('../container/proto');
-var Contract = require('../network/contract');
-var Response = require('../network/response');
-
-var Merge = Contract.mergefactory;
-var Sequence = Contract.sequencefactory;
-
-/*
-
-  create a new supply chain that will pipe a req and res object into the
-  provided fn
-
-  
-*/
-
-function factory(){
-
-  var url = '/';
-  var supplierfn = null;
-  var container = null;
-
-  _.each(_.toArray(arguments), function(arg){
-    if(_.isFunction(arg)){
-      /*
-      
-        it is an existing container
-        
-      */
-      if(_.isFunction(arg.diggerid)){
-        container = arg;
-      }
-      /*
-      
-        otherwise the supplierchain function
-        
-      */
-      else{
-        supplierfn = arg;  
-      }
-    }
-    /*
-    
-      it is a URL to create a container from
-      
-    */
-    else if(_.isString(arg)){
-      container = Container.factory('_supplychain');
-      url = arg;
-    }
-    else if(_.isArray(arg) || _.isObject(arg)){
-      if(!_.isArray(arg)){
-        arg = [arg];
-      }
-
-      container = Container.factory(arg);
-    }
-
-  })
-
-
-  if(!container){
-    container = Container.factory('_supplychain');
-  }
-
-  if(!supplierfn){
-    supplierfn = function(req, res){
-      res.send404();
-    }
-  }
-
-  if(!container.diggerwarehouse()){
-    container.diggerwarehouse(url);
-  }
-
-  /*
-  
-    are we connected directly to some backend functions (i.e. non network mode)
-
-    if yes then we will fake serialize the requests
-    
-  */
-  var should_auto_serialize = supplierfn._diggertype=='warehouse' || supplierfn._diggertype=='supplier' || supplierfn._diggertype=='provider';
-
-  function supplychain(){}
-
-  _.extend(supplychain, EventEmitter.prototype);
-
-  supplychain.ship = function(contract, callback){
-    var self = this;
-
-    var res = Response.factory(function(){
-
-      /*
-      
-        resolve means extracting the multipart responses
-        
-      */
-      res.resolve(function(results, errors){
-        if(should_auto_serialize){
-          results = JSON.parse(JSON.stringify(results));
-        }
-        var answer = results;
-        if(contract.getHeader('x-expect')==='digger/containers'){
-          if(results && results.length>0){
-            answer = container.spawn(results);
-          }
-          else{
-            answer = container.spawn();
-          }
-        }
-
-        contract.emit('shipped', answer);
-        callback(answer, res);
-      })
-
-    })
-
-    if(should_auto_serialize){
-      _.each(JSON.parse(JSON.stringify(contract.toJSON())), function(v, k){
-        contract[k] = v;
-      })
-    }
-    
-    supplierfn(contract, res);
-
-    return res;
-  }
-
-  /*
-  
-    the switchboard features of the supplychain
-    
-  */
-  supplychain.listen = function(key, callback){
-    if(supplierfn.switchboard){
-      supplierfn.switchboard.listen(key, callback);
-    }
-    return this;
-  }
-
-  supplychain.broadcast = function(key, message){
-    if(supplierfn.switchboard){
-      supplierfn.switchboard.broadcast(key, message);
-    }
-    return this;
-  }
-
-
-  container.supplychain = supplychain;
-
-  /*
-  
-    used to create other container with different URLs
-    
-  */
-  container.connect = function(url){
-    var ret = Container.factory('_supplychain');
-    ret.diggerwarehouse(url);
-    ret.supplychain = supplychain;
-    return ret;
-  }
-  
-  container.merge = function(arr){
-    var contract = Merge(arr);
-    contract.supplychain = supplychain;
-    return contract;
-  }
-
-  container.sequence = function(arr){
-    var contract = Sequence(arr);
-    contract.supplychain = supplychain;
-    return contract;
-  }
-  
-
-  return container;
-}
-
-module.exports = factory;
-},{"events":3,"../network/contract":13,"../container/proto":7,"../network/response":14,"lodash":8}],5:[function(require,module,exports){
-/*
-  Copyright (c) 2012 All contributors as noted in the AUTHORS file
-
-  This file is part of quarry.io
-
-  quarry.io is free software; you can redistribute it and/or modify it under
-  the terms of the GNU Lesser General Public License as published by
-  the Free Software Foundation; either version 3 of the License, or
-  (at your option) any later version.
-
-  quarry.io is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU Lesser General Public License for more details.
-
-  You should have received a copy of the GNU Lesser General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
-
-	digger.io main API
-	
-*/
-
-
-/*
-
-  prepare the env
-  
-*/
-var async = require('async');
-var _ = require('lodash');
-
-var exports = module.exports = {
-
-  batch:function(arr, alldone){
-    var newarr = _.isArray(arr) ? [] : {};
-
-    _.each(arr, function(val, key){
-      var fn = function(done){
-        if(_.isFunction(val.getHeader) && val.getHeader('x-contract-type')){
-          val.ship(function(results){
-            lastresults = results;
-            done(null, results);
-          })
-        }
-        else{
-          val(done);
-        }
-      }
-
-      if(_.isArray(newarr)){
-        newarr.push(fn);
-      }
-      else{
-        newarr[key] = fn;
-      }
-    })
-
-    async.parallel(newarr, alldone);
-  },
-
-  pipe:function(arr, alldone){
-    var lastresults = null;
-
-    async.forEachSeries(arr, function(fn, nextfn){
-      if(_.isFunction(fn.getHeader) && fn.getHeader('x-contract-type')){
-        fn.ship(function(results){
-          lastresults = results;
-          nextfn(null, results);
-        })
-      }
-      else{
-        fn(lastresults, function(error, results){
-          lastresults = results;
-          nextfn();
-        })
-      }
-    }, function(error){
-      if(alldone){
-        alldone(null, lastresults);
-      }
-    })
-  },
-
-  merge:function(arr, alldone){
-
-    var fns = _.map(arr, function(fn){
-      return function(nextfn){
-        if(_.isFunction(fn.getHeader) && fn.getHeader('x-contract-type')){
-          fn.ship(function(results){
-            nextfn(null, results);
-          })
-        }
-        else{
-          fn(function(error, results){
-            nextfn(null, results);
-          })
-        }
-      }
-    })
-
-    async.parallel(fns, function(error, results){
-      if(alldone){
-        alldone(null, results);
-      }
-    })
-  }
-
-}
-},{"lodash":8,"async":9}],7:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-
-var _ = require('lodash');
-var EventEmitter = require('events').EventEmitter;
-var deepdot = require('./deepdot');
-var async = require('async');
-var utils = require('../utils');
-var ModelFactory = require('./models');
-var Finder = require('./search');
-var Contracts = require('./contracts');
-
-/*
-
-
-
-
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  Factory
-
-  create new containers with input data
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-
-
- */
-
-var Container = module.exports = function Container(){}
-
-/*
-
-	Factory
-	
-*/
-Container.factory = function factory(){
-	/*
-  
-    first let's extract the model data
-    
-  */
-  var models = ModelFactory.apply(null, _.toArray(arguments));
-
-  /*
-  
-    now make the actual container which is a function that triggers it's own 'select' method
-    (for JQuery style selects like):
-
-      container('some.selector')
-
-    which is the same as
-
-      container.select('some.selector')
-    
-  */
-  var instance = function container(){
-    return instance.select.apply(instance, _.toArray(arguments));
-  }
-
-  /*
-  
-    now map in the prototype
-    
-  */
-  _.extend(instance, Container.prototype);
-  _.extend(instance, EventEmitter.prototype);
-
-  instance.build(models);
-  
-  return instance;
-}
-
-Container.prototype.build = function(models){
-	var self = this;
-	this.models = models;
-}
-
-/*
-
-
-
-
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  Data exporting
-
-  these methods will output the underlying models in the given format
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-
-
- */
-
-Container.prototype.toJSON = function(){
-	return this.models;
-}
-
-Container.prototype.toXML = function(){
-	return ModelFactory.toXML(this.models);
-}
-
-/*
-
-
-
-
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  Spawning - these methods generate new containers using the provided model data
-
-  The new containers will have the same supplychain as the spawning (parent) container
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-
-
- */
-
-/*
-
-  called to ensure that every container has a diggerid and diggerpath
-
-  this should be called from the top most container
-  
-*/
-Container.prototype.ensure_meta = function(done){
-  if(!this.diggerid()){
-    this.diggerid(utils.diggerid());
-  }
-
-  var topcounter = 0;
-  if(this.diggerpath().length<=0){
-    this.inject_paths([topcounter]);
-    topcounter++;
-  }
-
-  this.ensure_parent_ids();
-  return this;
-}
-
-Container.prototype.ensure_parent_ids = function(parent){
-
-  var self = this;
-
-  if(parent){
-    this.diggerparentid(parent.diggerid());
-  }
-
-  this.children().each(function(child){
-    child.ensure_parent_ids(self);
-  })
-}
-
-Container.prototype.inject_paths = function(basepath){
-
-  this.diggerpath(basepath);
-
-  this.children().each(function(child, index){
-    child.inject_paths(basepath.concat([index]));
-  })
-
-}
-
-Container.prototype.spawn = function(models){
-  models = models || [];
-	var container = Container.factory(models);
-	container.supplychain = this.supplychain;
-	return container;
-}
-
-Container.prototype.clone = function(){
-  var data = JSON.parse(JSON.stringify(this.models));
-  var ret = this.spawn(data);
-  ret.recurse(function(des){
-    des.diggerid(utils.diggerid());
-  })
-  ret.ensure_parent_ids();
-  return ret;
-}
-
-/*
-
-  get the object containing the given field name
-  
-*/
-Container.prototype.propertymodel = function(field){
-  if(field.indexOf('.')<0){
-    return this.get(0);
-  }
-  else{
-    var parts = field.split('.');
-    parts.pop();
-    field = parts.join('.');
-    var model = this.attr(field);
-    if(!model){
-      model = {};
-      this.attr(field, model);
-    }
-    return model;
-  }
-}
-
-Container.prototype.children = function(){
-  var models = [];
-  var self = this;
-  this.each(function(container){
-    models = models.concat(container.get(0)._children);
-  })
-	return this.spawn(models);
-}
-
-Container.prototype.recurse = function(fn){
-  this.descendents().each(fn);
-  return this;
-}
-
-Container.prototype.descendents = function(){
-  var ret = [];
-
-  function scoopmodels(container){
-    ret = ret.concat(container.models);
-    container.children().each(scoopmodels);
-  }
-
-  scoopmodels(this);
-
-  return this.spawn(ret);
-}
-
-Container.prototype.containers = function(){
-  var self = this;
-  return _.map(this.models, function(model){
-    return self.spawn([model]);
-  })
-}
-
-Container.prototype.skeleton = function(){
-  return _.map(this.models, function(model){
-    return model._digger || {};
-  })
-}
-
-Container.prototype.add = function(container){
-  var self = this;
-  if(_.isArray(container)){
-    _.each(container, function(c){
-      self.add(c);
-    })
-  }
-  else{
-    this.models = this.models.concat(container.models);
-  }
-  return this;
-}
-
-/*
-
-
-
-
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  Models
-
-  Iteration and access methods for the underlying model array
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-
-
- */
-
-Container.prototype.each = function(fn){
-	_.each(this.containers(), fn);
-	return this;
-}
-
-Container.prototype.map = function(fn){
-	return _.map(this.containers(), fn);
-}
-
-Container.prototype.count = function(){
-	return this.models.length;
-}
-
-Container.prototype.first = function(){
-	return this.eq(0);
-}
-
-Container.prototype.last = function(){
-	return this.eq(this.count()-1);
-}
-
-Container.prototype.eq = function(index){
-	return this.spawn(this.get(index));
-}
-
-Container.prototype.get = function(index){
-	return this.models[index];
-}
-
-/*
-
-
-
-
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  Property Accessors
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-
-
- */
-
-/*
-
-  generic wrapper function to handle our array of models via a single function
-
-  
-*/
-
-function valuereader(model, name){
-  return deepdot(model, name);
-}
-function valuesetter(models, name, value, silent){
-  _.each(models, function(model){
-    deepdot(model, name, value);
-  })
-}
-
-function wrapper(key, options){
-
-  options = options || {};
-
-  if(_.isString(options)){
-    options = {
-      leaf:options
-    }
-  }
-
-  var leaf = options.leaf;
-  var fullkey = leaf ? (key ? key + '.' : '') + leaf : (key || '');
-
-  fullkey = fullkey.replace(/^\./, '');
-
-  return function(){
-    var self = this;
-
-    /*
-    
-      READ
-      -----
-      wholesale getter of the object
-      
-    */
-    if(arguments.length<=0){
-      return valuereader(this.models[0], fullkey);
-    }
-    /*
-    
-      READ
-      -----
-      we are reading a first model value
-
-    */
-    else if(arguments.length==1 && _.isString(arguments[0]) && !leaf){
-      return valuereader(this.models[0], [key, arguments[0]].join('.'));
-    }
-    /*
-    
-      WRITE
-      -----
-      we are setting an object
-      
-    */
-    else if(arguments.length==1){
-      var name = fullkey;
-      valuesetter(this.models, fullkey, arguments[0], this._silent);
-      return self;
-    }
-    /*
-    
-      WRITE
-      -----
-      we are setting a string value
-      
-    */
-    else if(arguments.length>1){
-      valuesetter(this.models, [fullkey, arguments[0]].join('.'), arguments[1], this._silent);
-      return self;
-    }
-  }
-  
-}
-
-function remove_wrapper(topprop){
-  return function(prop){
-    var self = this;
-    if(arguments.length<=0){
-      return this;
-    }
-    if(!_.isArray(prop)){
-      prop = [prop];
-    }
-    _.each(prop, function(p){
-      self[topprop](p, null);
-    })
-    return this;
-  }
-}
-
-Container.prototype.attr = wrapper();
-Container.prototype.removeAttr = remove_wrapper();
-
-Container.prototype.digger = wrapper('_digger');
-
-Container.prototype.meta = wrapper('_digger');
-Container.prototype.removeMeta = remove_wrapper('_digger');
-
-Container.prototype.data = wrapper('_data');
-Container.prototype.removeData = remove_wrapper('_data');
-
-Container.prototype.diggerid = wrapper('_digger', 'diggerid');
-Container.prototype.diggerparentid = wrapper('_digger', 'diggerparentid');
-Container.prototype.diggerwarehouse = wrapper('_digger', 'diggerwarehouse');
-
-var pathwrapper = wrapper('_digger', 'diggerpath');
-Container.prototype.diggerpath = function(){
-  var ret = pathwrapper.apply(this, _.toArray(arguments));
-
-  if(!_.isArray(ret)){
-    ret = [];
-  }
-
-  return ret;
-}
-
-var branchwrapper = wrapper('_digger', 'diggerbranch');
-Container.prototype.diggerbranch = function(){
-  var ret = branchwrapper.apply(this, _.toArray(arguments));
-
-  if(!_.isArray(ret)){
-    ret = [];
-  }
-
-  return ret;
-}
-
-Container.prototype.addBranch = function(where){
-  var self = this;
-  var branches = this.diggerbranch();
-  where.each(function(container){
-    branches.push(container.diggerurl());
-  })
-  this.diggerbranch(branches);
-  return this;
-}
-
-Container.prototype.removeBranch = function(where){
-  var self = this;
-  var branches = this.diggerbranch();
-  where.each(function(container){
-    branches.splice(_.indexOf(branches, container.diggerurl()));
-  })
-  this.diggerbranch(branches);
-  return this;
-}
-
-Container.prototype.diggerurl = function(){
-  var warehouse = this.diggerwarehouse();
-  var id = this.diggerid();
-
-  var url = warehouse;
-
-  if(id && this.tag()!='_supplychain'){
-    if(warehouse!='/'){
-      url += '/';
-    }
-
-    url += id;
-  }
-  
-  return url;
-}
-
-Container.prototype.id = wrapper('_digger', 'id');
-Container.prototype.tag = wrapper('_digger', 'tag');
-Container.prototype.classnames = wrapper('_digger', 'class');
-
-Container.prototype.is = function(tag){
-  return this.tag()==tag;
-}
-
-Container.prototype.addClass = function(classname){
-  var self = this;
-  _.each(this.models, function(model){
-		model._digger.class.push(classname);
-		model._digger.class = _.uniq(model._digger.class);
-  })
-  return this;
-}
-
-Container.prototype.removeClass = function(classname){
-  var self = this;
-  _.each(this.models, function(model){
-    model._digger.class = _.without(model._digger.class, classname);
-  })
-  return this;
-}
-
-Container.prototype.hasClass = function(classname){
-   return _.contains((this.classnames() || []), classname);
-}
-
-Container.prototype.hasAttr = function(name){
-  return !_.isEmpty(this.attr(name));
-}
-
-Container.prototype.isEmpty = function(){
-  return this.count()===0;
-}
-
-Container.prototype.inject_data = function(data){
-  _.extend(this.get(0), data);
-  return this;
-}
-
-/*
-
-  string summary
-  
-*/
-
-Container.prototype.title = function(){
-  var name = this.attr('name');
-  if(!name){
-    name = this.attr('title');
-  }
-  if(!name){
-    name = this.tag();
-  }
-  return name;
-}
-
-Container.prototype.summary = function(options){
-
-  options = options || {};
-
-  var parts = [];
-
-  var title = (this.attr('name') || this.attr('title') || '')
-  if(title.length>0 && options.title!==false){
-    parts.push(title + ': ');
-  }
-
-  parts.push(this.tag());
-
-  var id = this.id() || '';
-  if(id.length>0){
-    parts.push('#' + id);
-  }
-
-  var classnames = this.classnames() || [];
-  if(classnames.length>0){
-    parts = parts.concat(_.map(classnames, function(classname){
-      return '.' + classname
-    }))
-  }
-
-
-
-  return parts.join('');
-}
-
-Container.prototype.toString = function(){
-  return this.summary();
-}
-
-/*
-
-
-
-
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  FINDER
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-
-
- */
-
-
-
-/*
-
-  sync search through local container data matching selectors
-  
-*/
-Container.prototype.find = Finder.find;
-
-/*
-
-  sync search through local container data matching selectors
-  
-*/
-Container.prototype.sort = Finder.sort;
-
-/*
-
-  run the filter function over each container individually
-  and return a container with the ones that passed (by return true classic filter style)
-  
-*/
-Container.prototype.filter = Finder.filter;
-
-Container.prototype.match = Finder.match;
-
-
-/*
-
-
-
-
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  CONTRACT ACTIONS
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------
-
-
- */
-
-Container.prototype.bindcontract = Contracts.bindcontract;
-Container.prototype.select = Contracts.select;
-Container.prototype.append = Contracts.append;
-Container.prototype.save = Contracts.save;
-Container.prototype.remove = Contracts.remove;
-},{"events":3,"../utils":15,"./deepdot":16,"./models":17,"./contracts":18,"./search":19,"lodash":8,"async":9}],15:[function(require,module,exports){
+},{"__browserify_process":4}],9:[function(require,module,exports){
 (function(){/*
 
 	(The MIT License)
@@ -9336,7 +8264,7 @@ function extend(){
 }
 
 })()
-},{"url":11,"lodash":8,"node-uuid":20}],21:[function(require,module,exports){
+},{"url":2,"node-uuid":14,"lodash":11}],15:[function(require,module,exports){
 require=(function(e,t,n,r){function i(r){if(!n[r]){if(!t[r]){if(e)return e(r);throw new Error("Cannot find module '"+r+"'")}var s=n[r]={exports:{}};t[r][0](function(e){var n=t[r][1][e];return i(n?n:e)},s,s.exports)}return n[r].exports}for(var s=0;s<r.length;s++)i(r[s]);return i})(typeof require!=="undefined"&&require,{1:[function(require,module,exports){
 exports.readIEEE754 = function(buffer, offset, isBE, mLen, nBytes) {
   var e, m,
@@ -13201,7 +12129,7 @@ SlowBuffer.prototype.writeDoubleBE = Buffer.prototype.writeDoubleBE;
 },{}]},{},[])
 ;;module.exports=require("buffer-browserify")
 
-},{}],20:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 (function(Buffer){//     uuid.js
 //
 //     (c) 2010-2012 Robert Kieffer
@@ -13449,7 +12377,1444 @@ SlowBuffer.prototype.writeDoubleBE = Buffer.prototype.writeDoubleBE;
 }());
 
 })(require("__browserify_buffer").Buffer)
-},{"crypto":22,"__browserify_buffer":21}],13:[function(require,module,exports){
+},{"crypto":16,"__browserify_buffer":15}],7:[function(require,module,exports){
+/*
+  Copyright (c) 2012 All contributors as noted in the AUTHORS file
+
+  This file is part of quarry.io
+
+  quarry.io is free software; you can redistribute it and/or modify it under
+  the terms of the GNU Lesser General Public License as published by
+  the Free Software Foundation; either version 3 of the License, or
+  (at your option) any later version.
+
+  quarry.io is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/*
+
+	supply chain
+
+  a container layer ontop of the underlying req, res network
+
+  this connects a function with the container API
+
+  so:
+
+    var container = digger.supplychain(function(req, res){
+      // here we have a req with
+
+      // x-json-selectors filled in
+
+    })
+
+    container('find me').ship(function(stuff){
+      // here we have whatever the function returned
+    })
+
+
+  it is a neat trick to create a supplychain that proxies over
+  the network to fullfull the request
+
+  This lets us make generic objects that access network services
+
+  It also lets us use the same code to built a socket supply chain
+  (for websocket browser connections) and a HTTP supply chain (for 
+  REST api's etc)
+
+	
+*/
+var EventEmitter = require('events').EventEmitter;
+var _ = require('lodash');
+
+var Container = require('../container/proto');
+var Contract = require('../network/contract');
+var Response = require('../network/response');
+
+var Merge = Contract.mergefactory;
+var Sequence = Contract.sequencefactory;
+
+/*
+
+  create a new supply chain that will pipe a req and res object into the
+  provided fn
+
+  
+*/
+
+function factory(){
+
+  var url = '/';
+  var supplierfn = null;
+  var container = null;
+
+  _.each(_.toArray(arguments), function(arg){
+    if(_.isFunction(arg)){
+      /*
+      
+        it is an existing container
+        
+      */
+      if(_.isFunction(arg.diggerid)){
+        container = arg;
+      }
+      /*
+      
+        otherwise the supplierchain function
+        
+      */
+      else{
+        supplierfn = arg;  
+      }
+    }
+    /*
+    
+      it is a URL to create a container from
+      
+    */
+    else if(_.isString(arg)){
+      container = Container.factory('_supplychain');
+      url = arg;
+    }
+    else if(_.isArray(arg) || _.isObject(arg)){
+      if(!_.isArray(arg)){
+        arg = [arg];
+      }
+
+      container = Container.factory(arg);
+    }
+
+  })
+
+
+  if(!container){
+    container = Container.factory('_supplychain');
+  }
+
+  if(!supplierfn){
+    supplierfn = function(req, res){
+      res.send404();
+    }
+  }
+
+  if(!container.diggerwarehouse()){
+    container.diggerwarehouse(url);
+  }
+
+  /*
+  
+    are we connected directly to some backend functions (i.e. non network mode)
+
+    if yes then we will fake serialize the requests
+    
+  */
+  var should_auto_serialize = supplierfn._diggertype=='warehouse' || supplierfn._diggertype=='supplier' || supplierfn._diggertype=='provider';
+
+  function supplychain(){}
+
+  _.extend(supplychain, EventEmitter.prototype);
+
+  supplychain.ship = function(contract, callback){
+    var self = this;
+
+    var res = Response.factory(function(){
+
+      /*
+      
+        resolve means extracting the multipart responses
+        
+      */
+      res.resolve(function(results, errors){
+        if(should_auto_serialize){
+          results = JSON.parse(JSON.stringify(results));
+        }
+        var answer = results;
+        if(contract.getHeader('x-expect')==='digger/containers'){
+          if(results && results.length>0){
+            answer = container.spawn(results);
+          }
+          else{
+            answer = container.spawn();
+          }
+        }
+
+        contract.emit('shipped', answer);
+        callback(answer, res);
+      })
+
+    })
+
+    if(should_auto_serialize){
+      _.each(JSON.parse(JSON.stringify(contract.toJSON())), function(v, k){
+        contract[k] = v;
+      })
+    }
+    
+    supplierfn(contract, res);
+
+    return res;
+  }
+
+  /*
+  
+    the switchboard features of the supplychain
+    
+  */
+  supplychain.listen = function(key, callback){
+    if(supplierfn.switchboard){
+      supplierfn.switchboard.listen(key, callback);
+    }
+    return this;
+  }
+
+  supplychain.broadcast = function(key, message){
+    if(supplierfn.switchboard){
+      supplierfn.switchboard.broadcast(key, message);
+    }
+    return this;
+  }
+
+
+  container.supplychain = supplychain;
+
+  /*
+  
+    used to create other container with different URLs
+    
+  */
+  container.connect = function(url){
+    var ret = Container.factory('_supplychain');
+    ret.diggerwarehouse(url);
+    ret.supplychain = supplychain;
+    return ret;
+  }
+  
+  container.merge = function(arr){
+    var contract = Merge(arr);
+    contract.supplychain = supplychain;
+    return contract;
+  }
+
+  container.sequence = function(arr){
+    var contract = Sequence(arr);
+    contract.supplychain = supplychain;
+    return contract;
+  }
+  
+
+  return container;
+}
+
+module.exports = factory;
+},{"events":5,"../container/proto":10,"../network/contract":17,"../network/response":18,"lodash":11}],8:[function(require,module,exports){
+/*
+  Copyright (c) 2012 All contributors as noted in the AUTHORS file
+
+  This file is part of quarry.io
+
+  quarry.io is free software; you can redistribute it and/or modify it under
+  the terms of the GNU Lesser General Public License as published by
+  the Free Software Foundation; either version 3 of the License, or
+  (at your option) any later version.
+
+  quarry.io is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/*
+
+	digger.io main API
+	
+*/
+
+
+/*
+
+  prepare the env
+  
+*/
+var async = require('async');
+var _ = require('lodash');
+
+var exports = module.exports = {
+
+  batch:function(arr, alldone){
+    var newarr = _.isArray(arr) ? [] : {};
+
+    _.each(arr, function(val, key){
+      var fn = function(done){
+        if(_.isFunction(val.getHeader) && val.getHeader('x-contract-type')){
+          val.ship(function(results){
+            lastresults = results;
+            done(null, results);
+          })
+        }
+        else{
+          val(done);
+        }
+      }
+
+      if(_.isArray(newarr)){
+        newarr.push(fn);
+      }
+      else{
+        newarr[key] = fn;
+      }
+    })
+
+    async.parallel(newarr, alldone);
+  },
+
+  pipe:function(arr, alldone){
+    var lastresults = null;
+
+    async.forEachSeries(arr, function(fn, nextfn){
+      if(_.isFunction(fn.getHeader) && fn.getHeader('x-contract-type')){
+        fn.ship(function(results){
+          lastresults = results;
+          nextfn(null, results);
+        })
+      }
+      else{
+        fn(lastresults, function(error, results){
+          lastresults = results;
+          nextfn();
+        })
+      }
+    }, function(error){
+      if(alldone){
+        alldone(null, lastresults);
+      }
+    })
+  },
+
+  merge:function(arr, alldone){
+
+    var newfns = _.isArray(arr) ? [] : {};
+
+    _.each(arr, function(fn, key){
+      var newfn = function(nextfn){
+        if(_.isFunction(fn.getHeader) && fn.getHeader('x-contract-type')){
+          fn.ship(function(results){
+            nextfn(null, results);
+          })
+        }
+        else{
+          fn(function(error, results){
+            nextfn(null, results);
+          })
+        }
+      }
+
+      if(_.isArray(arr)){
+        newfns.push(newfn);
+      }
+      else{
+        newfns[key] = newfn;
+      }
+    })
+
+    async.parallel(newfns, function(error, results){
+      if(alldone){
+        alldone(null, results);
+      }
+    })
+  }
+
+}
+},{"lodash":11,"async":12}],10:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+
+var _ = require('lodash');
+var EventEmitter = require('events').EventEmitter;
+var deepdot = require('./deepdot');
+var async = require('async');
+var utils = require('../utils');
+var ModelFactory = require('./models');
+var Finder = require('./search');
+var Contracts = require('./contracts');
+
+/*
+
+
+
+
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  Factory
+
+  create new containers with input data
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+
+
+ */
+
+var Container = module.exports = function Container(){}
+
+/*
+
+	Factory
+	
+*/
+Container.factory = function factory(){
+	/*
+  
+    first let's extract the model data
+    
+  */
+  var models = ModelFactory.apply(null, _.toArray(arguments));
+
+  /*
+  
+    now make the actual container which is a function that triggers it's own 'select' method
+    (for JQuery style selects like):
+
+      container('some.selector')
+
+    which is the same as
+
+      container.select('some.selector')
+    
+  */
+  var instance = function container(){
+    return instance.select.apply(instance, _.toArray(arguments));
+  }
+
+  /*
+  
+    now map in the prototype
+    
+  */
+  _.extend(instance, Container.prototype);
+  _.extend(instance, EventEmitter.prototype);
+
+  instance.build(models);
+  
+  return instance;
+}
+
+Container.prototype.build = function(models){
+	var self = this;
+	this.models = models;
+}
+
+/*
+
+
+
+
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  Data exporting
+
+  these methods will output the underlying models in the given format
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+
+
+ */
+
+Container.prototype.toJSON = function(){
+	return this.models;
+}
+
+Container.prototype.toXML = function(){
+	return ModelFactory.toXML(this.models);
+}
+
+/*
+
+
+
+
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  Spawning - these methods generate new containers using the provided model data
+
+  The new containers will have the same supplychain as the spawning (parent) container
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+
+
+ */
+
+/*
+
+  called to ensure that every container has a diggerid and diggerpath
+
+  this should be called from the top most container
+  
+*/
+Container.prototype.ensure_meta = function(done){
+  if(!this.diggerid()){
+    this.diggerid(utils.diggerid());
+  }
+
+  var topcounter = 0;
+  if(this.diggerpath().length<=0){
+    this.inject_paths([topcounter]);
+    topcounter++;
+  }
+
+  this.ensure_parent_ids();
+  return this;
+}
+
+Container.prototype.ensure_parent_ids = function(parent){
+
+  var self = this;
+
+  if(parent){
+    this.diggerparentid(parent.diggerid());
+  }
+
+  this.children().each(function(child){
+    child.ensure_parent_ids(self);
+  })
+}
+
+Container.prototype.inject_paths = function(basepath){
+
+  this.diggerpath(basepath);
+
+  this.children().each(function(child, index){
+    child.inject_paths(basepath.concat([index]));
+  })
+
+}
+
+Container.prototype.spawn = function(models){
+  models = models || [];
+	var container = Container.factory(models);
+	container.supplychain = this.supplychain;
+	return container;
+}
+
+Container.prototype.clone = function(){
+  var data = JSON.parse(JSON.stringify(this.models));
+  var ret = this.spawn(data);
+  ret.recurse(function(des){
+    des.diggerid(utils.diggerid());
+  })
+  ret.ensure_parent_ids();
+  return ret;
+}
+
+/*
+
+  get the object containing the given field name
+  
+*/
+Container.prototype.propertymodel = function(field){
+  if(field.indexOf('.')<0){
+    return this.get(0);
+  }
+  else{
+    var parts = field.split('.');
+    parts.pop();
+    field = parts.join('.');
+    var model = this.attr(field);
+    if(!model){
+      model = {};
+      this.attr(field, model);
+    }
+    return model;
+  }
+}
+
+Container.prototype.children = function(){
+  var models = [];
+  var self = this;
+  this.each(function(container){
+    models = models.concat(container.get(0)._children);
+  })
+	return this.spawn(models);
+}
+
+Container.prototype.recurse = function(fn){
+  this.descendents().each(fn);
+  return this;
+}
+
+Container.prototype.descendents = function(){
+  var ret = [];
+
+  function scoopmodels(container){
+    ret = ret.concat(container.models);
+    container.children().each(scoopmodels);
+  }
+
+  scoopmodels(this);
+
+  return this.spawn(ret);
+}
+
+Container.prototype.containers = function(){
+  var self = this;
+  return _.map(this.models, function(model){
+    return self.spawn([model]);
+  })
+}
+
+Container.prototype.skeleton = function(){
+  return _.map(this.models, function(model){
+    return model._digger || {};
+  })
+}
+
+Container.prototype.add = function(container){
+  var self = this;
+  if(_.isArray(container)){
+    _.each(container, function(c){
+      self.add(c);
+    })
+  }
+  else{
+    this.models = this.models.concat(container.models);
+  }
+  return this;
+}
+
+/*
+
+
+
+
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  Models
+
+  Iteration and access methods for the underlying model array
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+
+
+ */
+
+Container.prototype.each = function(fn){
+	_.each(this.containers(), fn);
+	return this;
+}
+
+Container.prototype.map = function(fn){
+	return _.map(this.containers(), fn);
+}
+
+Container.prototype.count = function(){
+	return this.models.length;
+}
+
+Container.prototype.first = function(){
+	return this.eq(0);
+}
+
+Container.prototype.last = function(){
+	return this.eq(this.count()-1);
+}
+
+Container.prototype.eq = function(index){
+	return this.spawn(this.get(index));
+}
+
+Container.prototype.get = function(index){
+	return this.models[index];
+}
+
+/*
+
+
+
+
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  Property Accessors
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+
+
+ */
+
+/*
+
+  generic wrapper function to handle our array of models via a single function
+
+  
+*/
+
+function valuereader(model, name){
+  return deepdot(model, name);
+}
+function valuesetter(models, name, value, silent){
+  _.each(models, function(model){
+    deepdot(model, name, value);
+  })
+}
+
+function wrapper(key, options){
+
+  options = options || {};
+
+  if(_.isString(options)){
+    options = {
+      leaf:options
+    }
+  }
+
+  var leaf = options.leaf;
+  var fullkey = leaf ? (key ? key + '.' : '') + leaf : (key || '');
+
+  fullkey = fullkey.replace(/^\./, '');
+
+  return function(){
+    var self = this;
+
+    /*
+    
+      READ
+      -----
+      wholesale getter of the object
+      
+    */
+    if(arguments.length<=0){
+      return valuereader(this.models[0], fullkey);
+    }
+    /*
+    
+      READ
+      -----
+      we are reading a first model value
+
+    */
+    else if(arguments.length==1 && _.isString(arguments[0]) && !leaf){
+      return valuereader(this.models[0], [key, arguments[0]].join('.'));
+    }
+    /*
+    
+      WRITE
+      -----
+      we are setting an object
+      
+    */
+    else if(arguments.length==1){
+      var name = fullkey;
+      valuesetter(this.models, fullkey, arguments[0], this._silent);
+      return self;
+    }
+    /*
+    
+      WRITE
+      -----
+      we are setting a string value
+      
+    */
+    else if(arguments.length>1){
+      valuesetter(this.models, [fullkey, arguments[0]].join('.'), arguments[1], this._silent);
+      return self;
+    }
+  }
+  
+}
+
+function remove_wrapper(topprop){
+  return function(prop){
+    var self = this;
+    if(arguments.length<=0){
+      return this;
+    }
+    if(!_.isArray(prop)){
+      prop = [prop];
+    }
+    _.each(prop, function(p){
+      self[topprop](p, null);
+    })
+    return this;
+  }
+}
+
+Container.prototype.attr = wrapper();
+Container.prototype.removeAttr = remove_wrapper();
+
+Container.prototype.digger = wrapper('_digger');
+
+Container.prototype.meta = wrapper('_digger');
+Container.prototype.removeMeta = remove_wrapper('_digger');
+
+Container.prototype.data = wrapper('_data');
+Container.prototype.removeData = remove_wrapper('_data');
+
+Container.prototype.diggerid = wrapper('_digger', 'diggerid');
+Container.prototype.diggerparentid = wrapper('_digger', 'diggerparentid');
+Container.prototype.diggerwarehouse = wrapper('_digger', 'diggerwarehouse');
+
+var pathwrapper = wrapper('_digger', 'diggerpath');
+Container.prototype.diggerpath = function(){
+  var ret = pathwrapper.apply(this, _.toArray(arguments));
+
+  if(!_.isArray(ret)){
+    ret = [];
+  }
+
+  return ret;
+}
+
+var branchwrapper = wrapper('_digger', 'diggerbranch');
+Container.prototype.diggerbranch = function(){
+  var ret = branchwrapper.apply(this, _.toArray(arguments));
+
+  if(!_.isArray(ret)){
+    ret = [];
+  }
+
+  return ret;
+}
+
+Container.prototype.addBranch = function(where){
+  var self = this;
+  var branches = this.diggerbranch();
+  where.each(function(container){
+    branches.push(container.diggerurl());
+  })
+  this.diggerbranch(branches);
+  return this;
+}
+
+Container.prototype.removeBranch = function(where){
+  var self = this;
+  var branches = this.diggerbranch();
+  where.each(function(container){
+    branches.splice(_.indexOf(branches, container.diggerurl()));
+  })
+  this.diggerbranch(branches);
+  return this;
+}
+
+Container.prototype.diggerurl = function(){
+  var warehouse = this.diggerwarehouse();
+  var id = this.diggerid();
+
+  var url = warehouse;
+
+  if(id && this.tag()!='_supplychain'){
+    if(warehouse!='/'){
+      url += '/';
+    }
+
+    url += id;
+  }
+  
+  return url;
+}
+
+Container.prototype.id = wrapper('_digger', 'id');
+Container.prototype.tag = wrapper('_digger', 'tag');
+Container.prototype.classnames = wrapper('_digger', 'class');
+
+Container.prototype.is = function(tag){
+  return this.tag()==tag;
+}
+
+Container.prototype.addClass = function(classname){
+  var self = this;
+  _.each(this.models, function(model){
+    var classnames = model._digger.class || [];
+		classnames.push(classname);
+		classnames = _.uniq(classnames);
+    model._digger.class = classnames;
+  })
+  return this;
+}
+
+Container.prototype.removeClass = function(classname){
+  var self = this;
+  _.each(this.models, function(model){
+    var classnames = model._digger.class || [];
+    classnames = _.without(classnames, classname);
+    model._digger.class = classnames;
+  })
+  return this;
+}
+
+Container.prototype.hasClass = function(classname){
+   return _.contains((this.classnames() || []), classname);
+}
+
+Container.prototype.hasAttr = function(name){
+  return !_.isEmpty(this.attr(name));
+}
+
+Container.prototype.isEmpty = function(){
+  return this.count()===0;
+}
+
+Container.prototype.inject_data = function(data){
+  _.extend(this.get(0), data);
+  return this;
+}
+
+/*
+
+  string summary
+  
+*/
+
+Container.prototype.title = function(){
+  var name = this.attr('name');
+  if(!name){
+    name = this.attr('title');
+  }
+  if(!name){
+    name = this.tag();
+  }
+  return name;
+}
+
+Container.prototype.summary = function(options){
+
+  options = options || {};
+
+  var parts = [];
+
+  var title = (this.attr('name') || this.attr('title') || '')
+  if(title.length>0 && options.title!==false){
+    parts.push(title + ': ');
+  }
+
+  parts.push(this.tag());
+
+  var id = this.id() || '';
+  if(id.length>0){
+    parts.push('#' + id);
+  }
+
+  var classnames = this.classnames() || [];
+  if(classnames.length>0){
+    parts = parts.concat(_.map(classnames, function(classname){
+      return '.' + classname
+    }))
+  }
+
+
+
+  return parts.join('');
+}
+
+Container.prototype.toString = function(){
+  return this.summary();
+}
+
+/*
+
+
+
+
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  FINDER
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+
+
+ */
+
+
+
+/*
+
+  sync search through local container data matching selectors
+  
+*/
+Container.prototype.find = Finder.find;
+
+/*
+
+  sync search through local container data matching selectors
+  
+*/
+Container.prototype.sort = Finder.sort;
+
+/*
+
+  run the filter function over each container individually
+  and return a container with the ones that passed (by return true classic filter style)
+  
+*/
+Container.prototype.filter = Finder.filter;
+
+Container.prototype.match = Finder.match;
+
+
+/*
+
+
+
+
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  CONTRACT ACTIONS
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+  --------------------------------------------------------------------------------
+
+
+ */
+
+Container.prototype.bindcontract = Contracts.bindcontract;
+Container.prototype.select = Contracts.select;
+Container.prototype.append = Contracts.append;
+Container.prototype.save = Contracts.save;
+Container.prototype.remove = Contracts.remove;
+},{"events":5,"./deepdot":19,"../utils":9,"./models":20,"./contracts":21,"./search":22,"lodash":11,"async":12}],16:[function(require,module,exports){
+var sha = require('./sha')
+var rng = require('./rng')
+var md5 = require('./md5')
+
+var algorithms = {
+  sha1: {
+    hex: sha.hex_sha1,
+    binary: sha.b64_sha1,
+    ascii: sha.str_sha1
+  },
+  md5: {
+    hex: md5.hex_md5,
+    binary: md5.b64_md5,
+    ascii: md5.any_md5
+  }
+}
+
+function error () {
+  var m = [].slice.call(arguments).join(' ')
+  throw new Error([
+    m,
+    'we accept pull requests',
+    'http://github.com/dominictarr/crypto-browserify'
+    ].join('\n'))
+}
+
+exports.createHash = function (alg) {
+  alg = alg || 'sha1'
+  if(!algorithms[alg])
+    error('algorithm:', alg, 'is not yet supported')
+  var s = ''
+  var _alg = algorithms[alg]
+  return {
+    update: function (data) {
+      s += data
+      return this
+    },
+    digest: function (enc) {
+      enc = enc || 'binary'
+      var fn
+      if(!(fn = _alg[enc]))
+        error('encoding:', enc , 'is not yet supported for algorithm', alg)
+      var r = fn(s)
+      s = null //not meant to use the hash after you've called digest.
+      return r
+    }
+  }
+}
+
+exports.randomBytes = function(size, callback) {
+  if (callback && callback.call) {
+    try {
+      callback.call(this, undefined, rng(size));
+    } catch (err) { callback(err); }
+  } else {
+    return rng(size);
+  }
+}
+
+// the least I can do is make error messages for the rest of the node.js/crypto api.
+;['createCredentials'
+, 'createHmac'
+, 'createCypher'
+, 'createCypheriv'
+, 'createDecipher'
+, 'createDecipheriv'
+, 'createSign'
+, 'createVerify'
+, 'createDeffieHellman'
+, 'pbkdf2'].forEach(function (name) {
+  exports[name] = function () {
+    error('sorry,', name, 'is not implemented yet')
+  }
+})
+
+},{"./sha":23,"./rng":24,"./md5":25}],23:[function(require,module,exports){
+/*
+ * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
+ * in FIPS PUB 180-1
+ * Version 2.1a Copyright Paul Johnston 2000 - 2002.
+ * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
+ * Distributed under the BSD License
+ * See http://pajhome.org.uk/crypt/md5 for details.
+ */
+
+exports.hex_sha1 = hex_sha1;
+exports.b64_sha1 = b64_sha1;
+exports.str_sha1 = str_sha1;
+exports.hex_hmac_sha1 = hex_hmac_sha1;
+exports.b64_hmac_sha1 = b64_hmac_sha1;
+exports.str_hmac_sha1 = str_hmac_sha1;
+
+/*
+ * Configurable variables. You may need to tweak these to be compatible with
+ * the server-side, but the defaults work in most cases.
+ */
+var hexcase = 0;  /* hex output format. 0 - lowercase; 1 - uppercase        */
+var b64pad  = ""; /* base-64 pad character. "=" for strict RFC compliance   */
+var chrsz   = 8;  /* bits per input character. 8 - ASCII; 16 - Unicode      */
+
+/*
+ * These are the functions you'll usually want to call
+ * They take string arguments and return either hex or base-64 encoded strings
+ */
+function hex_sha1(s){return binb2hex(core_sha1(str2binb(s),s.length * chrsz));}
+function b64_sha1(s){return binb2b64(core_sha1(str2binb(s),s.length * chrsz));}
+function str_sha1(s){return binb2str(core_sha1(str2binb(s),s.length * chrsz));}
+function hex_hmac_sha1(key, data){ return binb2hex(core_hmac_sha1(key, data));}
+function b64_hmac_sha1(key, data){ return binb2b64(core_hmac_sha1(key, data));}
+function str_hmac_sha1(key, data){ return binb2str(core_hmac_sha1(key, data));}
+
+/*
+ * Perform a simple self-test to see if the VM is working
+ */
+function sha1_vm_test()
+{
+  return hex_sha1("abc") == "a9993e364706816aba3e25717850c26c9cd0d89d";
+}
+
+/*
+ * Calculate the SHA-1 of an array of big-endian words, and a bit length
+ */
+function core_sha1(x, len)
+{
+  /* append padding */
+  x[len >> 5] |= 0x80 << (24 - len % 32);
+  x[((len + 64 >> 9) << 4) + 15] = len;
+
+  var w = Array(80);
+  var a =  1732584193;
+  var b = -271733879;
+  var c = -1732584194;
+  var d =  271733878;
+  var e = -1009589776;
+
+  for(var i = 0; i < x.length; i += 16)
+  {
+    var olda = a;
+    var oldb = b;
+    var oldc = c;
+    var oldd = d;
+    var olde = e;
+
+    for(var j = 0; j < 80; j++)
+    {
+      if(j < 16) w[j] = x[i + j];
+      else w[j] = rol(w[j-3] ^ w[j-8] ^ w[j-14] ^ w[j-16], 1);
+      var t = safe_add(safe_add(rol(a, 5), sha1_ft(j, b, c, d)),
+                       safe_add(safe_add(e, w[j]), sha1_kt(j)));
+      e = d;
+      d = c;
+      c = rol(b, 30);
+      b = a;
+      a = t;
+    }
+
+    a = safe_add(a, olda);
+    b = safe_add(b, oldb);
+    c = safe_add(c, oldc);
+    d = safe_add(d, oldd);
+    e = safe_add(e, olde);
+  }
+  return Array(a, b, c, d, e);
+
+}
+
+/*
+ * Perform the appropriate triplet combination function for the current
+ * iteration
+ */
+function sha1_ft(t, b, c, d)
+{
+  if(t < 20) return (b & c) | ((~b) & d);
+  if(t < 40) return b ^ c ^ d;
+  if(t < 60) return (b & c) | (b & d) | (c & d);
+  return b ^ c ^ d;
+}
+
+/*
+ * Determine the appropriate additive constant for the current iteration
+ */
+function sha1_kt(t)
+{
+  return (t < 20) ?  1518500249 : (t < 40) ?  1859775393 :
+         (t < 60) ? -1894007588 : -899497514;
+}
+
+/*
+ * Calculate the HMAC-SHA1 of a key and some data
+ */
+function core_hmac_sha1(key, data)
+{
+  var bkey = str2binb(key);
+  if(bkey.length > 16) bkey = core_sha1(bkey, key.length * chrsz);
+
+  var ipad = Array(16), opad = Array(16);
+  for(var i = 0; i < 16; i++)
+  {
+    ipad[i] = bkey[i] ^ 0x36363636;
+    opad[i] = bkey[i] ^ 0x5C5C5C5C;
+  }
+
+  var hash = core_sha1(ipad.concat(str2binb(data)), 512 + data.length * chrsz);
+  return core_sha1(opad.concat(hash), 512 + 160);
+}
+
+/*
+ * Add integers, wrapping at 2^32. This uses 16-bit operations internally
+ * to work around bugs in some JS interpreters.
+ */
+function safe_add(x, y)
+{
+  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
+  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+  return (msw << 16) | (lsw & 0xFFFF);
+}
+
+/*
+ * Bitwise rotate a 32-bit number to the left.
+ */
+function rol(num, cnt)
+{
+  return (num << cnt) | (num >>> (32 - cnt));
+}
+
+/*
+ * Convert an 8-bit or 16-bit string to an array of big-endian words
+ * In 8-bit function, characters >255 have their hi-byte silently ignored.
+ */
+function str2binb(str)
+{
+  var bin = Array();
+  var mask = (1 << chrsz) - 1;
+  for(var i = 0; i < str.length * chrsz; i += chrsz)
+    bin[i>>5] |= (str.charCodeAt(i / chrsz) & mask) << (32 - chrsz - i%32);
+  return bin;
+}
+
+/*
+ * Convert an array of big-endian words to a string
+ */
+function binb2str(bin)
+{
+  var str = "";
+  var mask = (1 << chrsz) - 1;
+  for(var i = 0; i < bin.length * 32; i += chrsz)
+    str += String.fromCharCode((bin[i>>5] >>> (32 - chrsz - i%32)) & mask);
+  return str;
+}
+
+/*
+ * Convert an array of big-endian words to a hex string.
+ */
+function binb2hex(binarray)
+{
+  var hex_tab = hexcase ? "0123456789ABCDEF" : "0123456789abcdef";
+  var str = "";
+  for(var i = 0; i < binarray.length * 4; i++)
+  {
+    str += hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8+4)) & 0xF) +
+           hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8  )) & 0xF);
+  }
+  return str;
+}
+
+/*
+ * Convert an array of big-endian words to a base-64 string
+ */
+function binb2b64(binarray)
+{
+  var tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  var str = "";
+  for(var i = 0; i < binarray.length * 4; i += 3)
+  {
+    var triplet = (((binarray[i   >> 2] >> 8 * (3 -  i   %4)) & 0xFF) << 16)
+                | (((binarray[i+1 >> 2] >> 8 * (3 - (i+1)%4)) & 0xFF) << 8 )
+                |  ((binarray[i+2 >> 2] >> 8 * (3 - (i+2)%4)) & 0xFF);
+    for(var j = 0; j < 4; j++)
+    {
+      if(i * 8 + j * 6 > binarray.length * 32) str += b64pad;
+      else str += tab.charAt((triplet >> 6*(3-j)) & 0x3F);
+    }
+  }
+  return str;
+}
+
+
+},{}],24:[function(require,module,exports){
+// Original code adapted from Robert Kieffer.
+// details at https://github.com/broofa/node-uuid
+(function() {
+  var _global = this;
+
+  var mathRNG, whatwgRNG;
+
+  // NOTE: Math.random() does not guarantee "cryptographic quality"
+  mathRNG = function(size) {
+    var bytes = new Array(size);
+    var r;
+
+    for (var i = 0, r; i < size; i++) {
+      if ((i & 0x03) == 0) r = Math.random() * 0x100000000;
+      bytes[i] = r >>> ((i & 0x03) << 3) & 0xff;
+    }
+
+    return bytes;
+  }
+
+  // currently only available in webkit-based browsers.
+  if (_global.crypto && crypto.getRandomValues) {
+    var _rnds = new Uint32Array(4);
+    whatwgRNG = function(size) {
+      var bytes = new Array(size);
+      crypto.getRandomValues(_rnds);
+
+      for (var c = 0 ; c < size; c++) {
+        bytes[c] = _rnds[c >> 2] >>> ((c & 0x03) * 8) & 0xff;
+      }
+      return bytes;
+    }
+  }
+
+  module.exports = whatwgRNG || mathRNG;
+
+}())
+},{}],17:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -13589,7 +13954,7 @@ Contract.prototype.ship = function(callback){
 
   return this.supplychain.ship(this, callback);
 }
-},{"util":10,"url":11,"./message":23,"./response":14,"./request":24,"../utils":15,"lodash":8}],14:[function(require,module,exports){
+},{"util":13,"url":2,"./message":26,"../utils":9,"./request":27,"./response":18,"lodash":11}],18:[function(require,module,exports){
 (function(){/*
 
 	(The MIT License)
@@ -13804,7 +14169,393 @@ Response.prototype.add = function(childres){
   return this;
 }
 })()
-},{"util":10,"./message":23,"lodash":8,"q":25}],17:[function(require,module,exports){
+},{"util":13,"./message":26,"lodash":11,"q":28}],25:[function(require,module,exports){
+/*
+ * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
+ * Digest Algorithm, as defined in RFC 1321.
+ * Version 2.2 Copyright (C) Paul Johnston 1999 - 2009
+ * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
+ * Distributed under the BSD License
+ * See http://pajhome.org.uk/crypt/md5 for more info.
+ */
+
+/*
+ * Configurable variables. You may need to tweak these to be compatible with
+ * the server-side, but the defaults work in most cases.
+ */
+var hexcase = 0;   /* hex output format. 0 - lowercase; 1 - uppercase        */
+var b64pad  = "";  /* base-64 pad character. "=" for strict RFC compliance   */
+
+/*
+ * These are the functions you'll usually want to call
+ * They take string arguments and return either hex or base-64 encoded strings
+ */
+function hex_md5(s)    { return rstr2hex(rstr_md5(str2rstr_utf8(s))); }
+function b64_md5(s)    { return rstr2b64(rstr_md5(str2rstr_utf8(s))); }
+function any_md5(s, e) { return rstr2any(rstr_md5(str2rstr_utf8(s)), e); }
+function hex_hmac_md5(k, d)
+  { return rstr2hex(rstr_hmac_md5(str2rstr_utf8(k), str2rstr_utf8(d))); }
+function b64_hmac_md5(k, d)
+  { return rstr2b64(rstr_hmac_md5(str2rstr_utf8(k), str2rstr_utf8(d))); }
+function any_hmac_md5(k, d, e)
+  { return rstr2any(rstr_hmac_md5(str2rstr_utf8(k), str2rstr_utf8(d)), e); }
+
+/*
+ * Perform a simple self-test to see if the VM is working
+ */
+function md5_vm_test()
+{
+  return hex_md5("abc").toLowerCase() == "900150983cd24fb0d6963f7d28e17f72";
+}
+
+/*
+ * Calculate the MD5 of a raw string
+ */
+function rstr_md5(s)
+{
+  return binl2rstr(binl_md5(rstr2binl(s), s.length * 8));
+}
+
+/*
+ * Calculate the HMAC-MD5, of a key and some data (raw strings)
+ */
+function rstr_hmac_md5(key, data)
+{
+  var bkey = rstr2binl(key);
+  if(bkey.length > 16) bkey = binl_md5(bkey, key.length * 8);
+
+  var ipad = Array(16), opad = Array(16);
+  for(var i = 0; i < 16; i++)
+  {
+    ipad[i] = bkey[i] ^ 0x36363636;
+    opad[i] = bkey[i] ^ 0x5C5C5C5C;
+  }
+
+  var hash = binl_md5(ipad.concat(rstr2binl(data)), 512 + data.length * 8);
+  return binl2rstr(binl_md5(opad.concat(hash), 512 + 128));
+}
+
+/*
+ * Convert a raw string to a hex string
+ */
+function rstr2hex(input)
+{
+  try { hexcase } catch(e) { hexcase=0; }
+  var hex_tab = hexcase ? "0123456789ABCDEF" : "0123456789abcdef";
+  var output = "";
+  var x;
+  for(var i = 0; i < input.length; i++)
+  {
+    x = input.charCodeAt(i);
+    output += hex_tab.charAt((x >>> 4) & 0x0F)
+           +  hex_tab.charAt( x        & 0x0F);
+  }
+  return output;
+}
+
+/*
+ * Convert a raw string to a base-64 string
+ */
+function rstr2b64(input)
+{
+  try { b64pad } catch(e) { b64pad=''; }
+  var tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  var output = "";
+  var len = input.length;
+  for(var i = 0; i < len; i += 3)
+  {
+    var triplet = (input.charCodeAt(i) << 16)
+                | (i + 1 < len ? input.charCodeAt(i+1) << 8 : 0)
+                | (i + 2 < len ? input.charCodeAt(i+2)      : 0);
+    for(var j = 0; j < 4; j++)
+    {
+      if(i * 8 + j * 6 > input.length * 8) output += b64pad;
+      else output += tab.charAt((triplet >>> 6*(3-j)) & 0x3F);
+    }
+  }
+  return output;
+}
+
+/*
+ * Convert a raw string to an arbitrary string encoding
+ */
+function rstr2any(input, encoding)
+{
+  var divisor = encoding.length;
+  var i, j, q, x, quotient;
+
+  /* Convert to an array of 16-bit big-endian values, forming the dividend */
+  var dividend = Array(Math.ceil(input.length / 2));
+  for(i = 0; i < dividend.length; i++)
+  {
+    dividend[i] = (input.charCodeAt(i * 2) << 8) | input.charCodeAt(i * 2 + 1);
+  }
+
+  /*
+   * Repeatedly perform a long division. The binary array forms the dividend,
+   * the length of the encoding is the divisor. Once computed, the quotient
+   * forms the dividend for the next step. All remainders are stored for later
+   * use.
+   */
+  var full_length = Math.ceil(input.length * 8 /
+                                    (Math.log(encoding.length) / Math.log(2)));
+  var remainders = Array(full_length);
+  for(j = 0; j < full_length; j++)
+  {
+    quotient = Array();
+    x = 0;
+    for(i = 0; i < dividend.length; i++)
+    {
+      x = (x << 16) + dividend[i];
+      q = Math.floor(x / divisor);
+      x -= q * divisor;
+      if(quotient.length > 0 || q > 0)
+        quotient[quotient.length] = q;
+    }
+    remainders[j] = x;
+    dividend = quotient;
+  }
+
+  /* Convert the remainders to the output string */
+  var output = "";
+  for(i = remainders.length - 1; i >= 0; i--)
+    output += encoding.charAt(remainders[i]);
+
+  return output;
+}
+
+/*
+ * Encode a string as utf-8.
+ * For efficiency, this assumes the input is valid utf-16.
+ */
+function str2rstr_utf8(input)
+{
+  var output = "";
+  var i = -1;
+  var x, y;
+
+  while(++i < input.length)
+  {
+    /* Decode utf-16 surrogate pairs */
+    x = input.charCodeAt(i);
+    y = i + 1 < input.length ? input.charCodeAt(i + 1) : 0;
+    if(0xD800 <= x && x <= 0xDBFF && 0xDC00 <= y && y <= 0xDFFF)
+    {
+      x = 0x10000 + ((x & 0x03FF) << 10) + (y & 0x03FF);
+      i++;
+    }
+
+    /* Encode output as utf-8 */
+    if(x <= 0x7F)
+      output += String.fromCharCode(x);
+    else if(x <= 0x7FF)
+      output += String.fromCharCode(0xC0 | ((x >>> 6 ) & 0x1F),
+                                    0x80 | ( x         & 0x3F));
+    else if(x <= 0xFFFF)
+      output += String.fromCharCode(0xE0 | ((x >>> 12) & 0x0F),
+                                    0x80 | ((x >>> 6 ) & 0x3F),
+                                    0x80 | ( x         & 0x3F));
+    else if(x <= 0x1FFFFF)
+      output += String.fromCharCode(0xF0 | ((x >>> 18) & 0x07),
+                                    0x80 | ((x >>> 12) & 0x3F),
+                                    0x80 | ((x >>> 6 ) & 0x3F),
+                                    0x80 | ( x         & 0x3F));
+  }
+  return output;
+}
+
+/*
+ * Encode a string as utf-16
+ */
+function str2rstr_utf16le(input)
+{
+  var output = "";
+  for(var i = 0; i < input.length; i++)
+    output += String.fromCharCode( input.charCodeAt(i)        & 0xFF,
+                                  (input.charCodeAt(i) >>> 8) & 0xFF);
+  return output;
+}
+
+function str2rstr_utf16be(input)
+{
+  var output = "";
+  for(var i = 0; i < input.length; i++)
+    output += String.fromCharCode((input.charCodeAt(i) >>> 8) & 0xFF,
+                                   input.charCodeAt(i)        & 0xFF);
+  return output;
+}
+
+/*
+ * Convert a raw string to an array of little-endian words
+ * Characters >255 have their high-byte silently ignored.
+ */
+function rstr2binl(input)
+{
+  var output = Array(input.length >> 2);
+  for(var i = 0; i < output.length; i++)
+    output[i] = 0;
+  for(var i = 0; i < input.length * 8; i += 8)
+    output[i>>5] |= (input.charCodeAt(i / 8) & 0xFF) << (i%32);
+  return output;
+}
+
+/*
+ * Convert an array of little-endian words to a string
+ */
+function binl2rstr(input)
+{
+  var output = "";
+  for(var i = 0; i < input.length * 32; i += 8)
+    output += String.fromCharCode((input[i>>5] >>> (i % 32)) & 0xFF);
+  return output;
+}
+
+/*
+ * Calculate the MD5 of an array of little-endian words, and a bit length.
+ */
+function binl_md5(x, len)
+{
+  /* append padding */
+  x[len >> 5] |= 0x80 << ((len) % 32);
+  x[(((len + 64) >>> 9) << 4) + 14] = len;
+
+  var a =  1732584193;
+  var b = -271733879;
+  var c = -1732584194;
+  var d =  271733878;
+
+  for(var i = 0; i < x.length; i += 16)
+  {
+    var olda = a;
+    var oldb = b;
+    var oldc = c;
+    var oldd = d;
+
+    a = md5_ff(a, b, c, d, x[i+ 0], 7 , -680876936);
+    d = md5_ff(d, a, b, c, x[i+ 1], 12, -389564586);
+    c = md5_ff(c, d, a, b, x[i+ 2], 17,  606105819);
+    b = md5_ff(b, c, d, a, x[i+ 3], 22, -1044525330);
+    a = md5_ff(a, b, c, d, x[i+ 4], 7 , -176418897);
+    d = md5_ff(d, a, b, c, x[i+ 5], 12,  1200080426);
+    c = md5_ff(c, d, a, b, x[i+ 6], 17, -1473231341);
+    b = md5_ff(b, c, d, a, x[i+ 7], 22, -45705983);
+    a = md5_ff(a, b, c, d, x[i+ 8], 7 ,  1770035416);
+    d = md5_ff(d, a, b, c, x[i+ 9], 12, -1958414417);
+    c = md5_ff(c, d, a, b, x[i+10], 17, -42063);
+    b = md5_ff(b, c, d, a, x[i+11], 22, -1990404162);
+    a = md5_ff(a, b, c, d, x[i+12], 7 ,  1804603682);
+    d = md5_ff(d, a, b, c, x[i+13], 12, -40341101);
+    c = md5_ff(c, d, a, b, x[i+14], 17, -1502002290);
+    b = md5_ff(b, c, d, a, x[i+15], 22,  1236535329);
+
+    a = md5_gg(a, b, c, d, x[i+ 1], 5 , -165796510);
+    d = md5_gg(d, a, b, c, x[i+ 6], 9 , -1069501632);
+    c = md5_gg(c, d, a, b, x[i+11], 14,  643717713);
+    b = md5_gg(b, c, d, a, x[i+ 0], 20, -373897302);
+    a = md5_gg(a, b, c, d, x[i+ 5], 5 , -701558691);
+    d = md5_gg(d, a, b, c, x[i+10], 9 ,  38016083);
+    c = md5_gg(c, d, a, b, x[i+15], 14, -660478335);
+    b = md5_gg(b, c, d, a, x[i+ 4], 20, -405537848);
+    a = md5_gg(a, b, c, d, x[i+ 9], 5 ,  568446438);
+    d = md5_gg(d, a, b, c, x[i+14], 9 , -1019803690);
+    c = md5_gg(c, d, a, b, x[i+ 3], 14, -187363961);
+    b = md5_gg(b, c, d, a, x[i+ 8], 20,  1163531501);
+    a = md5_gg(a, b, c, d, x[i+13], 5 , -1444681467);
+    d = md5_gg(d, a, b, c, x[i+ 2], 9 , -51403784);
+    c = md5_gg(c, d, a, b, x[i+ 7], 14,  1735328473);
+    b = md5_gg(b, c, d, a, x[i+12], 20, -1926607734);
+
+    a = md5_hh(a, b, c, d, x[i+ 5], 4 , -378558);
+    d = md5_hh(d, a, b, c, x[i+ 8], 11, -2022574463);
+    c = md5_hh(c, d, a, b, x[i+11], 16,  1839030562);
+    b = md5_hh(b, c, d, a, x[i+14], 23, -35309556);
+    a = md5_hh(a, b, c, d, x[i+ 1], 4 , -1530992060);
+    d = md5_hh(d, a, b, c, x[i+ 4], 11,  1272893353);
+    c = md5_hh(c, d, a, b, x[i+ 7], 16, -155497632);
+    b = md5_hh(b, c, d, a, x[i+10], 23, -1094730640);
+    a = md5_hh(a, b, c, d, x[i+13], 4 ,  681279174);
+    d = md5_hh(d, a, b, c, x[i+ 0], 11, -358537222);
+    c = md5_hh(c, d, a, b, x[i+ 3], 16, -722521979);
+    b = md5_hh(b, c, d, a, x[i+ 6], 23,  76029189);
+    a = md5_hh(a, b, c, d, x[i+ 9], 4 , -640364487);
+    d = md5_hh(d, a, b, c, x[i+12], 11, -421815835);
+    c = md5_hh(c, d, a, b, x[i+15], 16,  530742520);
+    b = md5_hh(b, c, d, a, x[i+ 2], 23, -995338651);
+
+    a = md5_ii(a, b, c, d, x[i+ 0], 6 , -198630844);
+    d = md5_ii(d, a, b, c, x[i+ 7], 10,  1126891415);
+    c = md5_ii(c, d, a, b, x[i+14], 15, -1416354905);
+    b = md5_ii(b, c, d, a, x[i+ 5], 21, -57434055);
+    a = md5_ii(a, b, c, d, x[i+12], 6 ,  1700485571);
+    d = md5_ii(d, a, b, c, x[i+ 3], 10, -1894986606);
+    c = md5_ii(c, d, a, b, x[i+10], 15, -1051523);
+    b = md5_ii(b, c, d, a, x[i+ 1], 21, -2054922799);
+    a = md5_ii(a, b, c, d, x[i+ 8], 6 ,  1873313359);
+    d = md5_ii(d, a, b, c, x[i+15], 10, -30611744);
+    c = md5_ii(c, d, a, b, x[i+ 6], 15, -1560198380);
+    b = md5_ii(b, c, d, a, x[i+13], 21,  1309151649);
+    a = md5_ii(a, b, c, d, x[i+ 4], 6 , -145523070);
+    d = md5_ii(d, a, b, c, x[i+11], 10, -1120210379);
+    c = md5_ii(c, d, a, b, x[i+ 2], 15,  718787259);
+    b = md5_ii(b, c, d, a, x[i+ 9], 21, -343485551);
+
+    a = safe_add(a, olda);
+    b = safe_add(b, oldb);
+    c = safe_add(c, oldc);
+    d = safe_add(d, oldd);
+  }
+  return Array(a, b, c, d);
+}
+
+/*
+ * These functions implement the four basic operations the algorithm uses.
+ */
+function md5_cmn(q, a, b, x, s, t)
+{
+  return safe_add(bit_rol(safe_add(safe_add(a, q), safe_add(x, t)), s),b);
+}
+function md5_ff(a, b, c, d, x, s, t)
+{
+  return md5_cmn((b & c) | ((~b) & d), a, b, x, s, t);
+}
+function md5_gg(a, b, c, d, x, s, t)
+{
+  return md5_cmn((b & d) | (c & (~d)), a, b, x, s, t);
+}
+function md5_hh(a, b, c, d, x, s, t)
+{
+  return md5_cmn(b ^ c ^ d, a, b, x, s, t);
+}
+function md5_ii(a, b, c, d, x, s, t)
+{
+  return md5_cmn(c ^ (b | (~d)), a, b, x, s, t);
+}
+
+/*
+ * Add integers, wrapping at 2^32. This uses 16-bit operations internally
+ * to work around bugs in some JS interpreters.
+ */
+function safe_add(x, y)
+{
+  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
+  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+  return (msw << 16) | (lsw & 0xFFFF);
+}
+
+/*
+ * Bitwise rotate a 32-bit number to the left.
+ */
+function bit_rol(num, cnt)
+{
+  return (num << cnt) | (num >>> (32 - cnt));
+}
+
+
+exports.hex_md5 = hex_md5;
+exports.b64_md5 = b64_md5;
+exports.any_md5 = any_md5;
+
+},{}],20:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -13916,7 +14667,7 @@ module.exports = function modelfactory(data, attr){
 }
 
 module.exports.toXML = XML.stringify;
-},{"../utils":15,"./xml":26,"lodash":8}],18:[function(require,module,exports){
+},{"./xml":29,"../utils":9,"lodash":11}],21:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -14178,115 +14929,7 @@ function remove(){
   contract.supplychain = this.supplychain;
   return contract;
 }
-},{"../network/contract":13,"../network/request":24,"./selector":27,"lodash":8}],16:[function(require,module,exports){
-var _ = require('lodash');
-var extend = require('xtend');
-var EventEmitter = require('events').EventEmitter;
-
-module.exports = deepdot;
-module.exports.factory = factory;
-
-function update(obj, prop, value){
-  
-  if(_.isArray(value)){
-    obj[prop] = value;
-    return value;
-  }
-  
-  var existing_prop = obj[prop];
-
-  if(_.isObject(obj[prop]) && _.isObject(value)){
-    extend(obj[prop], value);
-  }
-  else{
-    
-    obj[prop] = value;
-    
-  }
-
-  return value;
-}
-
-function deepdot(obj, prop, value){
-
-  if(obj===null){
-    return null;
-  }
-  if(!prop){
-    return obj;
-  }
-  prop = prop.replace(/^\./, '');
-  var parts = prop.split('.');
-  var last = parts.pop();
-  var current = obj;
-  var setmode = arguments.length>=3;
-
-  if(!_.isObject(current)){
-    return current;
-  }
-
-  while(parts.length>0 && current!==null){
-
-    var nextpart = parts.shift();
-    var nextvalue = current[nextpart]; 
-    
-    if(!nextvalue){
-
-      if(setmode){
-        nextvalue = current[nextpart] = {};
-      }
-      else{
-        break;  
-      }
-      
-    }
-    else{
-      if(!_.isObject(nextvalue)){
-        break;
-      }
-    }
-
-    current = nextvalue;
-  }
-
-  if(!_.isObject(current)){
-    return current;
-  }
-
-  if(setmode){
-    return update(current, last, value);
-  }
-  else{
-    return current[last];
-  }
-}
-
-/*
-
-  return an event emitter that is hooked into a single object
-  
-*/
-function factory(obj){
-  
-  function dot(){
-
-    var args = _.toArray(arguments);
-    args.unshift(obj);
-
-    var ret = deepdot.apply(null, args);
-
-    if(arguments.length>1){
-      dot.emit('change', arguments[0], arguments[1]);
-    }
-
-    return ret;
-  }
-
-  _.extend(dot, EventEmitter.prototype);
-
-  return dot;
-}
-},{"events":3,"lodash":8,"xtend":28}],25:[function(require,module,exports){
+},{"../network/contract":17,"../network/request":27,"./selector":30,"lodash":11}],28:[function(require,module,exports){
 (function(process){// vim:ts=4:sts=4:sw=4:
 /*!
  *
@@ -16040,186 +16683,115 @@ return Q;
 });
 
 })(require("__browserify_process"))
-},{"__browserify_process":2}],22:[function(require,module,exports){
-var sha = require('./sha')
-var rng = require('./rng')
-var md5 = require('./md5')
-
-var algorithms = {
-  sha1: {
-    hex: sha.hex_sha1,
-    binary: sha.b64_sha1,
-    ascii: sha.str_sha1
-  },
-  md5: {
-    hex: md5.hex_md5,
-    binary: md5.b64_md5,
-    ascii: md5.any_md5
-  }
-}
-
-function error () {
-  var m = [].slice.call(arguments).join(' ')
-  throw new Error([
-    m,
-    'we accept pull requests',
-    'http://github.com/dominictarr/crypto-browserify'
-    ].join('\n'))
-}
-
-exports.createHash = function (alg) {
-  alg = alg || 'sha1'
-  if(!algorithms[alg])
-    error('algorithm:', alg, 'is not yet supported')
-  var s = ''
-  var _alg = algorithms[alg]
-  return {
-    update: function (data) {
-      s += data
-      return this
-    },
-    digest: function (enc) {
-      enc = enc || 'binary'
-      var fn
-      if(!(fn = _alg[enc]))
-        error('encoding:', enc , 'is not yet supported for algorithm', alg)
-      var r = fn(s)
-      s = null //not meant to use the hash after you've called digest.
-      return r
-    }
-  }
-}
-
-exports.randomBytes = function(size, callback) {
-  if (callback && callback.call) {
-    try {
-      callback.call(this, undefined, rng(size));
-    } catch (err) { callback(err); }
-  } else {
-    return rng(size);
-  }
-}
-
-// the least I can do is make error messages for the rest of the node.js/crypto api.
-;['createCredentials'
-, 'createHmac'
-, 'createCypher'
-, 'createCypheriv'
-, 'createDecipher'
-, 'createDecipheriv'
-, 'createSign'
-, 'createVerify'
-, 'createDeffieHellman'
-, 'pbkdf2'].forEach(function (name) {
-  exports[name] = function () {
-    error('sorry,', name, 'is not implemented yet')
-  }
-})
-
-},{"./sha":29,"./md5":30,"./rng":31}],19:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-
+},{"__browserify_process":4}],19:[function(require,module,exports){
 var _ = require('lodash');
-var find = require('./find');
-var search = require('./search');
-var inspectselect = require('../selector');
+var extend = require('xtend');
+var EventEmitter = require('events').EventEmitter;
 
-var finder = find(search.searcher);
+module.exports = deepdot;
+module.exports.factory = factory;
 
-var sortfns = {
-  title:function(a, b){
-    if ( a.title().toLowerCase() < b.title().toLowerCase() )
-      return -1;
-    if ( a.title().toLowerCase() > b.title().toLowerCase() )
-      return 1;
-    return 0;
-  },
-  field:function(name){
-    return function(a, b){
-      if ( a.attr(name).toLowerCase() < b.attr(name).toLowerCase() )
-        return -1;
-      if ( a.attr(name).toLowerCase() > b.attr(name).toLowerCase() )
-        return 1;
-      return 0;
-    }
+function update(obj, prop, value){
+  
+  if(_.isArray(value)){
+    obj[prop] = value;
+    return value;
   }
-}
+  
+  var existing_prop = obj[prop];
 
-module.exports = {
-  find:function(){
-    var selectors = _.map(_.toArray(arguments), function(arg){
-      return _.isString(arg) ? inspectselect(arg) : arg;
-    })
-    return finder(selectors, this);
-  },
-
-  sort:function(fn){
-    if(_.isString(fn)){
-      fn = sortfns.field(fn);
-    }
-    else if(!fn){
-      fn = sortfns.title;
-    }
-
-    this.each(function(container){
-      var newchildren = container.children().containers().sort(fn);
-      var model = container.get(0);
-      model.children = _.map(newchildren, function(container){
-        return container.get(0);
-      })
-    })
-
-    return this;
-  },
-
-  filter:function(filterfn){
-
-    /*
+  if(_.isObject(obj[prop]) && _.isObject(value)){
+    extend(obj[prop], value);
+  }
+  else{
     
-      turn anything other than a function into the filter function
+    obj[prop] = value;
+    
+  }
 
-      the compiler looks after turning strings into selector objects
+  return value;
+}
+
+function deepdot(obj, prop, value){
+
+  if(obj===null){
+    return null;
+  }
+  if(!prop){
+    return obj;
+  }
+  prop = prop.replace(/^\./, '');
+  var parts = prop.split('.');
+  var last = parts.pop();
+  var current = obj;
+  var setmode = arguments.length>=3;
+
+  if(!_.isObject(current)){
+    return current;
+  }
+
+  while(parts.length>0 && current!==null){
+
+    var nextpart = parts.shift();
+    var nextvalue = current[nextpart]; 
+    
+    if(!nextvalue){
+
+      if(setmode){
+        nextvalue = current[nextpart] = {};
+      }
+      else{
+        break;  
+      }
       
-    */
-    if(!_.isFunction(filterfn)){
-      filterfn = search.compiler(filterfn);
+    }
+    else{
+      if(!_.isObject(nextvalue)){
+        break;
+      }
     }
 
-    var matching_container_array = _.filter(this.containers(), filterfn);
+    current = nextvalue;
+  }
 
-    return this.spawn(_.map(matching_container_array, function(container){
-      return container.get(0);
-    }))
-  },
+  if(!_.isObject(current)){
+    return current;
+  }
 
-  match:function(selector){
-
-    if(this.count()<=0){
-      return false;
-    }
-
-    var results = this.filter(selector);
-
-    return results.count()>0;
+  if(setmode){
+    return update(current, last, value);
+  }
+  else{
+    return current[last];
   }
 }
-},{"./search":32,"./find":33,"../selector":27,"lodash":8}],23:[function(require,module,exports){
+
+/*
+
+  return an event emitter that is hooked into a single object
+  
+*/
+function factory(obj){
+  
+  function dot(){
+
+    var args = _.toArray(arguments);
+    args.unshift(obj);
+
+    var ret = deepdot.apply(null, args);
+
+    if(arguments.length>1){
+      dot.emit('change', arguments[0], arguments[1]);
+    }
+
+    return ret;
+  }
+
+  _.extend(dot, EventEmitter.prototype);
+
+  return dot;
+}
+},{"events":5,"lodash":11,"xtend":31}],26:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -16328,7 +16900,7 @@ Message.prototype.removeHeader = function(name) {
   var key = name.toLowerCase();
   delete this.headers[key];
 }
-},{"util":10,"events":3,"lodash":8}],24:[function(require,module,exports){
+},{"util":13,"events":5,"lodash":11}],27:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -16453,219 +17025,110 @@ Request.prototype.expect = function(content_type){
   this.setHeader('x-expect', content_type);
   return this;
 }
-},{"util":10,"url":11,"./message":23,"lodash":8}],29:[function(require,module,exports){
+},{"util":13,"url":2,"./message":26,"lodash":11}],22:[function(require,module,exports){
 /*
- * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
- * in FIPS PUB 180-1
- * Version 2.1a Copyright Paul Johnston 2000 - 2002.
- * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
- * Distributed under the BSD License
- * See http://pajhome.org.uk/crypt/md5 for details.
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
  */
 
-exports.hex_sha1 = hex_sha1;
-exports.b64_sha1 = b64_sha1;
-exports.str_sha1 = str_sha1;
-exports.hex_hmac_sha1 = hex_hmac_sha1;
-exports.b64_hmac_sha1 = b64_hmac_sha1;
-exports.str_hmac_sha1 = str_hmac_sha1;
-
 /*
- * Configurable variables. You may need to tweak these to be compatible with
- * the server-side, but the defaults work in most cases.
- */
-var hexcase = 0;  /* hex output format. 0 - lowercase; 1 - uppercase        */
-var b64pad  = ""; /* base-64 pad character. "=" for strict RFC compliance   */
-var chrsz   = 8;  /* bits per input character. 8 - ASCII; 16 - Unicode      */
+  Module dependencies.
+*/
 
-/*
- * These are the functions you'll usually want to call
- * They take string arguments and return either hex or base-64 encoded strings
- */
-function hex_sha1(s){return binb2hex(core_sha1(str2binb(s),s.length * chrsz));}
-function b64_sha1(s){return binb2b64(core_sha1(str2binb(s),s.length * chrsz));}
-function str_sha1(s){return binb2str(core_sha1(str2binb(s),s.length * chrsz));}
-function hex_hmac_sha1(key, data){ return binb2hex(core_hmac_sha1(key, data));}
-function b64_hmac_sha1(key, data){ return binb2b64(core_hmac_sha1(key, data));}
-function str_hmac_sha1(key, data){ return binb2str(core_hmac_sha1(key, data));}
+var _ = require('lodash');
+var find = require('./find');
+var search = require('./search');
+var inspectselect = require('../selector');
 
-/*
- * Perform a simple self-test to see if the VM is working
- */
-function sha1_vm_test()
-{
-  return hex_sha1("abc") == "a9993e364706816aba3e25717850c26c9cd0d89d";
-}
+var finder = find(search.searcher);
 
-/*
- * Calculate the SHA-1 of an array of big-endian words, and a bit length
- */
-function core_sha1(x, len)
-{
-  /* append padding */
-  x[len >> 5] |= 0x80 << (24 - len % 32);
-  x[((len + 64 >> 9) << 4) + 15] = len;
-
-  var w = Array(80);
-  var a =  1732584193;
-  var b = -271733879;
-  var c = -1732584194;
-  var d =  271733878;
-  var e = -1009589776;
-
-  for(var i = 0; i < x.length; i += 16)
-  {
-    var olda = a;
-    var oldb = b;
-    var oldc = c;
-    var oldd = d;
-    var olde = e;
-
-    for(var j = 0; j < 80; j++)
-    {
-      if(j < 16) w[j] = x[i + j];
-      else w[j] = rol(w[j-3] ^ w[j-8] ^ w[j-14] ^ w[j-16], 1);
-      var t = safe_add(safe_add(rol(a, 5), sha1_ft(j, b, c, d)),
-                       safe_add(safe_add(e, w[j]), sha1_kt(j)));
-      e = d;
-      d = c;
-      c = rol(b, 30);
-      b = a;
-      a = t;
-    }
-
-    a = safe_add(a, olda);
-    b = safe_add(b, oldb);
-    c = safe_add(c, oldc);
-    d = safe_add(d, oldd);
-    e = safe_add(e, olde);
-  }
-  return Array(a, b, c, d, e);
-
-}
-
-/*
- * Perform the appropriate triplet combination function for the current
- * iteration
- */
-function sha1_ft(t, b, c, d)
-{
-  if(t < 20) return (b & c) | ((~b) & d);
-  if(t < 40) return b ^ c ^ d;
-  if(t < 60) return (b & c) | (b & d) | (c & d);
-  return b ^ c ^ d;
-}
-
-/*
- * Determine the appropriate additive constant for the current iteration
- */
-function sha1_kt(t)
-{
-  return (t < 20) ?  1518500249 : (t < 40) ?  1859775393 :
-         (t < 60) ? -1894007588 : -899497514;
-}
-
-/*
- * Calculate the HMAC-SHA1 of a key and some data
- */
-function core_hmac_sha1(key, data)
-{
-  var bkey = str2binb(key);
-  if(bkey.length > 16) bkey = core_sha1(bkey, key.length * chrsz);
-
-  var ipad = Array(16), opad = Array(16);
-  for(var i = 0; i < 16; i++)
-  {
-    ipad[i] = bkey[i] ^ 0x36363636;
-    opad[i] = bkey[i] ^ 0x5C5C5C5C;
-  }
-
-  var hash = core_sha1(ipad.concat(str2binb(data)), 512 + data.length * chrsz);
-  return core_sha1(opad.concat(hash), 512 + 160);
-}
-
-/*
- * Add integers, wrapping at 2^32. This uses 16-bit operations internally
- * to work around bugs in some JS interpreters.
- */
-function safe_add(x, y)
-{
-  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
-  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
-  return (msw << 16) | (lsw & 0xFFFF);
-}
-
-/*
- * Bitwise rotate a 32-bit number to the left.
- */
-function rol(num, cnt)
-{
-  return (num << cnt) | (num >>> (32 - cnt));
-}
-
-/*
- * Convert an 8-bit or 16-bit string to an array of big-endian words
- * In 8-bit function, characters >255 have their hi-byte silently ignored.
- */
-function str2binb(str)
-{
-  var bin = Array();
-  var mask = (1 << chrsz) - 1;
-  for(var i = 0; i < str.length * chrsz; i += chrsz)
-    bin[i>>5] |= (str.charCodeAt(i / chrsz) & mask) << (32 - chrsz - i%32);
-  return bin;
-}
-
-/*
- * Convert an array of big-endian words to a string
- */
-function binb2str(bin)
-{
-  var str = "";
-  var mask = (1 << chrsz) - 1;
-  for(var i = 0; i < bin.length * 32; i += chrsz)
-    str += String.fromCharCode((bin[i>>5] >>> (32 - chrsz - i%32)) & mask);
-  return str;
-}
-
-/*
- * Convert an array of big-endian words to a hex string.
- */
-function binb2hex(binarray)
-{
-  var hex_tab = hexcase ? "0123456789ABCDEF" : "0123456789abcdef";
-  var str = "";
-  for(var i = 0; i < binarray.length * 4; i++)
-  {
-    str += hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8+4)) & 0xF) +
-           hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8  )) & 0xF);
-  }
-  return str;
-}
-
-/*
- * Convert an array of big-endian words to a base-64 string
- */
-function binb2b64(binarray)
-{
-  var tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  var str = "";
-  for(var i = 0; i < binarray.length * 4; i += 3)
-  {
-    var triplet = (((binarray[i   >> 2] >> 8 * (3 -  i   %4)) & 0xFF) << 16)
-                | (((binarray[i+1 >> 2] >> 8 * (3 - (i+1)%4)) & 0xFF) << 8 )
-                |  ((binarray[i+2 >> 2] >> 8 * (3 - (i+2)%4)) & 0xFF);
-    for(var j = 0; j < 4; j++)
-    {
-      if(i * 8 + j * 6 > binarray.length * 32) str += b64pad;
-      else str += tab.charAt((triplet >> 6*(3-j)) & 0x3F);
+var sortfns = {
+  title:function(a, b){
+    if ( a.title().toLowerCase() < b.title().toLowerCase() )
+      return -1;
+    if ( a.title().toLowerCase() > b.title().toLowerCase() )
+      return 1;
+    return 0;
+  },
+  field:function(name){
+    return function(a, b){
+      if ( a.attr(name).toLowerCase() < b.attr(name).toLowerCase() )
+        return -1;
+      if ( a.attr(name).toLowerCase() > b.attr(name).toLowerCase() )
+        return 1;
+      return 0;
     }
   }
-  return str;
 }
 
+module.exports = {
+  find:function(){
+    var selectors = _.map(_.toArray(arguments), function(arg){
+      return _.isString(arg) ? inspectselect(arg) : arg;
+    })
+    return finder(selectors, this);
+  },
 
-},{}],26:[function(require,module,exports){
+  sort:function(fn){
+    if(_.isString(fn)){
+      fn = sortfns.field(fn);
+    }
+    else if(!fn){
+      fn = sortfns.title;
+    }
+
+    this.each(function(container){
+      var newchildren = container.children().containers().sort(fn);
+      var model = container.get(0);
+      model.children = _.map(newchildren, function(container){
+        return container.get(0);
+      })
+    })
+
+    return this;
+  },
+
+  filter:function(filterfn){
+
+    /*
+    
+      turn anything other than a function into the filter function
+
+      the compiler looks after turning strings into selector objects
+      
+    */
+    if(!_.isFunction(filterfn)){
+      filterfn = search.compiler(filterfn);
+    }
+
+    var matching_container_array = _.filter(this.containers(), filterfn);
+
+    return this.spawn(_.map(matching_container_array, function(container){
+      return container.get(0);
+    }))
+  },
+
+  match:function(selector){
+
+    if(this.count()<=0){
+      return false;
+    }
+
+    var results = this.filter(selector);
+
+    return results.count()>0;
+  }
+}
+},{"./find":32,"./search":33,"../selector":30,"lodash":11}],29:[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -16851,431 +17314,7 @@ function toXML(data_array){
     return string_factory(data, 0);
   }).join("\n");
 }
-},{"lodash":8,"xmldom":34}],30:[function(require,module,exports){
-/*
- * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
- * Digest Algorithm, as defined in RFC 1321.
- * Version 2.2 Copyright (C) Paul Johnston 1999 - 2009
- * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
- * Distributed under the BSD License
- * See http://pajhome.org.uk/crypt/md5 for more info.
- */
-
-/*
- * Configurable variables. You may need to tweak these to be compatible with
- * the server-side, but the defaults work in most cases.
- */
-var hexcase = 0;   /* hex output format. 0 - lowercase; 1 - uppercase        */
-var b64pad  = "";  /* base-64 pad character. "=" for strict RFC compliance   */
-
-/*
- * These are the functions you'll usually want to call
- * They take string arguments and return either hex or base-64 encoded strings
- */
-function hex_md5(s)    { return rstr2hex(rstr_md5(str2rstr_utf8(s))); }
-function b64_md5(s)    { return rstr2b64(rstr_md5(str2rstr_utf8(s))); }
-function any_md5(s, e) { return rstr2any(rstr_md5(str2rstr_utf8(s)), e); }
-function hex_hmac_md5(k, d)
-  { return rstr2hex(rstr_hmac_md5(str2rstr_utf8(k), str2rstr_utf8(d))); }
-function b64_hmac_md5(k, d)
-  { return rstr2b64(rstr_hmac_md5(str2rstr_utf8(k), str2rstr_utf8(d))); }
-function any_hmac_md5(k, d, e)
-  { return rstr2any(rstr_hmac_md5(str2rstr_utf8(k), str2rstr_utf8(d)), e); }
-
-/*
- * Perform a simple self-test to see if the VM is working
- */
-function md5_vm_test()
-{
-  return hex_md5("abc").toLowerCase() == "900150983cd24fb0d6963f7d28e17f72";
-}
-
-/*
- * Calculate the MD5 of a raw string
- */
-function rstr_md5(s)
-{
-  return binl2rstr(binl_md5(rstr2binl(s), s.length * 8));
-}
-
-/*
- * Calculate the HMAC-MD5, of a key and some data (raw strings)
- */
-function rstr_hmac_md5(key, data)
-{
-  var bkey = rstr2binl(key);
-  if(bkey.length > 16) bkey = binl_md5(bkey, key.length * 8);
-
-  var ipad = Array(16), opad = Array(16);
-  for(var i = 0; i < 16; i++)
-  {
-    ipad[i] = bkey[i] ^ 0x36363636;
-    opad[i] = bkey[i] ^ 0x5C5C5C5C;
-  }
-
-  var hash = binl_md5(ipad.concat(rstr2binl(data)), 512 + data.length * 8);
-  return binl2rstr(binl_md5(opad.concat(hash), 512 + 128));
-}
-
-/*
- * Convert a raw string to a hex string
- */
-function rstr2hex(input)
-{
-  try { hexcase } catch(e) { hexcase=0; }
-  var hex_tab = hexcase ? "0123456789ABCDEF" : "0123456789abcdef";
-  var output = "";
-  var x;
-  for(var i = 0; i < input.length; i++)
-  {
-    x = input.charCodeAt(i);
-    output += hex_tab.charAt((x >>> 4) & 0x0F)
-           +  hex_tab.charAt( x        & 0x0F);
-  }
-  return output;
-}
-
-/*
- * Convert a raw string to a base-64 string
- */
-function rstr2b64(input)
-{
-  try { b64pad } catch(e) { b64pad=''; }
-  var tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  var output = "";
-  var len = input.length;
-  for(var i = 0; i < len; i += 3)
-  {
-    var triplet = (input.charCodeAt(i) << 16)
-                | (i + 1 < len ? input.charCodeAt(i+1) << 8 : 0)
-                | (i + 2 < len ? input.charCodeAt(i+2)      : 0);
-    for(var j = 0; j < 4; j++)
-    {
-      if(i * 8 + j * 6 > input.length * 8) output += b64pad;
-      else output += tab.charAt((triplet >>> 6*(3-j)) & 0x3F);
-    }
-  }
-  return output;
-}
-
-/*
- * Convert a raw string to an arbitrary string encoding
- */
-function rstr2any(input, encoding)
-{
-  var divisor = encoding.length;
-  var i, j, q, x, quotient;
-
-  /* Convert to an array of 16-bit big-endian values, forming the dividend */
-  var dividend = Array(Math.ceil(input.length / 2));
-  for(i = 0; i < dividend.length; i++)
-  {
-    dividend[i] = (input.charCodeAt(i * 2) << 8) | input.charCodeAt(i * 2 + 1);
-  }
-
-  /*
-   * Repeatedly perform a long division. The binary array forms the dividend,
-   * the length of the encoding is the divisor. Once computed, the quotient
-   * forms the dividend for the next step. All remainders are stored for later
-   * use.
-   */
-  var full_length = Math.ceil(input.length * 8 /
-                                    (Math.log(encoding.length) / Math.log(2)));
-  var remainders = Array(full_length);
-  for(j = 0; j < full_length; j++)
-  {
-    quotient = Array();
-    x = 0;
-    for(i = 0; i < dividend.length; i++)
-    {
-      x = (x << 16) + dividend[i];
-      q = Math.floor(x / divisor);
-      x -= q * divisor;
-      if(quotient.length > 0 || q > 0)
-        quotient[quotient.length] = q;
-    }
-    remainders[j] = x;
-    dividend = quotient;
-  }
-
-  /* Convert the remainders to the output string */
-  var output = "";
-  for(i = remainders.length - 1; i >= 0; i--)
-    output += encoding.charAt(remainders[i]);
-
-  return output;
-}
-
-/*
- * Encode a string as utf-8.
- * For efficiency, this assumes the input is valid utf-16.
- */
-function str2rstr_utf8(input)
-{
-  var output = "";
-  var i = -1;
-  var x, y;
-
-  while(++i < input.length)
-  {
-    /* Decode utf-16 surrogate pairs */
-    x = input.charCodeAt(i);
-    y = i + 1 < input.length ? input.charCodeAt(i + 1) : 0;
-    if(0xD800 <= x && x <= 0xDBFF && 0xDC00 <= y && y <= 0xDFFF)
-    {
-      x = 0x10000 + ((x & 0x03FF) << 10) + (y & 0x03FF);
-      i++;
-    }
-
-    /* Encode output as utf-8 */
-    if(x <= 0x7F)
-      output += String.fromCharCode(x);
-    else if(x <= 0x7FF)
-      output += String.fromCharCode(0xC0 | ((x >>> 6 ) & 0x1F),
-                                    0x80 | ( x         & 0x3F));
-    else if(x <= 0xFFFF)
-      output += String.fromCharCode(0xE0 | ((x >>> 12) & 0x0F),
-                                    0x80 | ((x >>> 6 ) & 0x3F),
-                                    0x80 | ( x         & 0x3F));
-    else if(x <= 0x1FFFFF)
-      output += String.fromCharCode(0xF0 | ((x >>> 18) & 0x07),
-                                    0x80 | ((x >>> 12) & 0x3F),
-                                    0x80 | ((x >>> 6 ) & 0x3F),
-                                    0x80 | ( x         & 0x3F));
-  }
-  return output;
-}
-
-/*
- * Encode a string as utf-16
- */
-function str2rstr_utf16le(input)
-{
-  var output = "";
-  for(var i = 0; i < input.length; i++)
-    output += String.fromCharCode( input.charCodeAt(i)        & 0xFF,
-                                  (input.charCodeAt(i) >>> 8) & 0xFF);
-  return output;
-}
-
-function str2rstr_utf16be(input)
-{
-  var output = "";
-  for(var i = 0; i < input.length; i++)
-    output += String.fromCharCode((input.charCodeAt(i) >>> 8) & 0xFF,
-                                   input.charCodeAt(i)        & 0xFF);
-  return output;
-}
-
-/*
- * Convert a raw string to an array of little-endian words
- * Characters >255 have their high-byte silently ignored.
- */
-function rstr2binl(input)
-{
-  var output = Array(input.length >> 2);
-  for(var i = 0; i < output.length; i++)
-    output[i] = 0;
-  for(var i = 0; i < input.length * 8; i += 8)
-    output[i>>5] |= (input.charCodeAt(i / 8) & 0xFF) << (i%32);
-  return output;
-}
-
-/*
- * Convert an array of little-endian words to a string
- */
-function binl2rstr(input)
-{
-  var output = "";
-  for(var i = 0; i < input.length * 32; i += 8)
-    output += String.fromCharCode((input[i>>5] >>> (i % 32)) & 0xFF);
-  return output;
-}
-
-/*
- * Calculate the MD5 of an array of little-endian words, and a bit length.
- */
-function binl_md5(x, len)
-{
-  /* append padding */
-  x[len >> 5] |= 0x80 << ((len) % 32);
-  x[(((len + 64) >>> 9) << 4) + 14] = len;
-
-  var a =  1732584193;
-  var b = -271733879;
-  var c = -1732584194;
-  var d =  271733878;
-
-  for(var i = 0; i < x.length; i += 16)
-  {
-    var olda = a;
-    var oldb = b;
-    var oldc = c;
-    var oldd = d;
-
-    a = md5_ff(a, b, c, d, x[i+ 0], 7 , -680876936);
-    d = md5_ff(d, a, b, c, x[i+ 1], 12, -389564586);
-    c = md5_ff(c, d, a, b, x[i+ 2], 17,  606105819);
-    b = md5_ff(b, c, d, a, x[i+ 3], 22, -1044525330);
-    a = md5_ff(a, b, c, d, x[i+ 4], 7 , -176418897);
-    d = md5_ff(d, a, b, c, x[i+ 5], 12,  1200080426);
-    c = md5_ff(c, d, a, b, x[i+ 6], 17, -1473231341);
-    b = md5_ff(b, c, d, a, x[i+ 7], 22, -45705983);
-    a = md5_ff(a, b, c, d, x[i+ 8], 7 ,  1770035416);
-    d = md5_ff(d, a, b, c, x[i+ 9], 12, -1958414417);
-    c = md5_ff(c, d, a, b, x[i+10], 17, -42063);
-    b = md5_ff(b, c, d, a, x[i+11], 22, -1990404162);
-    a = md5_ff(a, b, c, d, x[i+12], 7 ,  1804603682);
-    d = md5_ff(d, a, b, c, x[i+13], 12, -40341101);
-    c = md5_ff(c, d, a, b, x[i+14], 17, -1502002290);
-    b = md5_ff(b, c, d, a, x[i+15], 22,  1236535329);
-
-    a = md5_gg(a, b, c, d, x[i+ 1], 5 , -165796510);
-    d = md5_gg(d, a, b, c, x[i+ 6], 9 , -1069501632);
-    c = md5_gg(c, d, a, b, x[i+11], 14,  643717713);
-    b = md5_gg(b, c, d, a, x[i+ 0], 20, -373897302);
-    a = md5_gg(a, b, c, d, x[i+ 5], 5 , -701558691);
-    d = md5_gg(d, a, b, c, x[i+10], 9 ,  38016083);
-    c = md5_gg(c, d, a, b, x[i+15], 14, -660478335);
-    b = md5_gg(b, c, d, a, x[i+ 4], 20, -405537848);
-    a = md5_gg(a, b, c, d, x[i+ 9], 5 ,  568446438);
-    d = md5_gg(d, a, b, c, x[i+14], 9 , -1019803690);
-    c = md5_gg(c, d, a, b, x[i+ 3], 14, -187363961);
-    b = md5_gg(b, c, d, a, x[i+ 8], 20,  1163531501);
-    a = md5_gg(a, b, c, d, x[i+13], 5 , -1444681467);
-    d = md5_gg(d, a, b, c, x[i+ 2], 9 , -51403784);
-    c = md5_gg(c, d, a, b, x[i+ 7], 14,  1735328473);
-    b = md5_gg(b, c, d, a, x[i+12], 20, -1926607734);
-
-    a = md5_hh(a, b, c, d, x[i+ 5], 4 , -378558);
-    d = md5_hh(d, a, b, c, x[i+ 8], 11, -2022574463);
-    c = md5_hh(c, d, a, b, x[i+11], 16,  1839030562);
-    b = md5_hh(b, c, d, a, x[i+14], 23, -35309556);
-    a = md5_hh(a, b, c, d, x[i+ 1], 4 , -1530992060);
-    d = md5_hh(d, a, b, c, x[i+ 4], 11,  1272893353);
-    c = md5_hh(c, d, a, b, x[i+ 7], 16, -155497632);
-    b = md5_hh(b, c, d, a, x[i+10], 23, -1094730640);
-    a = md5_hh(a, b, c, d, x[i+13], 4 ,  681279174);
-    d = md5_hh(d, a, b, c, x[i+ 0], 11, -358537222);
-    c = md5_hh(c, d, a, b, x[i+ 3], 16, -722521979);
-    b = md5_hh(b, c, d, a, x[i+ 6], 23,  76029189);
-    a = md5_hh(a, b, c, d, x[i+ 9], 4 , -640364487);
-    d = md5_hh(d, a, b, c, x[i+12], 11, -421815835);
-    c = md5_hh(c, d, a, b, x[i+15], 16,  530742520);
-    b = md5_hh(b, c, d, a, x[i+ 2], 23, -995338651);
-
-    a = md5_ii(a, b, c, d, x[i+ 0], 6 , -198630844);
-    d = md5_ii(d, a, b, c, x[i+ 7], 10,  1126891415);
-    c = md5_ii(c, d, a, b, x[i+14], 15, -1416354905);
-    b = md5_ii(b, c, d, a, x[i+ 5], 21, -57434055);
-    a = md5_ii(a, b, c, d, x[i+12], 6 ,  1700485571);
-    d = md5_ii(d, a, b, c, x[i+ 3], 10, -1894986606);
-    c = md5_ii(c, d, a, b, x[i+10], 15, -1051523);
-    b = md5_ii(b, c, d, a, x[i+ 1], 21, -2054922799);
-    a = md5_ii(a, b, c, d, x[i+ 8], 6 ,  1873313359);
-    d = md5_ii(d, a, b, c, x[i+15], 10, -30611744);
-    c = md5_ii(c, d, a, b, x[i+ 6], 15, -1560198380);
-    b = md5_ii(b, c, d, a, x[i+13], 21,  1309151649);
-    a = md5_ii(a, b, c, d, x[i+ 4], 6 , -145523070);
-    d = md5_ii(d, a, b, c, x[i+11], 10, -1120210379);
-    c = md5_ii(c, d, a, b, x[i+ 2], 15,  718787259);
-    b = md5_ii(b, c, d, a, x[i+ 9], 21, -343485551);
-
-    a = safe_add(a, olda);
-    b = safe_add(b, oldb);
-    c = safe_add(c, oldc);
-    d = safe_add(d, oldd);
-  }
-  return Array(a, b, c, d);
-}
-
-/*
- * These functions implement the four basic operations the algorithm uses.
- */
-function md5_cmn(q, a, b, x, s, t)
-{
-  return safe_add(bit_rol(safe_add(safe_add(a, q), safe_add(x, t)), s),b);
-}
-function md5_ff(a, b, c, d, x, s, t)
-{
-  return md5_cmn((b & c) | ((~b) & d), a, b, x, s, t);
-}
-function md5_gg(a, b, c, d, x, s, t)
-{
-  return md5_cmn((b & d) | (c & (~d)), a, b, x, s, t);
-}
-function md5_hh(a, b, c, d, x, s, t)
-{
-  return md5_cmn(b ^ c ^ d, a, b, x, s, t);
-}
-function md5_ii(a, b, c, d, x, s, t)
-{
-  return md5_cmn(c ^ (b | (~d)), a, b, x, s, t);
-}
-
-/*
- * Add integers, wrapping at 2^32. This uses 16-bit operations internally
- * to work around bugs in some JS interpreters.
- */
-function safe_add(x, y)
-{
-  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
-  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
-  return (msw << 16) | (lsw & 0xFFFF);
-}
-
-/*
- * Bitwise rotate a 32-bit number to the left.
- */
-function bit_rol(num, cnt)
-{
-  return (num << cnt) | (num >>> (32 - cnt));
-}
-
-
-exports.hex_md5 = hex_md5;
-exports.b64_md5 = b64_md5;
-exports.any_md5 = any_md5;
-
-},{}],31:[function(require,module,exports){
-// Original code adapted from Robert Kieffer.
-// details at https://github.com/broofa/node-uuid
-(function() {
-  var _global = this;
-
-  var mathRNG, whatwgRNG;
-
-  // NOTE: Math.random() does not guarantee "cryptographic quality"
-  mathRNG = function(size) {
-    var bytes = new Array(size);
-    var r;
-
-    for (var i = 0, r; i < size; i++) {
-      if ((i & 0x03) == 0) r = Math.random() * 0x100000000;
-      bytes[i] = r >>> ((i & 0x03) << 3) & 0xff;
-    }
-
-    return bytes;
-  }
-
-  // currently only available in webkit-based browsers.
-  if (_global.crypto && crypto.getRandomValues) {
-    var _rnds = new Uint32Array(4);
-    whatwgRNG = function(size) {
-      var bytes = new Array(size);
-      crypto.getRandomValues(_rnds);
-
-      for (var c = 0 ; c < size; c++) {
-        bytes[c] = _rnds[c >> 2] >>> ((c & 0x03) * 8) & 0xff;
-      }
-      return bytes;
-    }
-  }
-
-  module.exports = whatwgRNG || mathRNG;
-
-}())
-},{}],27:[function(require,module,exports){
+},{"lodash":11,"xmldom":34}],30:[function(require,module,exports){
 /*
   Module dependencies.
 */
@@ -17580,7 +17619,7 @@ function miniparse(selector_string){
   }
   return selector;
 }
-},{"lodash":8}],35:[function(require,module,exports){
+},{"lodash":11}],35:[function(require,module,exports){
 module.exports = hasKeys
 
 function hasKeys(source) {
@@ -17589,7 +17628,7 @@ function hasKeys(source) {
         typeof source === "function")
 }
 
-},{}],28:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 var Keys = require("object-keys")
 var hasKeys = require("./has-keys")
 
@@ -17616,7 +17655,180 @@ function extend() {
     return target
 }
 
-},{"./has-keys":35,"object-keys":36}],34:[function(require,module,exports){
+},{"./has-keys":35,"object-keys":36}],32:[function(require,module,exports){
+/*
+
+	(The MIT License)
+
+	Copyright (C) 2005-2013 Kai Davenport
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+/*
+  Module dependencies.
+*/
+
+var _ = require('lodash');
+
+/*
+  Quarry.io - Find
+  ----------------
+
+  A sync version of the selector resolver for use with already loaded containers
+
+  This is used for container.find() to return the results right away jQuery style
+
+
+
+
+ */
+
+module.exports = factory;
+
+function State(arr){
+  this.count = arr.length;
+  this.index = 0;
+  this.finished = false;
+}
+
+State.prototype.next = function(){
+  this.index++;
+  if(this.index>=this.count){
+    this.finished = true;
+  }
+}
+
+/*
+
+  search is the function that accepts a single container and the single selector to resolve
+  
+*/
+function factory(searchfn){
+
+  /*
+  
+    context is the container to search from
+
+    selectors is the top level array container indivudally processed selector strings
+    
+  */
+
+  return function(selectors, context){
+
+    var final_state = new State(selectors);
+    var final_results = context.spawn();
+
+    /*
+    
+      loop over each of the seperate selector strings
+
+      container("selectorA", "selectorB")
+
+      B -> A
+      
+    */
+    _.each(selectors.reverse(), function(stage){
+
+      final_state.next();
+
+      /*
+      
+        this is a merge of the phase results
+
+        the last iteration of this becomes the final results
+        
+      */
+      var stage_results = context.spawn();
+
+      /*
+      
+        now we have the phases - these can be done in parallel
+        
+      */
+      _.each(stage.phases, function(phase){
+
+        
+        var phase_context = context;
+
+        var selector_state = new State(phase);
+
+        _.each(phase, function(selector){
+
+          selector_state.next();
+
+          var results = searchfn(selector, phase_context);
+
+          /*
+          
+            quit the stage loop with no results
+            
+          */
+          if(results.count()<=0){
+            return false;
+          }
+
+          /*
+          
+            if there is still more to get for this string
+            then we update the pipe skeleton
+            
+          */
+          if(!selector_state.finished){
+            phase_context = results;
+          }
+          /*
+          
+            this
+            
+          */
+          else{
+            stage_results.add(results);
+          }
+
+          return true;
+
+        })
+
+      
+
+      })
+
+      /*
+      
+        quit the stages with no results
+        
+      */
+      if(stage_results.count()<=0){
+        return false;
+      }
+
+
+      /*
+      
+        this is the result of a stage - we pipe the results to the next stage
+        or call them the final results
+        
+      */
+
+      if(!final_state.finished){
+        context = stage_results;
+      }
+      else{
+        final_results = stage_results;
+      }
+    })
+
+    return final_results;
+
+  }
+}
+},{"lodash":11}],34:[function(require,module,exports){
 function DOMParser(options){
 	this.options = 
 			options != true && //To the version (0.1.12) compatible
@@ -17891,179 +18103,6 @@ if(typeof require == 'function'){
 */
 
 var _ = require('lodash');
-
-/*
-  Quarry.io - Find
-  ----------------
-
-  A sync version of the selector resolver for use with already loaded containers
-
-  This is used for container.find() to return the results right away jQuery style
-
-
-
-
- */
-
-module.exports = factory;
-
-function State(arr){
-  this.count = arr.length;
-  this.index = 0;
-  this.finished = false;
-}
-
-State.prototype.next = function(){
-  this.index++;
-  if(this.index>=this.count){
-    this.finished = true;
-  }
-}
-
-/*
-
-  search is the function that accepts a single container and the single selector to resolve
-  
-*/
-function factory(searchfn){
-
-  /*
-  
-    context is the container to search from
-
-    selectors is the top level array container indivudally processed selector strings
-    
-  */
-
-  return function(selectors, context){
-
-    var final_state = new State(selectors);
-    var final_results = context.spawn();
-
-    /*
-    
-      loop over each of the seperate selector strings
-
-      container("selectorA", "selectorB")
-
-      B -> A
-      
-    */
-    _.each(selectors.reverse(), function(stage){
-
-      final_state.next();
-
-      /*
-      
-        this is a merge of the phase results
-
-        the last iteration of this becomes the final results
-        
-      */
-      var stage_results = context.spawn();
-
-      /*
-      
-        now we have the phases - these can be done in parallel
-        
-      */
-      _.each(stage.phases, function(phase){
-
-        
-        var phase_context = context;
-
-        var selector_state = new State(phase);
-
-        _.each(phase, function(selector){
-
-          selector_state.next();
-
-          var results = searchfn(selector, phase_context);
-
-          /*
-          
-            quit the stage loop with no results
-            
-          */
-          if(results.count()<=0){
-            return false;
-          }
-
-          /*
-          
-            if there is still more to get for this string
-            then we update the pipe skeleton
-            
-          */
-          if(!selector_state.finished){
-            phase_context = results;
-          }
-          /*
-          
-            this
-            
-          */
-          else{
-            stage_results.add(results);
-          }
-
-          return true;
-
-        })
-
-      
-
-      })
-
-      /*
-      
-        quit the stages with no results
-        
-      */
-      if(stage_results.count()<=0){
-        return false;
-      }
-
-
-      /*
-      
-        this is the result of a stage - we pipe the results to the next stage
-        or call them the final results
-        
-      */
-
-      if(!final_state.finished){
-        context = stage_results;
-      }
-      else{
-        final_results = stage_results;
-      }
-    })
-
-    return final_results;
-
-  }
-}
-},{"lodash":8}],32:[function(require,module,exports){
-/*
-
-	(The MIT License)
-
-	Copyright (C) 2005-2013 Kai Davenport
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
- */
-
-/*
-  Module dependencies.
-*/
-
-var _ = require('lodash');
 var utils = require('../../utils');
 var async = require('async');
 
@@ -18246,7 +18285,7 @@ function search(selector, context){
 
   return ret;
 }
-},{"../../utils":15,"lodash":8,"async":9}],37:[function(require,module,exports){
+},{"../../utils":9,"lodash":11,"async":12}],37:[function(require,module,exports){
 //[4]   	NameStartChar	   ::=   	":" | [A-Z] | "_" | [a-z] | [#xC0-#xD6] | [#xD8-#xF6] | [#xF8-#x2FF] | [#x370-#x37D] | [#x37F-#x1FFF] | [#x200C-#x200D] | [#x2070-#x218F] | [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | [#xFDF0-#xFFFD] | [#x10000-#xEFFFF]
 //[4a]   	NameChar	   ::=   	NameStartChar | "-" | "." | [0-9] | #xB7 | [#x0300-#x036F] | [#x203F-#x2040]
 //[5]   	Name	   ::=   	NameStartChar (NameChar)*
@@ -20729,5 +20768,5 @@ module.exports = function forEach (obj, fn, ctx) {
 };
 
 
-},{}]},{},[4])
+},{}]},{},[6])
 ;

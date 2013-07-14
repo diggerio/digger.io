@@ -18,7 +18,7 @@
 var Proto = require('./proto');
 var SupplyChain = require('../warehouse/supplychain');
 var asyncmethods = require('../network/async');
-
+var utils = require('../utils');
 var _ = require('lodash');
 var async = require('async');
 
@@ -104,6 +104,7 @@ $digger.bootstrap = function(config){
 			console.log('adding digger blueprints: ' + _.keys(config.blueprints).length);
 			_.each(config.blueprints, function(print, name){
 				console.log('   - ' + name);
+				console.dir(print);
 			})
 		}
 		
@@ -160,8 +161,12 @@ $digger.connect = function(stackpath){
 	return $digger.supplychain.connect(stackpath);
 }
 
+/*
+
+	BLUEPRINTS
+	
+*/
 var blueprints = {};
-var templates = {};
 
 $digger.blueprint = {
   add:function(prints){
@@ -178,16 +183,34 @@ $digger.blueprint = {
   },
   create:function(name){
 		var blueprint = this.get(name);
-		var data = JSON.parse(JSON.stringify({
-			_digger:blueprint._digger
-		}))
+		if(!blueprint){
+			return $digger.create(name, {});
+		}
+		var data = blueprint ? {
+			_digger:{
+				tag:blueprint.name
+			}
+		} : {}
+
+		_.each(blueprint.fields, function(field){
+			if(field['default']){
+				data[field.name] = field['default'];
+			}
+		})
 
 		var container = $digger.create([data]);
-		container.digger('new', true);
+		container.data('new', true);
 
 		return container;
   }
 }
+
+/*
+
+	TEMPLATES
+	
+*/
+var templates = {};
 
 $digger.template = {
 	add:function(plates){
@@ -223,6 +246,9 @@ $digger.Proto = Proto;
 $digger.create = Proto.factory;
 $digger.config = {};
 $digger.user = null;
+
+$digger.diggerid = utils.diggerid;
+$digger.littleid = utils.littleid;
 
 /*
 

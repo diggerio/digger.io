@@ -578,8 +578,10 @@ Container.prototype.is = function(tag){
 Container.prototype.addClass = function(classname){
   var self = this;
   _.each(this.models, function(model){
-		model._digger.class.push(classname);
-		model._digger.class = _.uniq(model._digger.class);
+    var classnames = model._digger.class || [];
+		classnames.push(classname);
+		classnames = _.uniq(classnames);
+    model._digger.class = classnames;
   })
   return this;
 }
@@ -587,7 +589,9 @@ Container.prototype.addClass = function(classname){
 Container.prototype.removeClass = function(classname){
   var self = this;
   _.each(this.models, function(model){
-    model._digger.class = _.without(model._digger.class, classname);
+    var classnames = model._digger.class || [];
+    classnames = _.without(classnames, classname);
+    model._digger.class = classnames;
   })
   return this;
 }

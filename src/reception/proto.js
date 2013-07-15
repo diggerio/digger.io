@@ -17,18 +17,16 @@
  */
 
 
-var utils = require('../utils');
+var utils = require('digger-utils');
 var _ = require('lodash');
 var async = require('async');
 var EventEmitter = require('events').EventEmitter;
-var Promise = require('../network/promise');
-var Request = require('../network/request').factory;
-var Response = require('../network/response').factory;
-var Container = require('../container/proto').factory;
-var Warehouse = require('../warehouse/proto').factory;
-var ContractResolver = require('../middleware/contractresolver');
+var digger = require('digger');
 
-var debug = require('debug')('reception');
+var Container = digger.create;
+var Warehouse = require('../warehouse/proto').factory;
+
+var ContractResolver = require('../middleware/contractresolver');
 
 // prototype
 var Reception = module.exports = function(){}

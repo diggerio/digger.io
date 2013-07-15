@@ -1,21 +1,16 @@
 /*
-  Copyright (c) 2012 All contributors as noted in the AUTHORS file
 
-  This file is part of quarry.io
+  (The MIT License)
 
-  quarry.io is free software; you can redistribute it and/or modify it under
-  the terms of the GNU Lesser General Public License as published by
-  the Free Software Foundation; either version 3 of the License, or
-  (at your option) any later version.
+  Copyright (C) 2005-2013 Kai Davenport
 
-  quarry.io is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU Lesser General Public License for more details.
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-  You should have received a copy of the GNU Lesser General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
 
 /*
 
@@ -29,8 +24,16 @@
   prepare the env
   
 */
-var bootstrap = require('./bootstrap');
+process.env.DIGGERSERVER = require(__dirname + '/../package.json').version;
+
 var path = require('path');
+
+/*
+
+  include the core container lib
+  
+*/
+var digger = require('digger');
 
 var exports = module.exports = {
 
@@ -41,7 +44,7 @@ var exports = module.exports = {
     export utils for supplier modules
     
   */
-  utils:require('./utils'),
+  utils:require('digger-utils'),
   
   /*
   
@@ -50,10 +53,10 @@ var exports = module.exports = {
     client framework
     
   */
-	container:require('./container/proto').factory,
-  proto:require('./container/proto'),
-  create:require('./container/proto').factory,
-  selector:require('./container/selector'),
+	container:digger.container,
+  proto:digger.proto,
+  create:digger.container,
+  selector:digger.selector,
 
   /*
   
@@ -62,18 +65,28 @@ var exports = module.exports = {
     messaging framework
     
   */
-  promise:require('./network/promise'),
-  request:require('./network/request').factory,
-  response:require('./network/response').factory,
-  contract:require('./network/contract').factory,
-  pipe:require('./network/async').pipe,
-  merge:require('./network/async').merge,
-  series:require('./network/async').series,
-  parallel:require('./network/async').merge,
+  promise:digger.promise,
+  request:digger.request,//require('./request/request').factory,
+  response:digger.response,//require('./request/response').factory,
+  contract:digger.contract,//require('./request/contract').factory,
+  pipe:digger.pipe,//require('./request/async').pipe,
+  merge:digger.merge,//require('./request/async').merge,
+  series:digger.series,//require('./request/async').series,
+  parallel:digger.parallel,//require('./request/async').merge,
 
-  browserapi_path:function(){
-    return path.normalize(__dirname + '/../build/container.js');
-  },
+  /*
+  
+    the supplychain is the client side link back to the reception/warehouses
+    
+  */
+  supplychain:digger.supplychain,
+
+  /*
+  
+    main router
+    
+  */
+  reception:require('./reception/proto').factory,
 
   /*
   
@@ -84,14 +97,9 @@ var exports = module.exports = {
   */
   warehouse:require('./warehouse/proto').factory,
   supplier:require('./supplier/proto').factory,
-  supplychain:require('./warehouse/supplychain'),
-
-  /*
   
-    auxillary
-    
-  */
-  reception:require('./reception/proto').factory,
+
+
   
   /*
     
@@ -123,5 +131,3 @@ var exports = module.exports = {
 
 
 }
-
-bootstrap();

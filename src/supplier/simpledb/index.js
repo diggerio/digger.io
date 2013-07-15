@@ -16,10 +16,11 @@
   Module dependencies.
 */
 
+var digger = require('digger');
 var _ = require('lodash');
 var BaseSupplier = require('../proto').factory;
 var FileProvisioner = require('../fileprovisioner');
-var Container = require('../../container/proto').factory;
+var Container = digger.create;
 var async = require('async');
 var fs = require('fs');
 var path = require('path');

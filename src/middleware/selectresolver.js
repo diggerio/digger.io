@@ -18,10 +18,14 @@
 
 var _ = require('lodash');
 var async = require('async');
-var utils = require('../utils');
-var Request = require('../network/request').factory;
-var Response = require('../network/response').factory;
+var digger = require('digger');
+var utils = require('digger-utils');
 var EventEmitter = require('events').EventEmitter;
+
+var Request = digger.request;
+var Response = digger.response;
+
+
 //var debug = require('debug')('selectresolver');
 
 //var EventResolver = require('./resolveevents');

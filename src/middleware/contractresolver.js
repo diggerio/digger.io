@@ -18,9 +18,12 @@
 
 var _ = require('lodash');
 var async = require('async');
-var Request = require('../network/request').factory;
-var Response = require('../network/response').factory;
-var Contract = require('../network/contract').factory;
+var digger = require('digger');
+
+var Request = digger.request;
+var Response = digger.response;
+var Contract = digger.contract;
+
 var EventEmitter = require('events').EventEmitter;
 //var debug = require('debug')('contractresolver');
 

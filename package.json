@@ -1,6 +1,6 @@
 {
   "name": "digger.io",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "develop databases like a boss",
   "main": "src/index.js",
   "directories": {

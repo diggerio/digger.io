@@ -102,10 +102,6 @@ $digger.bootstrap = function(config){
 		if(config.blueprints){
 			$digger.blueprint.add(config.blueprints);
 			console.log('adding digger blueprints: ' + _.keys(config.blueprints).length);
-			_.each(config.blueprints, function(print, name){
-				console.log('   - ' + name);
-				console.dir(print);
-			})
 		}
 		
 		$digger._trigger_ready();	

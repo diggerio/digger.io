@@ -381,6 +381,27 @@ function factory(options){
     }
   }
 
+  /*
+  
+    I like the name of this function - tis gangster
+
+    mongo do not like fields with dollars
+    
+  */
+  supplier.strip_dollars = function(obj){
+    _.each(obj, function(val, field){
+      if(('' + field).charAt(0)==='$'){
+        delete(obj[field]);
+      }
+      else{
+        if(_.isObject(val)){
+          strip_dollars(val);
+        }
+      }
+    })  
+  }
+
+
   supplier._select = function(req, mongoquery, callback){
     callback('_select: this is an abstract supplier method - it must be overriden');
   }

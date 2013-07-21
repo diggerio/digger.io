@@ -35,6 +35,8 @@ var Append = require('./append');
 var Save = require('./save');
 var Remove = require('./remove');
 
+var utils = require('digger-utils');
+
 module.exports = factory;
 
 /*
@@ -107,29 +109,29 @@ var operator_functions = {
     }
     return ret;
   },
-  "^=":function(fquery){
+  "^=":function(query){
     var ret = {};
-    ret[query.field] = new RegExp('^' + digger.utils.escapeRegexp(query.value), 'i');
+    ret[query.field] = new RegExp('^' + utils.escapeRegexp(query.value), 'i');
     return ret;
   },
   "$=":function(query){
     var ret = {};
-    ret[query.field] = new RegExp(digger.utils.escapeRegexp(query.value) + '$', 'i');
+    ret[query.field] = new RegExp(utils.escapeRegexp(query.value) + '$', 'i');
     return ret;
   },
   "~=":function(query){
     var ret = {};
-    ret[query.field] = new RegExp('\\W' + digger.utils.escapeRegexp(query.value) + '\\W', 'i');      
+    ret[query.field] = new RegExp('\\W' + utils.escapeRegexp(query.value) + '\\W', 'i');      
     return ret;
   },
   "|=":function(query){
     var ret = {};
-    ret[query.field] = new RegExp('^' + digger.utils.escapeRegexp(query.value) + '-', 'i');
+    ret[query.field] = new RegExp('^' + utils.escapeRegexp(query.value) + '-', 'i');
     return ret;
   },
   "*=":function(query){
     var ret = {};
-    ret[query.field] = new RegExp(digger.utils.escapeRegexp(query.value), 'i');
+    ret[query.field] = new RegExp(utils.escapeRegexp(query.value), 'i');
     return ret;
   }
 }
@@ -309,6 +311,9 @@ function factory(options){
       combine_tree_results:combine_tree_results
     }
 
+    console.log('-------------------------------------------');
+    console.log(JSON.stringify(ret, null, 4));
+
     return ret;
   
   }
@@ -389,13 +394,14 @@ function factory(options){
     
   */
   supplier.strip_dollars = function(obj){
+    var self = this;
     _.each(obj, function(val, field){
       if(('' + field).charAt(0)==='$'){
         delete(obj[field]);
       }
       else{
         if(_.isObject(val)){
-          strip_dollars(val);
+          self.strip_dollars(val);
         }
       }
     })  

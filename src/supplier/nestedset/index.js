@@ -134,21 +134,23 @@ function parse_selector(selector, skeleton_array){
   // this is for a thing like:
   //    > folder.red product
   // i.e. folders on the root
-  if(selector.splitter=='>' && (!skeleton_array || skeleton_array.length<=0)){
-    main_query.push({
-      field:'_digger.diggerparentid',
-      operator:'=',
-      value:null
-    })
-  }
-  else if(selector.diggerid){
+  if(selector.diggerid){
     main_query.push({
       field:'_digger.diggerid',
       operator:'=',
       value:selector.diggerid
     })
   }
+  
   else{
+    if(selector.splitter=='>' && (!skeleton_array || skeleton_array.length<=0)){
+      main_query.push({
+        field:'_digger.diggerparentid',
+        operator:'=',
+        value:null
+      })
+    }
+
     if(selector.tag==='*'){
       main_query.push({
         field:'_digger',

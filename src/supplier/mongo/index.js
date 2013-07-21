@@ -226,15 +226,23 @@ function factory(options){
       var direction = 1;
       var field = modifier.sort;
 
-      field = field.replace(/ (asc|desc)/i, function(match, dir){
+      if(_.isBoolean(field)){
+        field = null;
+      }
+
+      field = (field || '').replace(/ (asc|desc)/i, function(match, dir){
         direction = directions[dir] ? directions[dir] : dir;
         return '';
       })
 
-      field = field.replace(/-/i, function(match, dir){
+      field = (field || '').replace(/-/i, function(match, dir){
         direction = -1;
         return '';
       })
+
+      if(!field.match(/\w/)){
+        field = 'name';
+      }
 
       var sort = {};
       sort[field] = direction;

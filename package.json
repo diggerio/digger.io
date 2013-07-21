@@ -1,6 +1,6 @@
 {
   "name": "digger.io",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "description": "develop databases like a boss",
   "main": "src/index.js",
   "directories": {
@@ -18,12 +18,12 @@
     "database"
   ],
   "dependencies": {
-    "digger": "0.0.1",
-    "digger-utils": "0.0.1",
+    "digger": "~0.0.6",
+    "digger-utils": "~0.0.3",
     "async": "~0.2.9",
     "lodash": "~1.3.1",
     "wrench": "~1.5.1",
-    "rationalnestedset": "0.0.2"
+    "rationalnestedset": "~0.0.2"
   },
   "devDependencies": {
     "grunt": "~0.4.1",

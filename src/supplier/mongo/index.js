@@ -182,7 +182,7 @@ function factory(options){
       return null;
     }
 
-    if(skeleton_terms.length>0){
+    if(skeleton_terms.length>0 && selector.tag!=='self'){
       search_terms.push({
         '$or':skeleton_terms
       })
@@ -318,9 +318,6 @@ function factory(options){
       get_tree_query:get_tree_query,
       combine_tree_results:combine_tree_results
     }
-
-    console.log('-------------------------------------------');
-    console.log(JSON.stringify(ret, null, 4));
 
     return ret;
   

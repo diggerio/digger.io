@@ -147,15 +147,27 @@ function parse_selector(selector, contextmodels){
     
   */
   else if(selector.tag==='self'){
-    main_query.push({
-      '$or':_.map(contextmodels, function(model){
-        return {
-          field:'_digger.diggerid',
-          operator:'=',
-          value:model._digger.diggerid
-        }
-      })
+    var ors = _.map(contextmodels, function(model){
+      return {
+        field:'_digger.diggerid',
+        operator:'=',
+        value:model.diggerid
+      }
     })
+
+    if(ors.length<=0){
+
+    }
+    else if(ors.length==1){
+      main_query.push(ors[0]);
+    }
+    else{
+      main_query.push({
+        '$or':ors
+      })  
+    }
+    
+
   }
   else{
     if(selector.splitter=='>' && (!contextmodels || contextmodels.length<=0)){

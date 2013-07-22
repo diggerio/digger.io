@@ -233,7 +233,7 @@ Warehouse.prototype.handle = function(req, res, parentout) {
       THIS SHOULD BE TURNED BACK ON!!!
       
     */
-    //try {
+    try {
 
       url = req.pathname;
 
@@ -270,9 +270,16 @@ Warehouse.prototype.handle = function(req, res, parentout) {
       } else {
         next();
       }
-    //} catch (e) {
+    } catch (e) {
+      console.log('-------------------------------------------');
+      console.log('-------------------------------------------');
+      console.log('ERROR');
+      console.dir(e);
+      console.log(e.stack);
+      
+      throw e;
       //next(e);
-    //}
+    }
   }
   next();
 };

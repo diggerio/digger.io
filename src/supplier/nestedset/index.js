@@ -147,6 +147,7 @@ function parse_selector(selector, contextmodels){
     
   */
   else if(selector.tag==='self'){
+
     var ors = _.map(contextmodels, function(model){
       return {
         field:'_digger.diggerid',
@@ -164,7 +165,7 @@ function parse_selector(selector, contextmodels){
     else{
       main_query.push({
         '$or':ors
-      })  
+      })
     }
     
 

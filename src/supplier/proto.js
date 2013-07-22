@@ -593,6 +593,7 @@ Supplier.factory = function(settings){
 						res.send(result);
 						supplier.emit('switchboard', {
 							action:'append',
+							warehouse:req.getHeader('x-original-url'),
 							target:target,
 							body:req.body,						
 							result:result
@@ -640,8 +641,9 @@ Supplier.factory = function(settings){
 						res.send(result);
 						supplier.emit('switchboard', {
 							action:'save',
+							warehouse:req.getHeader('x-original-url'),
 							target:target,
-							body:req.body,						
+							body:req.body,			
 							result:result
 						})
 					}, function(error){
@@ -678,6 +680,7 @@ Supplier.factory = function(settings){
 						res.send(result);
 						supplier.emit('switchboard', {
 							action:'remove',
+							warehouse:req.getHeader('x-original-url'),
 							target:target,
 							body:req.body,						
 							result:result

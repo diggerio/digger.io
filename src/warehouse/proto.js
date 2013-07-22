@@ -198,6 +198,10 @@ Warehouse.prototype.handle = function(req, res, parentout) {
     return;
   }
 
+  if(!req.getHeader('x-original-url')){
+    req.setHeader('x-original-url', req.url);
+  }
+
   this.emit('request', req, res);
 
   var stack = this.stack;

@@ -60,6 +60,30 @@ describe('simpledb', function(){
 		})
 	})
 
+
+	it('should perform a self selector', function(done){
+		
+		var data = require(__dirname + '/fixtures/cities.json');
+		var datac = digger.container(data);
+
+		fs.writeFileSync('/tmp/diggertest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
+		
+		var db = digger.suppliers.simpledb({
+			file:'/tmp/diggertest.json'
+		})
+
+		var container = digger.supplychain(db);
+
+		container('city:limit(1)').ship(function(results, res){
+
+			results('self:tree').ship(function(tree, res){
+				tree.diggerid().should.equal(results.diggerid());
+				done();
+			})
+
+		})
+	})
+
 	it('should perform a multi-stage selector and return the count', function(done){
 		
 		var data = require(__dirname + '/fixtures/cities.json');

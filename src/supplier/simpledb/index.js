@@ -155,7 +155,14 @@ function factory(options){
       }
 
       var selector = select_query.selector;
-      var results = context.find({string:'', phases:[[selector]]});
+      var results;
+
+      if(selector.tag==='self'){
+        results = context;
+      }
+      else{
+        results = context.find({string:'', phases:[[selector]]});  
+      }
 
       if(selector.modifier.sort){
         results.sort(selector.modifier.sort);

@@ -127,7 +127,7 @@ function generate_tree_query(splitter, contextmodels){
   return or_array;
 }
 
-function parse_selector(selector, skeleton_array){
+function parse_selector(selector, contextmodels){
 
   var main_query = [];
 
@@ -141,9 +141,24 @@ function parse_selector(selector, skeleton_array){
       value:selector.diggerid
     })
   }
+  /*
   
+    we are actually finding the context
+    
+  */
+  else if(selector.tag==='self'){
+    main_query.push({
+      '$or':_.map(contextmodels, function(model){
+        return {
+          field:'_digger.diggerid',
+          operator:'=',
+          value:model._digger.diggerid
+        }
+      })
+    })
+  }
   else{
-    if(selector.splitter=='>' && (!skeleton_array || skeleton_array.length<=0)){
+    if(selector.splitter=='>' && (!contextmodels || contextmodels.length<=0)){
       main_query.push({
         field:'_digger.diggerparentid',
         operator:'=',

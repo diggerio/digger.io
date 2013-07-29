@@ -18,12 +18,14 @@
 
 var _ = require('lodash');
 var async = require('async');
-var digger = require('digger');
 var utils = require('digger-utils');
+var Network = require('digger-network');
+
+
 var EventEmitter = require('events').EventEmitter;
 
-var Request = digger.request;
-var Response = digger.response;
+var Request = Network.request;
+var Response = Network.response;
 
 
 //var debug = require('debug')('selectresolver');
@@ -78,10 +80,13 @@ function factory(handle){
 
   function selectresolver(req, res, next){
 
-    var skeleton_array = req.body || [];
+    var body = req.body || {};
+
+    var selector_strings = body.selectors || [];
+    var skeleton_array = body.skeleton || [];
 
     skeleton_array = _.filter(skeleton_array, function(obj){
-      return obj.tag!='supplychain';
+      return obj.tag!='_supplychain';
     })
 
 
@@ -111,8 +116,10 @@ function factory(handle){
                 'x-branch-id':utils.diggerid(),
                 'x-branch-contract-id':req.getHeader('x-contract-id'),
                 'x-branch-from':skeleton.diggerwarehouse + '/' + skeleton.diggerid,
-                'x-branch-to':location,
-                'x-json-selector-strings':branchselectors
+                'x-branch-to':location
+              },
+              body:{
+                selectors:branchselectors                
               }
             }
 
@@ -123,9 +130,14 @@ function factory(handle){
       })
     }
     
-    var strings = req.getHeader('x-json-selector-strings');
+    /*
+    
+      context first
+      
+    */
+    selector_strings = selector_strings.reverse();
 
-    var final_state = new State(strings);
+    var final_state = new State(selector_strings);
     var final_results = [];
     var final_branches = [];
 
@@ -143,7 +155,7 @@ function factory(handle){
 
     //debug('Selector: %s strings', strings.length);
     
-    async.forEachSeries(strings, function(stage, next_stage){
+    async.forEachSeries(selector_strings, function(stage, next_stage){
 
       final_state.next();
 

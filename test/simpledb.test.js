@@ -1,8 +1,10 @@
 var digger = require('../src');
-var data = require('./fixtures/data');
 var async = require('async');
 var fs = require('fs');
 var wrench = require('wrench');
+
+var Bridge = require('digger-bridge');
+var XML = require('digger-xml');
 
 describe('simpledb', function(){
 
@@ -18,7 +20,7 @@ describe('simpledb', function(){
 	it('should load containers from file', function(done){
 		
 		var data = require(__dirname + '/fixtures/cities.json');
-		var datac = digger.container(data);
+		var datac = Bridge.container(data);
 
 		fs.writeFileSync('/tmp/diggertest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
 		
@@ -26,9 +28,11 @@ describe('simpledb', function(){
 			file:'/tmp/diggertest.json'
 		})
 
-		var container = digger.supplychain(db);
+		var container = Bridge(db).connect();
 
-		container('city').ship(function(cities, res){
+		var contract = container('city');
+
+		contract.ship(function(cities, res){
 			res.statusCode.should.equal(200);
 			cities.count().should.equal(8);
 			done();
@@ -40,7 +44,7 @@ describe('simpledb', function(){
 	it('should perform a multi-stage selector', function(done){
 		
 		var data = require(__dirname + '/fixtures/cities.json');
-		var datac = digger.container(data);
+		var datac = Bridge.container(data);
 
 		fs.writeFileSync('/tmp/diggertest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
 		
@@ -48,7 +52,7 @@ describe('simpledb', function(){
 			file:'/tmp/diggertest.json'
 		})
 
-		var container = digger.supplychain(db);
+		var container = Bridge(db).connect();
 
 		container('city area').ship(function(areas, res){
 			res.statusCode.should.equal(200);
@@ -64,7 +68,7 @@ describe('simpledb', function(){
 	it('should perform a self selector', function(done){
 		
 		var data = require(__dirname + '/fixtures/cities.json');
-		var datac = digger.container(data);
+		var datac = Bridge.container(data);
 
 		fs.writeFileSync('/tmp/diggertest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
 		
@@ -72,7 +76,7 @@ describe('simpledb', function(){
 			file:'/tmp/diggertest.json'
 		})
 
-		var container = digger.supplychain(db);
+		var container = Bridge(db).connect();
 
 		container('city:limit(1)').ship(function(results, res){
 
@@ -87,7 +91,7 @@ describe('simpledb', function(){
 	it('should perform a multi-stage selector and return the count', function(done){
 		
 		var data = require(__dirname + '/fixtures/cities.json');
-		var datac = digger.container(data);
+		var datac = Bridge.container(data);
 
 		fs.writeFileSync('/tmp/diggertest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
 		
@@ -95,7 +99,7 @@ describe('simpledb', function(){
 			file:'/tmp/diggertest.json'
 		})
 
-		var container = digger.supplychain(db);
+		var container = Bridge(db).connect();
 
 		container('city area:count').ship(function(results, res){
 			res.statusCode.should.equal(200);
@@ -107,7 +111,7 @@ describe('simpledb', function(){
 	it('should perform a multi-stage selector and apply the limit', function(done){
 		
 		var data = require(__dirname + '/fixtures/cities.json');
-		var datac = digger.container(data);
+		var datac = Bridge.container(data);
 
 		fs.writeFileSync('/tmp/diggertest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
 		
@@ -115,7 +119,7 @@ describe('simpledb', function(){
 			file:'/tmp/diggertest.json'
 		})
 
-		var container = digger.supplychain(db);
+		var container = Bridge(db).connect();
 
 		container('city area:limit(3)').ship(function(areas, res){
 			res.statusCode.should.equal(200);
@@ -131,7 +135,7 @@ describe('simpledb', function(){
 	it('should perform a multi-stage selector and apply the first and last modifiers', function(done){
 		
 		var data = require(__dirname + '/fixtures/cities.json');
-		var datac = digger.container(data);
+		var datac = Bridge.container(data);
 
 		fs.writeFileSync('/tmp/diggertest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
 		
@@ -139,7 +143,7 @@ describe('simpledb', function(){
 			file:'/tmp/diggertest.json'
 		})
 
-		var container = digger.supplychain(db);
+		var container = Bridge(db).connect();
 
 		async.series([
 			function(next){
@@ -170,7 +174,7 @@ describe('simpledb', function(){
 	it('should perform an append contract', function(done){
 		
 		var data = require(__dirname + '/fixtures/cities.json');
-		var datac = digger.container(data);
+		var datac = Bridge.container(data);
 
 		fs.writeFileSync('/tmp/diggerappendtest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
 		
@@ -181,23 +185,24 @@ describe('simpledb', function(){
 
 		//db.url().should.equal('/db3');
 
-		var container = digger.supplychain('/', db);			
+		var container = Bridge(db).connect('/');
 
 		container('city area:first').ship(function(areas, res){
+
 			res.statusCode.should.equal(200);
 
 			areas.count().should.equal(1);
 			//areas.diggerwarehouse().should.equal('/db3');
 			areas.diggerwarehouse().should.equal('/');
 
-			var newthing = digger.create('house', {
+			var newthing = Bridge.container('house', {
 				name:'Big Test House',
 				height:123
 			})
 
 			var contract = areas.append(newthing);
 
-			contract.getHeader('x-contract-type').should.equal('merge');
+			contract.headers["x-contract-type"].should.equal('merge');
 
 			var req = contract.body[0];
 
@@ -213,9 +218,10 @@ describe('simpledb', function(){
 					file:'/tmp/diggerappendtest.json'
 				})
 
-				var container2 = digger.supplychain('/', db2);
+				var container2 = Bridge(db2).connect('/');
 
 				container2('house').ship(function(house){
+
 
 					/*
 					
@@ -243,7 +249,7 @@ describe('simpledb', function(){
 	it('should perform a save contract', function(done){
 		
 		var data = require(__dirname + '/fixtures/cities.json');
-		var datac = digger.container(data);
+		var datac = Bridge.container(data);
 
 		fs.writeFileSync('/tmp/diggerappendtest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
 		
@@ -254,9 +260,12 @@ describe('simpledb', function(){
 
 		db.url().should.equal('/db3');
 
-		var container = digger.supplychain('/db3', db);
+		var container = Bridge(db).connect('/db3');
 
 		container('city area:first').ship(function(areas, res){
+
+
+
 			res.statusCode.should.equal(200);
 
 			areas.count().should.equal(1);
@@ -266,7 +275,8 @@ describe('simpledb', function(){
 
 			var contract = areas.save();
 
-			contract.getHeader('x-contract-type').should.equal('merge');
+
+			contract.headers['x-contract-type'].should.equal('merge');
 
 			var req = contract.body[0];
 
@@ -274,13 +284,12 @@ describe('simpledb', function(){
 			req.method.should.equal('put');
 
 			contract.ship(function(){
-
 				var db2 = digger.suppliers.simpledb({
 					url:'/db3',
 					file:'/tmp/diggerappendtest.json'
 				})
 
-				var container2 = digger.supplychain('/db3', db2);
+				var container2 = Bridge(db2).connect('/db3');
 
 				/*
 				
@@ -303,7 +312,7 @@ describe('simpledb', function(){
 		
 		var data = require(__dirname + '/fixtures/cities.json');
 
-		var datac = digger.container(data);
+		var datac = Bridge.container(data);
 
 		fs.writeFileSync('/tmp/diggerappendtest.json', JSON.stringify(datac.toJSON(), null, 4), 'utf8');
 		
@@ -314,8 +323,8 @@ describe('simpledb', function(){
 
 		db.url().should.equal('/db3');
 
-		var container = digger.supplychain('/db3', db);
-
+		var container = Bridge(db).connect('/db3');
+		
 		container('city area').ship(function(areas, res){
 			res.statusCode.should.equal(200);
 
@@ -324,7 +333,7 @@ describe('simpledb', function(){
 
 			var contract = areas.eq(3).remove();
 
-			contract.getHeader('x-contract-type').should.equal('merge');
+			contract.headers['x-contract-type'].should.equal('merge');
 
 			var req = contract.body[0];
 
@@ -338,7 +347,7 @@ describe('simpledb', function(){
 					file:'/tmp/diggerappendtest.json'
 				})
 
-				var container2 = digger.supplychain('/db3', db2);
+				var container2 = Bridge(db2).connect('/db3');
 
 				/*
 				
@@ -408,7 +417,7 @@ describe('simpledb', function(){
 			throw new Error('The supplier should have created the folder')
 		}		
 
-		var supplychain = digger.supplychain(supplier);
+		var supplychain = Bridge(supplier);
 
 		var db1 = supplychain.connect('/json/apples');
 		var db2 = supplychain.connect('/json/oranges');
@@ -418,10 +427,10 @@ describe('simpledb', function(){
 			function(next){
 
 				var append = supplychain.merge([
-					db1.append(digger.create('fruit').addClass('apple')),
-					db2.append(digger.create('fruit').addClass('orange'))
+					db1.append(Bridge.container('fruit').addClass('apple')),
+					db2.append(Bridge.container('fruit').addClass('orange'))
 				]).ship(function(){
-					
+
 					fs.existsSync('/tmp/diggersimpletests/apples.json').should.equal(true);
 					fs.existsSync('/tmp/diggersimpletests/oranges.json').should.equal(true);
 
@@ -432,11 +441,12 @@ describe('simpledb', function(){
 			},
 			
 			function(next){
+
 				supplychain.merge([
 					db1('fruit'),
 					db2('fruit')
 				])
-				.expect('digger/containers')
+				.expect('containers')
 				.ship(function(fruit){
 					fruit.count().should.equal(2);
 					fruit.find('.apple').count().should.equal(1);
@@ -472,7 +482,7 @@ describe('simpledb', function(){
 			throw new Error('The supplier should have created the folder')
 		}		
 
-		var supplychain = digger.supplychain(supplier);
+		var supplychain = Bridge(supplier);
 
 		var db1 = supplychain.connect('/json/apples/grannysmith');
 		var db2 = supplychain.connect('/json/oranges/jaffa');
@@ -482,8 +492,8 @@ describe('simpledb', function(){
 			function(next){
 
 				var append = supplychain.merge([
-					db1.append(digger.create('fruit').addClass('apple')),
-					db2.append(digger.create('fruit').addClass('orange'))
+					db1.append(Bridge.container('fruit').addClass('apple')),
+					db2.append(Bridge.container('fruit').addClass('orange'))
 				]).ship(function(){
 					
 					fs.existsSync('/tmp/diggersimpletests/apples/grannysmith.json').should.equal(true);
@@ -500,7 +510,7 @@ describe('simpledb', function(){
 					db1('fruit'),
 					db2('fruit')
 				])
-				.expect('digger/containers')
+				.expect('containers')
 				.ship(function(fruit){
 					fruit.count().should.equal(2);
 					fruit.find('.apple').count().should.equal(1);
@@ -537,7 +547,7 @@ describe('simpledb', function(){
 			throw new Error('The supplier should have created the folder')
 		}		
 
-		var supplychain = digger.supplychain(supplier);
+		var supplychain = Bridge(supplier);
 
 		var db1 = supplychain.connect('/json/apples/grannysmith');
 
@@ -546,7 +556,7 @@ describe('simpledb', function(){
 			function(next){
 
 				db1
-					.append(digger.create('fruit').addClass('apple'))
+					.append(Bridge.container('fruit').addClass('apple'))
 					.ship(function(){
 						next();
 					})
@@ -556,7 +566,7 @@ describe('simpledb', function(){
 			function(next){
 
 				db1
-					.append(digger.create('fruit').addClass('orange'))
+					.append(Bridge.container('fruit').addClass('orange'))
 					.ship(function(){
 						next();
 					})
@@ -602,15 +612,15 @@ describe('simpledb', function(){
 			throw new Error('The supplier should have created the folder')
 		}		
 
-		var supplychain = digger.supplychain('/', supplier);
+		var supplychain = Bridge(supplier);
 
 		var uk = supplychain.connect('/json/uk/fruit');
 		var france = supplychain.connect('/json/france/orchard');
 
-		var ukfruit = digger.create('<folder><fruit name="Apple" class="green" /><fruit name="Pear" class="green" /><fruit name="Orange" class="orange" /></folder>');
-		var francefruit = digger.create('<folder><fruit name="Lime" class="green" /><fruit name="Grape" class="green" /><fruit name="Lemon" class="yellow" /></folder>');
+		var ukfruit = Bridge.container(XML.parse('<folder><fruit name="Apple" class="green" /><fruit name="Pear" class="green" /><fruit name="Orange" class="orange" /></folder>'));
+		var francefruit = Bridge.container(XML.parse('<folder><fruit name="Lime" class="green" /><fruit name="Grape" class="green" /><fruit name="Lemon" class="yellow" /></folder>'));
 
-		var linkfolder = digger.create('folder', {
+		var linkfolder = Bridge.container('folder', {
 			name:'French Fruit'
 		}).addBranch(france)
 
@@ -629,7 +639,10 @@ describe('simpledb', function(){
 					fs.existsSync('/tmp/diggersimpletests/uk/fruit.json').should.equal(true);
 					fs.existsSync('/tmp/diggersimpletests/france/orchard.json').should.equal(true);
 
-					next();
+					setTimeout(function(){
+						next();
+					}, 50)
+					
 				})
 
 				

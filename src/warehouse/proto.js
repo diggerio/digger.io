@@ -25,13 +25,12 @@
  * Module dependencies.
  */
 
-var digger = require('digger');
 
 var utils = require('digger-utils');
 var _ = require('lodash');
 var async = require('async');
 var EventEmitter = require('events').EventEmitter;
-var Container = digger.proto;
+var Container = require('digger-container');
 var Router = require('./router');
 
 // prototype

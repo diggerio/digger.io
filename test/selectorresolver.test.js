@@ -1,6 +1,7 @@
 var digger = require('../src');
 var async = require('async');
 var _ = require('lodash');
+var Bridge = require('digger-bridge');
 
 describe('selectorresolver', function(){
 
@@ -15,7 +16,7 @@ describe('selectorresolver', function(){
       }])
     })
 
-    var container = digger.supplychain(supplier);
+    var container = Bridge(supplier).connect();
 
     container('city').ship(function(cities, res){
       cities.attr('test').should.equal(10);
@@ -50,16 +51,23 @@ describe('selectorresolver', function(){
       select_query.context[1].diggerid.should.equal(36);
       select_query.selector.modifier.laststep.should.equal(true);
 
-      promise.resolve(56);
+      promise.resolve([{
+        _digger:{
+          tag:'caption',
+          diggerid:493
+        }
+      }]);
     })
 
-    var req = digger.request({
+    var req = Bridge.request({
       method:'get',
       url:'/product/caption'
     })
 
-    var res = digger.response(function(){
-      res.body[0].data.should.equal(56);
+    var res = Bridge.response(function(){
+
+      res.body[0]._digger.diggerid.should.equal(493);
+      
       done();
     })
 

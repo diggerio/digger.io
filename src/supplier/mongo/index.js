@@ -137,7 +137,7 @@ var operator_functions = {
 }
 
 function filterterm(term){
-  if(term['$or'] || term['$and']){
+  if(term.$or || term.$and){
     return true;
   }
   return operator_functions[term.operator] ? true : false;
@@ -151,12 +151,12 @@ function processterm(term){
     }
   }
   else{
-    if(term['$or']){
-      term['$or'] = _.map(term['$or'], processterm);
+    if(term.$or){
+      term.$or = _.map(term.$or, processterm);
       return term;
     }
-    else if(term['$and']){
-      term['$and'] = _.map(term['$and'], processterm);
+    else if(term.$and){
+      term.$and = _.map(term.$and, processterm);
       return term;
     }
     else{

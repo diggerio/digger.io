@@ -3,6 +3,8 @@ var data = require('./fixtures/data');
 var async = require('async');
 var fs = require('fs');
 var wrench = require('wrench');
+var XML = require('digger-xml');
+var Bridge = require('digger-bridge');
 
 describe('reception', function(){
 
@@ -27,7 +29,7 @@ describe('reception', function(){
 			throw new Error('The supplier should have created the folder')
 		}		
 
-		var supplychain = digger.supplychain('/', reception);
+		var supplychain = Bridge(reception);
 
 		/*
 		
@@ -37,10 +39,10 @@ describe('reception', function(){
 		var uk = supplychain.connect('/json/uk/fruit');
 		var france = supplychain.connect('/json/france/orchard');
 
-		var ukfruit = digger.create('<folder><fruit name="Apple" class="green" /><fruit name="Pear" class="green" /><fruit name="Orange" class="orange" /></folder>');
-		var francefruit = digger.create('<folder><fruit name="Lime" class="green" /><fruit name="Grape" class="green" /><fruit name="Lemon" class="yellow" /></folder>');
+		var ukfruit = Bridge.container(XML.parse('<folder><fruit name="Apple" class="green" /><fruit name="Pear" class="green" /><fruit name="Orange" class="orange" /></folder>'));
+		var francefruit = Bridge.container(XML.parse('<folder><fruit name="Lime" class="green" /><fruit name="Grape" class="green" /><fruit name="Lemon" class="yellow" /></folder>'));
 
-		var linkfolder = digger.create('folder', {
+		var linkfolder = Bridge.container('folder', {
 			name:'French Fruit'
 		}).addBranch(france)
 

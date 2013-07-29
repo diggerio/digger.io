@@ -1,6 +1,7 @@
 var digger = require('../src');
 var data = require('./fixtures/data');
 var async = require('async');
+var Bridge = require('digger-bridge');
 
 describe('nestedset supplier', function(){
 
@@ -19,11 +20,11 @@ describe('nestedset supplier', function(){
       promise.resolve();
     })
 
-    req = digger.request({
+    req = Bridge.request({
       method:'get'
     })
 
-    var res = digger.response(true);
+    var res = Bridge.response(true);
     res.on('success', function(){
       done();
     })
@@ -63,7 +64,7 @@ describe('nestedset supplier', function(){
       promise.resolve(45);
     })
     
-    var req = digger.request({
+    var req = Bridge.request({
       url:'/select',
       method:'post',
       headers:{
@@ -90,7 +91,7 @@ describe('nestedset supplier', function(){
       }]
     })
 
-    var res = digger.response(function(){
+    var res = Bridge.response(function(){
       res.body[0].data.should.equal(45);
       done();
     })

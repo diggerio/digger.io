@@ -18,11 +18,12 @@
 
 var _ = require('lodash');
 var async = require('async');
-var digger = require('digger');
 
-var Request = digger.request;
-var Response = digger.response;
-var Contract = digger.contract;
+var Network = require('digger-network');
+
+var Request = Network.request;
+var Response = Network.response;
+var Contract = Network.contract;
 
 var EventEmitter = require('events').EventEmitter;
 //var debug = require('debug')('contractresolver');
@@ -59,17 +60,17 @@ function factory(supplychain){
   resolver.merge = function(req, res, next){
     
     var branches = [];
-
+    
     //debug('merge contract');
     async.forEach(req.body || [], function(raw, next){
+
+
       var contract_req = Request(raw);
       var contract_res = Response(function(){
         res.add(contract_res);
         branches = branches.concat(contract_res.getHeader('x-json-branches') || []);
         next();
       })
-
-
 
       req.inject(contract_req);      
 
@@ -85,7 +86,7 @@ function factory(supplychain){
         */
         var branch_req = Contract('merge');
         branch_req.method = 'post';
-        branch_req.url = 'reception:/';
+        branch_req.url = '/reception';
         branch_req.body = branches;
 
         var branch_res = Response(function(){

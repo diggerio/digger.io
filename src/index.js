@@ -33,53 +33,24 @@ var path = require('path');
   include the core container lib
   
 */
-var digger = require('digger');
 
 var exports = module.exports = {
 
   version:require(__dirname + '/../package.json').version,
 
-  /*
-  
-    export utils for supplier modules
-    
-  */
-  utils:require('digger-utils'),
-  
-  /*
-  
-    container
 
-    client framework
-    
-  */
-	container:digger.container,
-  proto:digger.proto,
-  create:digger.container,
-  selector:digger.selector,
+  client:function(warehouse){
+    return Client(function(request, reply){
+      var server_req = Request(request);
+      var server_res = Response(function(r){
+        reply(null, server_res.toJSON());
+      })
 
-  /*
-  
-    network
+      warehouse(server_req, server_res);
+    })
+  },
 
-    messaging framework
-    
-  */
-  promise:digger.promise,
-  request:digger.request,//require('./request/request').factory,
-  response:digger.response,//require('./request/response').factory,
-  contract:digger.contract,//require('./request/contract').factory,
-  pipe:digger.pipe,//require('./request/async').pipe,
-  merge:digger.merge,//require('./request/async').merge,
-  series:digger.series,//require('./request/async').series,
-  parallel:digger.parallel,//require('./request/async').merge,
 
-  /*
-  
-    the supplychain is the client side link back to the reception/warehouses
-    
-  */
-  supplychain:digger.supplychain,
 
   /*
   
@@ -113,11 +84,20 @@ var exports = module.exports = {
     contractresolver:require('./middleware/contractresolver'),
     selectresolver:require('./middleware/selectresolver')
   },
+
+  /*
+  
+    tools used for any digger supplier
+    
+  */
+  mixins:{
+    fileprovisioner:require('./mixins/fileprovisioner')
+  },
   
   
   /*
   
-    suppliers
+    suppliers - these should be elsewhere
     
     database connectors
 

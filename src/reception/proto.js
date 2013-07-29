@@ -21,9 +21,7 @@ var utils = require('digger-utils');
 var _ = require('lodash');
 var async = require('async');
 var EventEmitter = require('events').EventEmitter;
-var digger = require('digger');
 
-var Container = digger.create;
 var Warehouse = require('../warehouse/proto').factory;
 
 var ContractResolver = require('../middleware/contractresolver');
@@ -54,7 +52,7 @@ Reception.factory = function(settings){
 		we keep a container that can connect to radio to control this supplier remotely
 		
 	*/
-	reception.settings = Container(settings);
+	reception.settings = settings;
 
 	reception.use(contractresolver);
 

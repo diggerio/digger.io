@@ -1,6 +1,7 @@
 var digger = require('../src');
 var data = require('./fixtures/data');
 var async = require('async');
+var Bridge = require('digger-bridge');
 
 describe('supplier', function(){
 
@@ -36,8 +37,8 @@ describe('supplier', function(){
         })
       })
 
-      req = digger.request(req);
-      var res = digger.response(true);
+      req = Bridge.request(req);
+      var res = Bridge.response(true);
 
       res.on('success', callbackfn);
       res.on('failure', function(error){
@@ -136,8 +137,8 @@ describe('supplier', function(){
         })
       })
 
-      req = digger.request(req);
-      var res = digger.response(true);
+      req = Bridge.request(req);
+      var res = Bridge.response(true);
 
       res.on('success', callbackfn);
       res.on('failure', function(error){
@@ -196,12 +197,12 @@ describe('supplier', function(){
       })
     })
 
-    req = digger.request({
+    req = Bridge.request({
       url:'/product.onsale.test',
       method:'get'
     })
 
-    var res = digger.response(true);
+    var res = Bridge.response(true);
 
     res.on('success', function(){
       res.body.should.be.a('array');
@@ -233,12 +234,12 @@ describe('supplier', function(){
       })
     })
 
-    req = digger.request({
+    req = Bridge.request({
       url:'/product.onsale.test',
       method:'get'
     })
 
-    var res = digger.response(true);
+    var res = Bridge.response(true);
 
     res.on('success', function(){
       res.getHeader('content-type').should.equal('digger/containers');
@@ -255,7 +256,7 @@ describe('supplier', function(){
   it('should pass the request as part of the query and emit events for each', function(done) {
 
     var supplier = digger.supplier();
-    var supplychain = digger.supplychain(supplier);
+    var supplychain = Bridge(supplier).connect();
 
     var hitevents = {};
 
@@ -324,7 +325,7 @@ describe('supplier', function(){
 
       function(next){
 
-        var appendcontainer = digger.create('appendtest', {
+        var appendcontainer = Bridge.container('appendtest', {
           title:'test'
         })
 
@@ -374,12 +375,12 @@ describe('supplier', function(){
       })
     })
 
-    req = digger.request({
+    req = Bridge.request({
       url:'/product.onsale.test',
       method:'get'
     })
 
-    var res = digger.response(true);
+    var res = Bridge.response(true);
 
     res.on('success', function(){
       res.getHeader('content-type').should.equal('digger/containers');
@@ -422,13 +423,13 @@ describe('supplier', function(){
       promise.resolve(45);
     })
 
-    req = digger.request({
+    req = Bridge.request({
       method:'post',
       url:'/12345',
       body:20
     })
 
-    var res = digger.response(true);
+    var res = Bridge.response(true);
     res.on('success', function(answer){
       answer.should.equal(45);
       done();
@@ -466,7 +467,7 @@ describe('supplier', function(){
       promise.resolve(45);      
     })
 
-    req = digger.request({
+    req = Bridge.request({
       method:'put',
       url:'/12345',
       body:20
@@ -474,7 +475,7 @@ describe('supplier', function(){
 
     req.setHeader('x-debug', true);
 
-    var res = digger.response(true);
+    var res = Bridge.response(true);
     res.on('success', function(answer){
       answer.should.equal(45);
       done();
@@ -506,13 +507,13 @@ describe('supplier', function(){
       promise.resolve(45);
     })
 
-    req = digger.request({
+    req = Bridge.request({
       method:'delete',
       url:'/12345',
       body:20
     })
 
-    var res = digger.response(true);
+    var res = Bridge.response(true);
     res.on('success', function(answer){
       answer.should.equal(45);
       done();
@@ -564,13 +565,13 @@ describe('supplier', function(){
 
     async.series([
       function(next){
-        var req = digger.request({
+        var req = Bridge.request({
           method:'post',
           url:'/12345',
           body:20
         })
 
-        var res = digger.response(true);
+        var res = Bridge.response(true);
         res.on('success', function(answer){
           answer.should.equal(45);
           next();
@@ -581,13 +582,13 @@ describe('supplier', function(){
 
       function(next){
 
-        var req = digger.request({
+        var req = Bridge.request({
           method:'put',
           url:'/12345',
           body:20
         })
 
-        var res = digger.response(true);
+        var res = Bridge.response(true);
         res.on('success', function(answer){
           answer.should.equal(46);
           next();
@@ -598,12 +599,12 @@ describe('supplier', function(){
 
       function(next){
 
-        var req = digger.request({
+        var req = Bridge.request({
           method:'delete',
           url:'/12345'
         })
 
-        var res = digger.response(true);
+        var res = Bridge.response(true);
         res.on('success', function(answer){
 
           answer.should.equal(47);
@@ -655,12 +656,12 @@ describe('supplier', function(){
       })
     })
 
-    req = digger.request({
+    req = Bridge.request({
       url:'/product/caption',
       method:'get'
     })
 
-    var res = digger.response(true);
+    var res = Bridge.response(true);
 
     res.on('success', function(){
       res.getHeader('content-type').should.equal('digger/containers');
@@ -685,7 +686,7 @@ describe('supplier', function(){
       })
     })
 
-    var supplychain = digger.supplychain('/some/place', supplier);
+    var supplychain = Bridge(supplier).connect('/some/place');
 
     supplychain('apples.test').ship(function(apples, res){
       apples.count().should.equal(1);
@@ -718,8 +719,8 @@ describe('supplier', function(){
       promise.resolve(data);
     })
 
-    var supplychain = digger.supplychain(supplier);
-    var test = digger.create('thing');
+    var supplychain = Bridge(supplier).connect();
+    var test = Bridge.container('thing');
     supplychain.append(test).ship(function(){
       test.attr('fromdb').should.equal(3435);
       done()
@@ -743,7 +744,7 @@ describe('supplier', function(){
       
     })
 
-    var supplychain = digger.supplychain('/api/database/binocarlos/hello', supplier);
+    var supplychain = Bridge(supplier).connect('/api/database/binocarlos/hello');
 
     supplychain('thing').debug().ship(function(things){
 
@@ -763,23 +764,23 @@ describe('supplier', function(){
       var selector = select_query.selector;
 
       if(selector.tag=='this'){
-        promise.resolve({
+        promise.resolve([{
           _digger:{
             diggerid:4345,
             tag:'thing',
             diggerbranch:['/api/database/4534346']
           },
           name:'Test'
-        })  
+        }])  
       }
       else{
-        promise.resolve({
+        promise.resolve([{
           _digger:{
             diggerid:123,
             tag:'thingy'
           },
           name:'Test2'
-        })
+        }])
       }
       
     })
@@ -789,15 +790,17 @@ describe('supplier', function(){
       branch.headers['x-branch-to'].should.equal('/api/database/4534346');
     })
 
-    var supplychain = digger.supplychain('/api/database', supplier);
+    var supplychain = Bridge(supplier).connect('/api/database');
 
     supplychain('this that').ship(function(things, res){
 
-      var branches = res.getHeader('x-json-branches');
+
+      var branches = res.success[0].headers['x-json-branches'];
+
       branches.length.should.equal(1);
       branches[0].headers['x-branch-from'].should.equal('/api/database/4345');
       branches[0].headers['x-branch-to'].should.equal('/api/database/4534346');
-      branches[0].headers['x-json-selector-strings'][0].phases[0][0].tag.should.equal('that');
+      branches[0].body.selectors[0].phases[0][0].tag.should.equal('that');
       done();
 
     })

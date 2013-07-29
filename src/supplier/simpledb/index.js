@@ -21,11 +21,11 @@
   
   
 */
-var digger = require('digger');
 var _ = require('lodash');
 var BaseSupplier = require('../proto').factory;
-var FileProvisioner = require('../fileprovisioner');
-var Container = digger.create;
+var FileProvisioner = require('../../mixins/fileprovisioner');
+
+var Container = require('digger-container');
 var async = require('async');
 var fs = require('fs');
 var path = require('path');
@@ -157,6 +157,7 @@ function factory(options){
       var selector = select_query.selector;
       var results;
 
+
       if(selector.tag==='self'){
         results = context;
       }
@@ -174,8 +175,16 @@ function factory(options){
         }])
       }
 
-      //results
-      promise.resolve(results.toJSON());
+      /*
+      
+        stringify the results so we are not passing around references
+        
+      */
+      process.nextTick(function(){
+        //results
+        promise.resolve(JSON.parse(JSON.stringify(results.toJSON())));
+      })
+      
     })
   })
 
@@ -188,7 +197,6 @@ function factory(options){
   */
   supplier.append(function(append_query, promise){
 
-
     var filepath = supplier.get_filepath(append_query.req.getHeader('x-json-resource'))
 
     load_container(filepath, function(error, rootcontainer){
@@ -198,7 +206,8 @@ function factory(options){
         return;
       }
 
-      var append_to = append_query.target ? rootcontainer.spawn(append_query.target) : rootcontainer;
+//      var append_to = append_query.target ? rootcontainer.spawn(append_query.target) : rootcontainer;
+      var append_to = append_query.target ? rootcontainer.find('=' + append_query.target._digger.diggerid) : rootcontainer;
       var append_what = rootcontainer.spawn(append_query.body);
 
       /*
@@ -277,6 +286,14 @@ function factory(options){
         return;
       }
 
+      var save_to = {};
+
+
+      if(save_query.target){
+        var target = rootcontainer.find('=' + save_query.target._digger.diggerid);
+        save_to = target.get(0) || {};
+      }
+
       var data = save_query.body;
       /*
       
@@ -284,8 +301,10 @@ function factory(options){
         
       */
       _.each(data, function(val, key){
-        save_query.target[key] = data[key];
+        save_to[key] = data[key];
       })
+
+
 
       rootcontainer.savefile(function(error){
         if(error){
@@ -318,8 +337,11 @@ function factory(options){
         promise.reject('file not found');
         return;
       }
-      
-      var target = rootcontainer.spawn(remove_query.target);
+
+
+
+      var target = rootcontainer.find('=' + remove_query.target._digger.diggerid);
+      //var target = rootcontainer.spawn(remove_query.target);
       var parent = rootcontainer;
 
       if(target.diggerparentid()){
@@ -328,7 +350,7 @@ function factory(options){
 
       parent.get(0)._children = _.filter(parent.get(0)._children, function(model){
         return model._digger.diggerid!=target.diggerid();
-      })
+      })      
 
       rootcontainer.savefile(function(error){
         if(error){

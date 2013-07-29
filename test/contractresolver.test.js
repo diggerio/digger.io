@@ -2,6 +2,8 @@ var digger = require('../src');
 var async = require('async');
 var _ = require('lodash');
 
+var Bridge = require('digger-bridge');
+
 describe('contractresolver', function(){
 
 
@@ -22,14 +24,14 @@ describe('contractresolver', function(){
       res.send(answer);
     })
 
-    var contract = digger.contract('pipe');
+    var contract = Bridge.contract('pipe');
 
-    var req1 = digger.request({
+    var req1 = Bridge.request({
       method:'post',
       url:'/apples'
     })
 
-    var req2 = digger.request({
+    var req2 = Bridge.request({
       method:'post',
       url:'/oranges'
     })
@@ -37,9 +39,8 @@ describe('contractresolver', function(){
     contract.add(req1);
     contract.add(req2);
 
-    var res = digger.response(function(){
+    var res = Bridge.response(function(){
       res.statusCode.should.equal(200);
-      res.body.should.be.a('array');
       res.body.length.should.equal(2);
       res.body[0].should.equal(2);
       res.body[1].should.equal(4);
@@ -62,14 +63,14 @@ describe('contractresolver', function(){
       res.send([3,4]);
     })
 
-    var contract = digger.contract('merge');
+    var contract = Bridge.contract('merge');
 
-    var req1 = digger.request({
+    var req1 = Bridge.request({
       method:'get',
       url:'/apples'
     })
 
-    var req2 = digger.request({
+    var req2 = Bridge.request({
       method:'get',
       url:'/oranges'
     })
@@ -77,11 +78,10 @@ describe('contractresolver', function(){
     contract.add(req1);
     contract.add(req2);
 
-    var res = digger.response(true);
+    var res = Bridge.response(true);
 
     res.on('success', function(results){
       res.statusCode.should.equal(200);
-      results.should.be.a('array');
       results.length.should.equal(4);
       results[1].should.equal(2);
       results[3].should.equal(4);
@@ -118,14 +118,14 @@ describe('contractresolver', function(){
       res.send([3,4]);
     })
 
-    var contract = digger.contract('sequence');
+    var contract = Bridge.contract('sequence');
 
-    var req1 = digger.request({
+    var req1 = Bridge.request({
       method:'get',
       url:'/apples'
     })
 
-    var req2 = digger.request({
+    var req2 = Bridge.request({
       method:'post',
       url:'/oranges',
       body:123
@@ -134,11 +134,10 @@ describe('contractresolver', function(){
     contract.add(req1);
     contract.add(req2);
 
-    var res = digger.response(true);
+    var res = Bridge.response(true);
 
     res.on('success', function(results){
       res.statusCode.should.equal(200);
-      results.should.be.a('array');
       results.length.should.equal(2);
       results[0].should.equal(3);
       results[1].should.equal(4);

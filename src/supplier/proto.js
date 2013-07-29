@@ -20,16 +20,17 @@
 var utils = require('digger-utils');
 var _ = require('lodash');
 var async = require('async');
-var digger = require('digger');
 
 var EventEmitter = require('events').EventEmitter;
 
-var Container = digger.create;
-var ParseSelector = digger.selector;
+var Container = require('digger-container');
+var ParseSelector = require('digger-selector');
 
-var Promise = digger.promise;
-var Request = digger.request;
-var Response = digger.response;
+var Network = require('digger-network');
+
+var Promise = Network.promise;
+var Request = Network.request;
+var Response = Network.response;
 
 var Warehouse = require('../warehouse/proto').factory;
 var ContractResolver = require('../middleware/contractresolver');
@@ -509,8 +510,8 @@ Supplier.factory = function(settings){
 					var selector_request = Request({
 						method:'post',
 						url:'/resolve',
-						headers:{
-							'x-json-selector-strings':strings
+						body:{
+							selectors:strings
 						}
 					})
 

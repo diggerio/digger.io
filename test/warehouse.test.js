@@ -1,5 +1,6 @@
 var digger = require('../src');
 var data = require('./fixtures/data');
+var Bridge = require('digger-bridge');
 
 describe('warehouse', function(){
 
@@ -23,14 +24,14 @@ describe('warehouse', function(){
       res.send(req.query.data);
     })
 
-    var req = digger.request({
+    var req = Bridge.request({
       method:'get',
       query:{
         data:10
       }
     })
 
-    var res = digger.response(function(data){
+    var res = Bridge.response(function(data){
       data.should.equal(10);
       done();
     })
@@ -54,11 +55,11 @@ describe('warehouse', function(){
       res.send(10);
     })
 
-    var req = digger.request({
+    var req = Bridge.request({
       method:'get'
     })
 
-    var res = digger.response(function(data){
+    var res = Bridge.response(function(data){
       data.should.equal(10);
       done();
     })
@@ -78,12 +79,12 @@ describe('warehouse', function(){
       res.send(req.body);
     })
 
-    var req = digger.request({
+    var req = Bridge.request({
       method:'post',
       body:10
     })
 
-    var res = digger.response(function(data){
+    var res = Bridge.response(function(data){
       data.should.equal(10);
       done();
     })
@@ -102,13 +103,13 @@ describe('warehouse', function(){
       res.send(req.body + 15);
     })
 
-    var req = digger.request({
+    var req = Bridge.request({
       method:'get',
       url:'zmq://warehouse.digger/another/path/123/dig',
       body:10
     })
 
-    var res = digger.response(function(data){
+    var res = Bridge.response(function(data){
       data.should.equal(25);
       done();
     })
@@ -127,13 +128,13 @@ describe('warehouse', function(){
       res.send(10);
     })
 
-    var req = digger.request({
+    var req = Bridge.request({
       method:'get',
       url:'zmq://warehouse.digger/another/path',
       body:10
     })
 
-    var res = digger.response(function(data){
+    var res = Bridge.response(function(data){
       data.should.equal(10);
       done();
     })
@@ -151,12 +152,12 @@ describe('warehouse', function(){
 
     warehouse.use('/a/toppath', subwarehouse);
 
-    var req = digger.request({
+    var req = Bridge.request({
       method:'get',
       url:'axon://warehouse.digger/a/toppath/123'
     })
 
-    var res = digger.response(function(data){
+    var res = Bridge.response(function(data){
       data.should.equal('/123');
       done();
     })
@@ -178,12 +179,12 @@ describe('warehouse', function(){
       done();
     })
 
-    var req = digger.request({
+    var req = Bridge.request({
       method:'get',
       url:'axon://warehouse.digger/a/toppath/123'
     })
 
-    var res = digger.response(function(data){
+    var res = Bridge.response(function(data){
       hitreq.should.equal(true);
     })
 
@@ -198,12 +199,12 @@ describe('warehouse', function(){
       res.send('ok');
     })
 
-    var req = digger.request({
+    var req = Bridge.request({
       method:'get',
       url:'axon://warehouse.digger/somewhere/124'
     })
 
-    var res = digger.response(true);
+    var res = Bridge.response(true);
 
     res.on('success', function(){
       throw new Error('should not happen');
@@ -228,12 +229,12 @@ describe('warehouse', function(){
       done();
     })
 
-    var req = digger.request({
+    var req = Bridge.request({
       method:'get',
       url:'/'
     })
 
-    var res = digger.response(true);
+    var res = Bridge.response(true);
 
     warehouse(req, res);
   })

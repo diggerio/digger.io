@@ -24,11 +24,11 @@
     "wrench": "~1.5.1",
     "rationalnestedset": "~0.0.2",
     "digger-network": "~0.0.1",
-    "digger-container": "~0.0.1",
-    "digger-selector": "0.0.6",
-    "digger-xml": "0.0.1"
+    "digger-container": "~0.0.14",
+    "digger-selector": "~0.0.6"
   },
   "devDependencies": {
+    "digger-xml": "~0.0.1",
     "digger-bridge": "~0.0.1",
     "grunt": "~0.4.1",
     "grunt-contrib-jshint": "~0.4.1",
